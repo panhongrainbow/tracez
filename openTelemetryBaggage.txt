@@ -1,0 +1,205 @@
+{
+	"Name": "functionBSpan",
+	"SpanContext": {
+		"TraceID": "e01a333aaf0625e59d90bb1d25956980",
+		"SpanID": "2f0dc6fd6d202692",
+		"TraceFlags": "01",
+		"TraceState": "",
+		"Remote": false
+	},
+	"Parent": {
+		"TraceID": "e01a333aaf0625e59d90bb1d25956980",
+		"SpanID": "f603747db84b7755",
+		"TraceFlags": "01",
+		"TraceState": "",
+		"Remote": false
+	},
+	"SpanKind": 1,
+	"StartTime": "2023-05-09T11:50:04.617568717+08:00",
+	"EndTime": "2023-05-09T11:50:05.618657314+08:00",
+	"Attributes": null,
+	"Events": null,
+	"Links": null,
+	"Status": {
+		"Code": "Unset",
+		"Description": ""
+	},
+	"DroppedAttributes": 0,
+	"DroppedEvents": 0,
+	"DroppedLinks": 0,
+	"ChildSpanCount": 0,
+	"Resource": [
+		{
+			"Key": "service.name",
+			"Value": {
+				"Type": "STRING",
+				"Value": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetryBaggage"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.language",
+			"Value": {
+				"Type": "STRING",
+				"Value": "go"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.name",
+			"Value": {
+				"Type": "STRING",
+				"Value": "opentelemetry"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.version",
+			"Value": {
+				"Type": "STRING",
+				"Value": "1.15.0-rc.2"
+			}
+		}
+	],
+	"InstrumentationLibrary": {
+		"Name": "functionBTracer",
+		"Version": "",
+		"SchemaURL": ""
+	}
+}
+{
+	"Name": "functionASpan",
+	"SpanContext": {
+		"TraceID": "e01a333aaf0625e59d90bb1d25956980",
+		"SpanID": "f603747db84b7755",
+		"TraceFlags": "01",
+		"TraceState": "",
+		"Remote": false
+	},
+	"Parent": {
+		"TraceID": "e01a333aaf0625e59d90bb1d25956980",
+		"SpanID": "78f8a2a84d4c07a0",
+		"TraceFlags": "01",
+		"TraceState": "",
+		"Remote": false
+	},
+	"SpanKind": 1,
+	"StartTime": "2023-05-09T11:50:04.617554067+08:00",
+	"EndTime": "2023-05-09T11:50:05.618736675+08:00",
+	"Attributes": null,
+	"Events": null,
+	"Links": null,
+	"Status": {
+		"Code": "Unset",
+		"Description": ""
+	},
+	"DroppedAttributes": 0,
+	"DroppedEvents": 0,
+	"DroppedLinks": 0,
+	"ChildSpanCount": 1,
+	"Resource": [
+		{
+			"Key": "service.name",
+			"Value": {
+				"Type": "STRING",
+				"Value": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetryBaggage"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.language",
+			"Value": {
+				"Type": "STRING",
+				"Value": "go"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.name",
+			"Value": {
+				"Type": "STRING",
+				"Value": "opentelemetry"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.version",
+			"Value": {
+				"Type": "STRING",
+				"Value": "1.15.0-rc.2"
+			}
+		}
+	],
+	"InstrumentationLibrary": {
+		"Name": "functionATracer",
+		"Version": "",
+		"SchemaURL": ""
+	}
+}
+{
+	"Name": "mainSpan",
+	"SpanContext": {
+		"TraceID": "e01a333aaf0625e59d90bb1d25956980",
+		"SpanID": "78f8a2a84d4c07a0",
+		"TraceFlags": "01",
+		"TraceState": "",
+		"Remote": false
+	},
+	"Parent": {
+		"TraceID": "00000000000000000000000000000000",
+		"SpanID": "0000000000000000",
+		"TraceFlags": "00",
+		"TraceState": "",
+		"Remote": false
+	},
+	"SpanKind": 1,
+	"StartTime": "2023-05-09T11:50:04.617535467+08:00",
+	"EndTime": "2023-05-09T11:50:05.618752261+08:00",
+	"Attributes": null,
+	"Events": [
+		{
+			"Name": "mainEvent",
+			"Attributes": null,
+			"DroppedAttributeCount": 0,
+			"Time": "2023-05-09T11:50:05.618747935+08:00"
+		}
+	],
+	"Links": null,
+	"Status": {
+		"Code": "Unset",
+		"Description": ""
+	},
+	"DroppedAttributes": 0,
+	"DroppedEvents": 0,
+	"DroppedLinks": 0,
+	"ChildSpanCount": 1,
+	"Resource": [
+		{
+			"Key": "service.name",
+			"Value": {
+				"Type": "STRING",
+				"Value": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetryBaggage"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.language",
+			"Value": {
+				"Type": "STRING",
+				"Value": "go"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.name",
+			"Value": {
+				"Type": "STRING",
+				"Value": "opentelemetry"
+			}
+		},
+		{
+			"Key": "telemetry.sdk.version",
+			"Value": {
+				"Type": "STRING",
+				"Value": "1.15.0-rc.2"
+			}
+		}
+	],
+	"InstrumentationLibrary": {
+		"Name": "mainTracer",
+		"Version": "",
+		"SchemaURL": ""
+	}
+}

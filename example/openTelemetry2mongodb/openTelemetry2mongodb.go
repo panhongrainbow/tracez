@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.opentelemetry.io/otel"
@@ -25,12 +25,66 @@ func NewMongowriter(collection *mongo.Collection) io.Writer {
 	return &mongowriter{collection: collection}
 }
 
+// tracingData struct represents a distributed tracing document
+type tracingData struct {
+	Name        string `json:"Name"`
+	SpanContext struct {
+		TraceID    string `json:"TraceID"`
+		SpanID     string `json:"SpanID"`
+		TraceFlags string `json:"TraceFlags"`
+		TraceState string `json:"TraceState"`
+		Remote     bool   `json:"Remote"`
+	} `json:"SpanContext"`
+	Parent struct {
+		TraceID    string `json:"TraceID"`
+		SpanID     string `json:"SpanID"`
+		TraceFlags string `json:"TraceFlags"`
+		TraceState string `json:"TraceState"`
+		Remote     bool   `json:"Remote"`
+	} `json:"Parent"`
+	SpanKind   int       `json:"SpanKind"`
+	StartTime  time.Time `json:"StartTime"`
+	EndTime    time.Time `json:"EndTime"`
+	Attributes any       `json:"Attributes"`
+	Events     []struct {
+		Name                  string    `json:"Name"`
+		Attributes            any       `json:"Attributes"`
+		DroppedAttributeCount int       `json:"DroppedAttributeCount"`
+		Time                  time.Time `json:"Time"`
+	} `json:"Events"`
+	Links  any `json:"Links"`
+	Status struct {
+		Code        string `json:"Code"`
+		Description string `json:"Description"`
+	} `json:"Status"`
+	DroppedAttributes int `json:"DroppedAttributes"`
+	DroppedEvents     int `json:"DroppedEvents"`
+	DroppedLinks      int `json:"DroppedLinks"`
+	ChildSpanCount    int `json:"ChildSpanCount"`
+	Resource          []struct {
+		Key   string `json:"Key"`
+		Value struct {
+			Type  string `json:"Type"`
+			Value string `json:"Value"`
+		} `json:"Value"`
+	} `json:"Resource"`
+	InstrumentationLibrary struct {
+		Name      string `json:"Name"`
+		Version   string `json:"Version"`
+		SchemaURL string `json:"SchemaURL"`
+	} `json:"InstrumentationLibrary"`
+}
+
 // Write implements the io.Writer interface
 func (w *mongowriter) Write(p []byte) (int, error) {
+	var data tracingData
+	err := json.Unmarshal(p, &data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Insert document into MongoDB collection
-	_, err := w.collection.InsertOne(context.TODO(), bson.M{
-		"data": string(p),
-	})
+	_, err = w.collection.InsertOne(context.TODO(), data)
 	if err != nil {
 		return 0, err
 	}
