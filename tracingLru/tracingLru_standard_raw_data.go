@@ -1,6 +1,8 @@
 package tracingLru
 
 import (
+	"fmt"
+	"github.com/panhongrainbow/tracez/model"
 	"math/rand"
 	"time"
 )
@@ -141,5 +143,45 @@ func MockStandardRelationshipIDs(rawSpanIDs []string) (relationshipIDs []string)
 		}
 		relationshipIDs[i] = rawSpanIDs[num]
 	}
+	return
+}
+
+func MockStandardRawData(rawSpanIDs, relationshipIDs []string) (raw []model.TracingData) {
+	raw = make([]model.TracingData, len(rawSpanIDs), len(rawSpanIDs))
+	for i := 0; i < len(rawSpanIDs); i++ {
+		raw[i].SpanContext.SpanID = rawSpanIDs[i]
+		raw[i].Parent.SpanID = relationshipIDs[i]
+		if raw[i].SpanContext.SpanID == raw[i].Parent.SpanID {
+			raw[i].Parent.SpanID = "0000000000000000"
+		}
+	}
+	return
+}
+
+func Root(raw []model.TracingData) (root *Node) {
+	var tracingLruMap = make(map[string]*Node, len(raw))
+
+	root = new(Node)
+	root.SpanID = "root"
+
+	for i := 0; i < len(raw); i++ {
+		currentID := raw[i].SpanContext.SpanID
+		currentParentID := raw[i].Parent.SpanID
+
+		tracingLruMap[currentID] = &Node{
+			SpanID: currentID,
+			Data:   raw[i],
+		}
+
+		if currentParentID != "0000000000000000" {
+			tracingLruMap[currentID].Parent = tracingLruMap[currentParentID]
+		} else {
+			tracingLruMap[currentID].Parent = root
+			fmt.Println(currentID)
+		}
+
+		tracingLruMap[currentID].Parent.Children = append(tracingLruMap[currentID].Parent.Children, tracingLruMap[currentID])
+	}
+
 	return
 }

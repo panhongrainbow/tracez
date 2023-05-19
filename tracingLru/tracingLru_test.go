@@ -1,6 +1,7 @@
 package tracingLru
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -23,4 +24,9 @@ func Test_Race_MockRelationshipIDs(t *testing.T) {
 			require.Less(t, index[i], i)
 		}
 	}
+
+	raw := MockStandardRawData(rawSpanIDs, relationshipIDs)
+
+	root := Root(raw)
+	fmt.Println(root)
 }
