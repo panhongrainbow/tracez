@@ -27,6 +27,10 @@ func Test_Race_MockRelationshipIDs(t *testing.T) {
 
 	raw := MockStandardRawData(rawSpanIDs, relationshipIDs)
 
-	root := Root(raw)
-	fmt.Println(root)
+	for i := 0; i < len(raw); i++ {
+		fmt.Println(raw[i].SpanContext.SpanID, "/", raw[i].SpanContext.TraceID)
+	}
+
+	info := NewInfo(raw)
+	fmt.Println(info)
 }

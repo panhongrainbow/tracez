@@ -1,7 +1,6 @@
 package tracingLru
 
 import (
-	"fmt"
 	"github.com/panhongrainbow/tracez/model"
 	"math/rand"
 	"time"
@@ -146,41 +145,82 @@ func MockStandardRelationshipIDs(rawSpanIDs []string) (relationshipIDs []string)
 	return
 }
 
+// the percentage of being a new trace is 10%.
+var percentageNewTrace = 30
+
 func MockStandardRawData(rawSpanIDs, relationshipIDs []string) (raw []model.TracingData) {
+	// Create an empty TracingData slice with the same length as rawSpanIDs
 	raw = make([]model.TracingData, len(rawSpanIDs), len(rawSpanIDs))
+
+	// Iterate rawSpanIDs
 	for i := 0; i < len(rawSpanIDs); i++ {
-		raw[i].SpanContext.SpanID = rawSpanIDs[i]
+		// Fill in the tracing test data by using the previous relationship configure.
 		raw[i].Parent.SpanID = relationshipIDs[i]
-		if raw[i].SpanContext.SpanID == raw[i].Parent.SpanID {
+		raw[i].SpanContext.SpanID = rawSpanIDs[i]
+
+		// Create the source span ID
+		if raw[i].Parent.SpanID == raw[i].SpanContext.SpanID {
+			raw[i].Parent.TraceID = "00000000000000000000000000000000"
 			raw[i].Parent.SpanID = "0000000000000000"
 		}
+
+		// If within the probability, generate a new TraceID, otherwise inherit the TraceID of the Parent node.
+		// (如果在概率内,就产生新的 TraceID,否则就继承 Parent 节点的 TraceID)
+		rand.NewSource(time.Now().UnixNano())
+		percentage := rand.Intn(100) + 1
+		if percentage <= percentageNewTrace || raw[i].Parent.SpanID == "root" || raw[i].Parent.SpanID == "0000000000000000" {
+			raw[i].SpanContext.TraceID = raw[i].SpanContext.SpanID
+		}
 	}
+
+	// Damn !
+	for i := 0; i < len(raw); i++ {
+		if raw[i].SpanContext.TraceID != "" {
+			for j := 0; j < len(raw); j++ {
+				if raw[j].Parent.SpanID == raw[i].SpanContext.SpanID && raw[j].SpanContext.TraceID == "" {
+					raw[j].SpanContext.TraceID = raw[i].SpanContext.TraceID
+				}
+			}
+		}
+
+	}
+
 	return
 }
 
-func Root(raw []model.TracingData) (root *Node) {
-	var tracingLruMap = make(map[string]*Node, len(raw))
+func NewInfo(raw []model.TracingData) (info *TracingInfo) {
 
-	root = new(Node)
-	root.SpanID = "root"
+	info = new(TracingInfo)
+
+	info.spanIDs = make(map[string]*Node, len(raw))
+	info.traceIDs = make(map[string]*Node)
+
+	info.root = new(Node)
+	info.root.SpanID = "root"
 
 	for i := 0; i < len(raw); i++ {
 		currentID := raw[i].SpanContext.SpanID
 		currentParentID := raw[i].Parent.SpanID
 
-		tracingLruMap[currentID] = &Node{
+		info.spanIDs[currentID] = &Node{
 			SpanID: currentID,
 			Data:   raw[i],
 		}
 
 		if currentParentID != "0000000000000000" {
-			tracingLruMap[currentID].Parent = tracingLruMap[currentParentID]
+			info.spanIDs[currentID].Parent = info.spanIDs[currentParentID]
 		} else {
-			tracingLruMap[currentID].Parent = root
-			fmt.Println(currentID)
+			info.spanIDs[currentID].Parent = info.root
 		}
 
-		tracingLruMap[currentID].Parent.Children = append(tracingLruMap[currentID].Parent.Children, tracingLruMap[currentID])
+		info.spanIDs[currentID].Parent.Children = append(info.spanIDs[currentID].Parent.Children, info.spanIDs[currentID])
+	}
+
+	for key, value := range info.spanIDs {
+		// fmt.Println(key, value)
+		if value.Parent.Data.SpanContext.TraceID != value.Data.SpanContext.TraceID {
+			info.traceIDs[key] = value
+		}
 	}
 
 	return
