@@ -22,10 +22,22 @@ type TracingData struct {
 	SpanKind   int       `json:"SpanKind"`
 	StartTime  time.Time `json:"StartTime"`
 	EndTime    time.Time `json:"EndTime"`
-	Attributes any       `json:"Attributes"`
-	Events     []struct {
-		Name                  string    `json:"Name"`
-		Attributes            any       `json:"Attributes"`
+	Attributes []struct {
+		Key   string `json:"Key"`
+		Value struct {
+			Type  string `json:"Type"`
+			Value string `json:"Value"`
+		} `json:"Value"`
+	} `json:"Attributes"`
+	Events []struct {
+		Name       string `json:"Name"`
+		Attributes []struct {
+			Key   string `json:"Key"`
+			Value struct {
+				Type  string `json:"Type"`
+				Value string `json:"Value"`
+			} `json:"Value"`
+		} `json:"Attributes"`
 		DroppedAttributeCount int       `json:"DroppedAttributeCount"`
 		Time                  time.Time `json:"Time"`
 	} `json:"Events"`

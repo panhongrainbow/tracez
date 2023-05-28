@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -15,6 +17,11 @@ import (
 func functionB(ctx context.Context) {
 	tracer := otel.Tracer("functionBTracer")
 	ctx, span := tracer.Start(ctx, "functionBSpan")
+	span.SetAttributes(attribute.KeyValue{
+		Key:   "ParameterB",
+		Value: attribute.StringValue("ValueB"),
+	})
+	span.RecordError(fmt.Errorf("error"))
 	defer span.End()
 
 	time.Sleep(time.Second)
@@ -24,6 +31,10 @@ func functionB(ctx context.Context) {
 func functionA(ctx context.Context) {
 	tracer := otel.Tracer("functionATracer")
 	ctx, span := tracer.Start(ctx, "functionASpan")
+	span.SetAttributes(attribute.KeyValue{
+		Key:   "ParameterA",
+		Value: attribute.StringValue("ValueA"),
+	})
 	defer span.End()
 
 	functionB(ctx)
@@ -62,6 +73,10 @@ func main() {
 	// Use OpenTelemetry Tracer to create spans
 	tracer := otel.Tracer("mainTracer")
 	ctx, span := tracer.Start(context.Background(), "mainSpan")
+	span.SetAttributes(attribute.KeyValue{
+		Key:   "ParameterMain",
+		Value: attribute.StringValue("ValueMain"),
+	})
 
 	// end span when main() returns
 	defer span.End()

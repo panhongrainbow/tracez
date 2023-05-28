@@ -1,24 +1,54 @@
 {
 	"Name": "functionBSpan",
 	"SpanContext": {
-		"TraceID": "673a3e3c000be1d70868e4addee05720",
-		"SpanID": "3868c5686e347e6f",
+		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
+		"SpanID": "51cbc0f95a209e65",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
 	},
 	"Parent": {
-		"TraceID": "673a3e3c000be1d70868e4addee05720",
-		"SpanID": "ab06b5370da36ef5",
+		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
+		"SpanID": "3ea78321012da8d2",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
 	},
 	"SpanKind": 1,
-	"StartTime": "2023-04-18T20:49:10.595897864+08:00",
-	"EndTime": "2023-04-18T20:49:11.596005054+08:00",
-	"Attributes": null,
-	"Events": null,
+	"StartTime": "2023-05-28T23:27:45.606401335+08:00",
+	"EndTime": "2023-05-28T23:27:46.606933018+08:00",
+	"Attributes": [
+		{
+			"Key": "ParameterB",
+			"Value": {
+				"Type": "STRING",
+				"Value": "ValueB"
+			}
+		}
+	],
+	"Events": [
+		{
+			"Name": "exception",
+			"Attributes": [
+				{
+					"Key": "exception.type",
+					"Value": {
+						"Type": "STRING",
+						"Value": "*errors.errorString"
+					}
+				},
+				{
+					"Key": "exception.message",
+					"Value": {
+						"Type": "STRING",
+						"Value": "error"
+					}
+				}
+			],
+			"DroppedAttributeCount": 0,
+			"Time": "2023-05-28T23:27:45.606416573+08:00"
+		}
+	],
 	"Links": null,
 	"Status": {
 		"Code": "Unset",
@@ -33,7 +63,7 @@
 			"Key": "service.name",
 			"Value": {
 				"Type": "STRING",
-				"Value": "unknown_service:openTelemetry2file"
+				"Value": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetry2file"
 			}
 		},
 		{
@@ -67,23 +97,31 @@
 {
 	"Name": "functionASpan",
 	"SpanContext": {
-		"TraceID": "673a3e3c000be1d70868e4addee05720",
-		"SpanID": "ab06b5370da36ef5",
+		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
+		"SpanID": "3ea78321012da8d2",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
 	},
 	"Parent": {
-		"TraceID": "673a3e3c000be1d70868e4addee05720",
-		"SpanID": "a88ecbd7a8632a6f",
+		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
+		"SpanID": "2aa750102589bc2c",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
 	},
 	"SpanKind": 1,
-	"StartTime": "2023-04-18T20:49:10.595895339+08:00",
-	"EndTime": "2023-04-18T20:49:11.596116357+08:00",
-	"Attributes": null,
+	"StartTime": "2023-05-28T23:27:45.606392445+08:00",
+	"EndTime": "2023-05-28T23:27:46.606950075+08:00",
+	"Attributes": [
+		{
+			"Key": "ParameterA",
+			"Value": {
+				"Type": "STRING",
+				"Value": "ValueA"
+			}
+		}
+	],
 	"Events": null,
 	"Links": null,
 	"Status": {
@@ -99,7 +137,7 @@
 			"Key": "service.name",
 			"Value": {
 				"Type": "STRING",
-				"Value": "unknown_service:openTelemetry2file"
+				"Value": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetry2file"
 			}
 		},
 		{
@@ -133,8 +171,8 @@
 {
 	"Name": "mainSpan",
 	"SpanContext": {
-		"TraceID": "673a3e3c000be1d70868e4addee05720",
-		"SpanID": "a88ecbd7a8632a6f",
+		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
+		"SpanID": "2aa750102589bc2c",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
@@ -147,15 +185,23 @@
 		"Remote": false
 	},
 	"SpanKind": 1,
-	"StartTime": "2023-04-18T20:49:10.595883748+08:00",
-	"EndTime": "2023-04-18T20:49:11.596161752+08:00",
-	"Attributes": null,
+	"StartTime": "2023-05-28T23:27:45.606350175+08:00",
+	"EndTime": "2023-05-28T23:27:46.606956649+08:00",
+	"Attributes": [
+		{
+			"Key": "ParameterMain",
+			"Value": {
+				"Type": "STRING",
+				"Value": "ValueMain"
+			}
+		}
+	],
 	"Events": [
 		{
 			"Name": "mainEvent",
 			"Attributes": null,
 			"DroppedAttributeCount": 0,
-			"Time": "2023-04-18T20:49:11.596156649+08:00"
+			"Time": "2023-05-28T23:27:46.606953827+08:00"
 		}
 	],
 	"Links": null,
@@ -172,7 +218,7 @@
 			"Key": "service.name",
 			"Value": {
 				"Type": "STRING",
-				"Value": "unknown_service:openTelemetry2file"
+				"Value": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetry2file"
 			}
 		},
 		{

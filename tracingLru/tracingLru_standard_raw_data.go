@@ -118,6 +118,7 @@ Use the 108 characters from Water Margin as SpanID for each test data.
 108	 杨林	 Yang Lin
 */
 
+// Use 108-character names as SpanID or TraceID
 var rawSpanIDs = []string{
 	"Lu Junyi", "Hua Rong", "Hua Xiong", "Wu Yong", "Lin Chong", "Chai Jin", "Qin Ming", "Qin Qingtong", "Guan Sheng", "Bao Xu",
 	"Bao Zheng", "Dong Ping", "He Xiong", "Lu Fang", "Peng Yingyu", "Yan Qing", "Ruan Xiaoer", "Ruan Xiaowu", "Hu Sanniang", "Yang Zhi",
@@ -132,22 +133,31 @@ var rawSpanIDs = []string{
 	"Mo Ran", "Mo Daxie", "Jiang Jingxu", "Jiang Jing", "Shi Xiu", "Liu Tang", "Ruan Xiaowu", "Yang Lin",
 }
 
+// MockStandardRelationshipIDs function establishes relationships.
+// Make the relationships clear.
+// The sequence number of A is 1, the sequence number of B is 2, and the sequence number of C is 3.
+// Then the sequence number of C's parent node is before 3.
+// If the sequence number refers to the order of appearance, then the order of the parent node should be less than that of the child node.
+// This is reasonable.
 func MockStandardRelationshipIDs(rawSpanIDs []string) (relationshipIDs []string) {
 	relationshipIDs = make([]string, len(rawSpanIDs), len(rawSpanIDs))
-	for i := 0; i < len(relationshipIDs); i++ {
+	for childID := 0; childID < len(relationshipIDs); childID++ {
 		rand.NewSource(time.Now().UnixNano())
-		var num int
-		if i != 0 {
-			num = rand.Intn(i)
+		var parentID int
+		if childID != 0 {
+			// ParentID is between 0 and ChildID, can be equal to 0, but must be less than ChildID
+			parentID = rand.Intn(childID) // [0, childID)
 		}
-		relationshipIDs[i] = rawSpanIDs[num]
+		relationshipIDs[childID] = rawSpanIDs[parentID]
 	}
 	return
 }
 
-// the percentage of being a new trace is 10%.
+// There are 108 nodes, but a proportion of nodes will create new TraceIDs.
+// the percentage of being a new trace is 30%.
 var percentageNewTrace = 30
 
+// MockStandardRawData function
 func MockStandardRawData(rawSpanIDs, relationshipIDs []string) (raw []model.TracingData) {
 	// Create an empty TracingData slice with the same length as rawSpanIDs
 	raw = make([]model.TracingData, len(rawSpanIDs), len(rawSpanIDs))
