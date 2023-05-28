@@ -9,8 +9,10 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // functionB is a function that is called by functionA
@@ -21,7 +23,9 @@ func functionB(ctx context.Context) {
 		Key:   "ParameterB",
 		Value: attribute.StringValue("ValueB"),
 	})
-	span.RecordError(fmt.Errorf("error"))
+	// In order to more clearly identify error events
+	span.SetStatus(codes.Error, "functionB failed")
+	span.RecordError(fmt.Errorf("error"), trace.WithAttributes(attribute.Int("ID", 1), attribute.String("postscript", "more details")))
 	defer span.End()
 
 	time.Sleep(time.Second)

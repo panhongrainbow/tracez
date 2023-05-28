@@ -1,22 +1,22 @@
 {
 	"Name": "functionBSpan",
 	"SpanContext": {
-		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
-		"SpanID": "51cbc0f95a209e65",
+		"TraceID": "77ea467445562b1afb250147b0ddc178",
+		"SpanID": "e7d262c286f5b660",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
 	},
 	"Parent": {
-		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
-		"SpanID": "3ea78321012da8d2",
+		"TraceID": "77ea467445562b1afb250147b0ddc178",
+		"SpanID": "b178c20dce680429",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
 	},
 	"SpanKind": 1,
-	"StartTime": "2023-05-28T23:27:45.606401335+08:00",
-	"EndTime": "2023-05-28T23:27:46.606933018+08:00",
+	"StartTime": "2023-05-29T01:49:32.011159939+08:00",
+	"EndTime": "2023-05-29T01:49:33.011344186+08:00",
 	"Attributes": [
 		{
 			"Key": "ParameterB",
@@ -30,6 +30,20 @@
 		{
 			"Name": "exception",
 			"Attributes": [
+				{
+					"Key": "ID",
+					"Value": {
+						"Type": "INT64",
+						"Value": 1
+					}
+				},
+				{
+					"Key": "postscript",
+					"Value": {
+						"Type": "STRING",
+						"Value": "more details"
+					}
+				},
 				{
 					"Key": "exception.type",
 					"Value": {
@@ -46,13 +60,13 @@
 				}
 			],
 			"DroppedAttributeCount": 0,
-			"Time": "2023-05-28T23:27:45.606416573+08:00"
+			"Time": "2023-05-29T01:49:32.011163907+08:00"
 		}
 	],
 	"Links": null,
 	"Status": {
-		"Code": "Unset",
-		"Description": ""
+		"Code": "Error",
+		"Description": "functionB failed"
 	},
 	"DroppedAttributes": 0,
 	"DroppedEvents": 0,
@@ -97,22 +111,22 @@
 {
 	"Name": "functionASpan",
 	"SpanContext": {
-		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
-		"SpanID": "3ea78321012da8d2",
+		"TraceID": "77ea467445562b1afb250147b0ddc178",
+		"SpanID": "b178c20dce680429",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
 	},
 	"Parent": {
-		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
-		"SpanID": "2aa750102589bc2c",
+		"TraceID": "77ea467445562b1afb250147b0ddc178",
+		"SpanID": "f94283f0eb094eb8",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
 	},
 	"SpanKind": 1,
-	"StartTime": "2023-05-28T23:27:45.606392445+08:00",
-	"EndTime": "2023-05-28T23:27:46.606950075+08:00",
+	"StartTime": "2023-05-29T01:49:32.011158627+08:00",
+	"EndTime": "2023-05-29T01:49:33.011354651+08:00",
 	"Attributes": [
 		{
 			"Key": "ParameterA",
@@ -171,8 +185,8 @@
 {
 	"Name": "mainSpan",
 	"SpanContext": {
-		"TraceID": "fc137395b8610dc998772a2fed7fd58c",
-		"SpanID": "2aa750102589bc2c",
+		"TraceID": "77ea467445562b1afb250147b0ddc178",
+		"SpanID": "f94283f0eb094eb8",
 		"TraceFlags": "01",
 		"TraceState": "",
 		"Remote": false
@@ -185,8 +199,8 @@
 		"Remote": false
 	},
 	"SpanKind": 1,
-	"StartTime": "2023-05-28T23:27:45.606350175+08:00",
-	"EndTime": "2023-05-28T23:27:46.606956649+08:00",
+	"StartTime": "2023-05-29T01:49:32.011149225+08:00",
+	"EndTime": "2023-05-29T01:49:33.011358916+08:00",
 	"Attributes": [
 		{
 			"Key": "ParameterMain",
@@ -201,7 +215,7 @@
 			"Name": "mainEvent",
 			"Attributes": null,
 			"DroppedAttributeCount": 0,
-			"Time": "2023-05-28T23:27:46.606953827+08:00"
+			"Time": "2023-05-29T01:49:33.011357115+08:00"
 		}
 	],
 	"Links": null,
