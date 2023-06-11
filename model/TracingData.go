@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -58,29 +57,72 @@ type TracingData struct {
 	InstrumentationLibrary InstrumentationLibrary `json:"InstrumentationLibrary"`
 }
 
+func Value(jsonData []byte, start int) (result string, end int) {
+	var valueStart, valueEnd, count int
+	for start = start + 1; start < len(jsonData); start++ {
+		if jsonData[start] == '"' {
+			count++
+			if count == 1 {
+				valueStart = start
+			}
+			if count == 2 {
+				valueEnd = start
+				result = string(jsonData[valueStart+1 : valueEnd])
+				return
+			}
+		}
+	}
+	return
+}
+
+const (
+	enterName uint8 = iota
+	leaveName
+	enterSpanContext_TraceID
+	enterSpanContext_SpanID
+	enterSpanContext_TraceFlags
+)
+
 func Unmarshal(jsonData []byte) (result TracingData) {
-	start := 0
-	attribute := 0
+	var start, attribute int
+	var position uint8
 
 	for ; start < len(jsonData); start++ {
-		if jsonData[start] == ',' {
+		if jsonData[start] == ',' || jsonData[start] == '{' || jsonData[start] == '}' {
 			attribute = start
 		}
 		if jsonData[start] == ':' {
-			key := string(jsonData[attribute+2 : start])
-			fmt.Println("key->", key)
-			valueStart := start + 2
-
-			for valueEnd := valueStart; valueEnd < len(jsonData); valueEnd++ {
-				if jsonData[valueEnd] == '"' {
-					value := string(jsonData[valueStart:valueEnd])
-					fmt.Println("value->", value)
-					break
+			if start-1 > attribute+2 {
+				key := string(jsonData[attribute+2 : start-1])
+				switch key {
+				case "Name":
+					if position == enterName {
+						result.Name, start = Value(jsonData, start)
+						position++
+					}
+				case "SpanContext":
+					if position == leaveName {
+						position++
+					}
+				case "TraceID":
+					if position == enterSpanContext_TraceID {
+						result.SpanContext.TraceID, start = Value(jsonData, start)
+						position++
+					}
+				case "SpanID":
+					if position == enterSpanContext_SpanID {
+						result.SpanContext.SpanID, start = Value(jsonData, start)
+						position++
+					}
+				case "TraceFlags":
+					if position == enterSpanContext_TraceFlags {
+						result.SpanContext.TraceFlags, start = Value(jsonData, start)
+						position++
+					}
+				default:
+					// fmt.Println(key)
 				}
 			}
-
-			attribute = start + 1
-			start = start + 1
 		}
 	}
 	return
