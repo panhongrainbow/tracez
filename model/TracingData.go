@@ -59,6 +59,7 @@ type TracingData struct {
 
 func Value(jsonData []byte, start int) (result string, end int) {
 	var valueStart, valueEnd, count int
+	// end = start
 	for start = start + 1; start < len(jsonData); start++ {
 		if jsonData[start] == '"' {
 			count++
@@ -68,24 +69,19 @@ func Value(jsonData []byte, start int) (result string, end int) {
 			if count == 2 {
 				valueEnd = start
 				result = string(jsonData[valueStart+1 : valueEnd])
+				end = valueEnd
 				return
 			}
 		}
 	}
+	end = valueEnd
 	return
 }
 
-const (
-	enterName uint8 = iota
-	leaveName
-	enterSpanContext_TraceID
-	enterSpanContext_SpanID
-	enterSpanContext_TraceFlags
-)
-
 func Unmarshal(jsonData []byte) (result TracingData) {
+	var entryNameTimes uint8
+	var entrySpanContext bool
 	var start, attribute int
-	var position uint8
 
 	for ; start < len(jsonData); start++ {
 		if jsonData[start] == ',' || jsonData[start] == '{' || jsonData[start] == '}' {
@@ -96,31 +92,37 @@ func Unmarshal(jsonData []byte) (result TracingData) {
 				key := string(jsonData[attribute+2 : start-1])
 				switch key {
 				case "Name":
-					if position == enterName {
+					if entryNameTimes == 0 {
 						result.Name, start = Value(jsonData, start)
-						position++
+						entryNameTimes++
 					}
 				case "SpanContext":
-					if position == leaveName {
-						position++
-					}
+					entrySpanContext = true
 				case "TraceID":
-					if position == enterSpanContext_TraceID {
+					if entrySpanContext {
 						result.SpanContext.TraceID, start = Value(jsonData, start)
-						position++
 					}
 				case "SpanID":
-					if position == enterSpanContext_SpanID {
+					if entrySpanContext {
 						result.SpanContext.SpanID, start = Value(jsonData, start)
-						position++
 					}
 				case "TraceFlags":
-					if position == enterSpanContext_TraceFlags {
+					if entrySpanContext {
 						result.SpanContext.TraceFlags, start = Value(jsonData, start)
-						position++
 					}
-				default:
-					// fmt.Println(key)
+				case "TraceState":
+					if entrySpanContext {
+						result.SpanContext.TraceState, start = Value(jsonData, start)
+					}
+				case "Remote":
+					if entrySpanContext {
+						var remote string
+						remote, start = Value(jsonData, start)
+						if remote == "true" {
+							result.SpanContext.Remote = true
+						}
+						entrySpanContext = false
+					}
 				}
 			}
 		}

@@ -22,7 +22,7 @@ func Benchmark_Estimate_TracingData(b *testing.B) {
 	}
 }
 
-// 3185 ns/op
+// 2861 ns/op
 func Benchmark_Estimate_TracingData2(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
