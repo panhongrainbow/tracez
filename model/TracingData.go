@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strconv"
 	"time"
 	"unsafe"
 )
@@ -128,9 +129,21 @@ func ValueInt(jsonData []byte, start int) (result int, end int) {
 	return
 }
 
+const (
+	NotInAnyBlock = iota
+	SpanContextBlock
+	ParentBlock
+	Attributes
+	EventsAttributesBlock
+	StatusBlock
+	ResourceBlock
+	InstrumentationLibraryBlock
+)
+
 // This one is better.
-func Unmarshal(jsonData []byte) (result TracingData) {
-	var doubleQuotes, previousDoubleQuotes, colon int //, comma, leftBrace, rightBrace int
+func Unmarshal(jsonData []byte) (result TracingData, err error) {
+	var doubleQuotes, previousDoubleQuotes, colon int // comma, leftBrace, rightBrace int
+	var position int
 
 	for i := 0; i < len(jsonData); i++ {
 		switch jsonData[i] {
@@ -156,17 +169,105 @@ func Unmarshal(jsonData []byte) (result TracingData) {
 		if colon > doubleQuotes && doubleQuotes > previousDoubleQuotes {
 			attr := ByteArrayToString(jsonData[previousDoubleQuotes+1 : doubleQuotes])
 			switch attr {
-			case "SpanContext", "TraceFlags", "TraceState", "Remote", "Parent", "SpanKind", "Attributes", "ValueString", "DroppedAttributeCount", "Links", "Status", "DroppedAttributes", "DroppedEvents", "DroppedLinks", "ChildSpanCount", "Resource", "InstrumentationLibrary", "Version", "SchemaURL":
-				//
-			default:
+			case "SpanContext":
+				position = SpanContextBlock
+			case "Parent":
+				position = ParentBlock
+			case "Attributes":
+				position = Attributes
+			case "Events":
+				position = EventsAttributesBlock
+			case "Status":
+				position = StatusBlock
+			case "Resource":
+				position = ResourceBlock
+			case "InstrumentationLibrary":
+				position = InstrumentationLibraryBlock
+			case "SpanKind":
+				var numberStart int
 			LOOP1:
+				for ; i < len(jsonData); i++ {
+					if jsonData[i] == ',' {
+						result.SpanKind, err = strconv.Atoi(ByteArrayToString(jsonData[numberStart:i]))
+						if err != nil {
+							return
+						}
+						break LOOP1
+					}
+					if jsonData[i] != ' ' {
+						numberStart = i
+					}
+				}
+			default:
+			LOOP2:
 				for ; i < len(jsonData); i++ {
 					if jsonData[i] == '"' {
 						previousDoubleQuotes = doubleQuotes
 						doubleQuotes = i
 						if previousDoubleQuotes > colon {
+							value := ByteArrayToString(jsonData[previousDoubleQuotes+1 : doubleQuotes])
+							switch attr {
+							case "Name":
+								switch position {
+								case NotInAnyBlock:
+									result.Name = value
+								case EventsAttributesBlock:
+									result.Events = append(result.Events, Event{Name: value})
+								case InstrumentationLibraryBlock:
+									result.InstrumentationLibrary.Name = value
+								}
+							case "TraceID":
+								switch position {
+								case SpanContextBlock:
+									result.SpanContext.TraceID = value
+								case ParentBlock:
+									result.Parent.TraceID = value
+								}
+							case "SpanID":
+								switch position {
+								case SpanContextBlock:
+									result.SpanContext.SpanID = value
+								case ParentBlock:
+									result.Parent.SpanID = value
+								}
+							case "TraceFlags":
+								switch position {
+								case SpanContextBlock:
+									result.SpanContext.TraceFlags = value
+								case ParentBlock:
+									result.Parent.TraceFlags = value
+								}
+							case "TraceState":
+								switch position {
+								case SpanContextBlock:
+									result.SpanContext.TraceState = value
+								case ParentBlock:
+									result.Parent.TraceState = value
+								}
+							case "Remote":
+								var valueBool bool
+								if value == "true" || value == "True" {
+									valueBool = true
+
+									switch position {
+									case SpanContextBlock:
+										result.SpanContext.Remote = valueBool
+									case ParentBlock:
+										result.Parent.Remote = valueBool
+									}
+								}
+								/*case "SpanKind":
+								switch position {
+								case SpanContextBlock:
+									result.SpanContext.TraceState = value
+								case ParentBlock:
+									result.Parent.TraceState = value
+								}*/
+							}
+
 							// fmt.Println(attr, string(jsonData[previousDoubleQuotes+1:doubleQuotes]))
-							break LOOP1
+
+							break LOOP2
 						}
 					}
 				}
