@@ -1,7 +1,6 @@
 package model
 
 import (
-	"strconv"
 	"time"
 	"unsafe"
 )
@@ -44,9 +43,11 @@ type TracingData struct {
 	Name                   string `json:"Name"`
 	SpanContext            SpanContext
 	Parent                 SpanContext
-	SpanKind               int                    `json:"SpanKind"`
-	StartTime              time.Time              `json:"StartTime"`
-	EndTime                time.Time              `json:"EndTime"`
+	SpanKind               int       `json:"SpanKind"`
+	StartTime              time.Time `json:"StartTime"`
+	digitStartTime         [8]int
+	EndTime                time.Time `json:"EndTime"`
+	digitEndTime           [8]int
 	Attributes             []Attribute            `json:"Attributes"`
 	Events                 []Event                `json:"Events"`
 	Links                  any                    `json:"Links"`
@@ -188,7 +189,7 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 			LOOP1:
 				for ; i < len(jsonData); i++ {
 					if jsonData[i] == ',' {
-						result.SpanKind, err = strconv.Atoi(ByteArrayToString(jsonData[numberStart:i]))
+						result.SpanKind = ByteArrayToInt(jsonData[numberStart:i])
 						if err != nil {
 							return
 						}
@@ -205,7 +206,8 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 						previousDoubleQuotes = doubleQuotes
 						doubleQuotes = i
 						if previousDoubleQuotes > colon {
-							value := ByteArrayToString(jsonData[previousDoubleQuotes+1 : doubleQuotes])
+							valueByte := jsonData[previousDoubleQuotes+1 : doubleQuotes]
+							value := ByteArrayToString(valueByte)
 							switch attr {
 							case "Name":
 								switch position {
@@ -256,13 +258,24 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 										result.Parent.Remote = valueBool
 									}
 								}
-								/*case "SpanKind":
-								switch position {
-								case SpanContextBlock:
-									result.SpanContext.TraceState = value
-								case ParentBlock:
-									result.Parent.TraceState = value
-								}*/
+							case "StartTime":
+								result.digitStartTime[0] = ByteArrayToInt(valueByte[0:4])   // year
+								result.digitStartTime[1] = ByteArrayToInt(valueByte[5:7])   // month
+								result.digitStartTime[2] = ByteArrayToInt(valueByte[8:10])  // day
+								result.digitStartTime[3] = ByteArrayToInt(valueByte[11:13]) // hour
+								result.digitStartTime[4] = ByteArrayToInt(valueByte[14:16]) // minute
+								result.digitStartTime[5] = ByteArrayToInt(valueByte[17:19]) // second
+								result.digitStartTime[6] = ByteArrayToInt(valueByte[20:29]) // micro second
+								// result.digitStartTime[7] = ByteArrayToInt(valueByte[30:32]) // zone
+							case "EndTime":
+								result.digitEndTime[0] = ByteArrayToInt(valueByte[0:4])   // year
+								result.digitEndTime[1] = ByteArrayToInt(valueByte[5:7])   // month
+								result.digitEndTime[2] = ByteArrayToInt(valueByte[8:10])  // day
+								result.digitEndTime[3] = ByteArrayToInt(valueByte[11:13]) // hour
+								result.digitEndTime[4] = ByteArrayToInt(valueByte[14:16]) // minute
+								result.digitEndTime[5] = ByteArrayToInt(valueByte[17:19]) // second
+								result.digitEndTime[6] = ByteArrayToInt(valueByte[20:29]) // micro second
+								// result.digitEndTime[7] = ByteArrayToInt(valueByte[30:32]) // zone
 							}
 
 							// fmt.Println(attr, string(jsonData[previousDoubleQuotes+1:doubleQuotes]))
@@ -283,6 +296,13 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 
 func ByteArrayToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+func ByteArrayToInt(b []byte) (number int) {
+	for i := 0; i < len(b); i++ {
+		number = number*10 + int(b[i]-48)
+	}
+	return
 }
 
 // This approach is not good.
