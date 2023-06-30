@@ -134,7 +134,7 @@ const (
 	NotInAnyBlock = iota
 	SpanContextBlock
 	ParentBlock
-	Attributes
+	AttributesBlock
 	EventsAttributesBlock
 	StatusBlock
 	ResourceBlock
@@ -145,6 +145,7 @@ const (
 func Unmarshal(jsonData []byte) (result TracingData, err error) {
 	var doubleQuotes, previousDoubleQuotes, colon int // comma, leftBrace, rightBrace int
 	var position int
+	var passAttributesBlock, passEventsAttributesBlock bool
 
 	for i := 0; i < len(jsonData); i++ {
 		switch jsonData[i] {
@@ -175,13 +176,15 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 			case "Parent":
 				position = ParentBlock
 			case "Attributes":
-				position = Attributes
+				position = AttributesBlock
 			case "Events":
 				position = EventsAttributesBlock
+				passAttributesBlock = true
 			case "Status":
 				position = StatusBlock
 			case "Resource":
 				position = ResourceBlock
+				passEventsAttributesBlock = true
 			case "InstrumentationLibrary":
 				position = InstrumentationLibraryBlock
 			case "SpanKind":
@@ -275,7 +278,42 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 								result.digitEndTime[4] = ByteArrayToInt(valueByte[14:16]) // minute
 								result.digitEndTime[5] = ByteArrayToInt(valueByte[17:19]) // second
 								result.digitEndTime[6] = ByteArrayToInt(valueByte[20:29]) // micro second
-								// result.digitEndTime[7] = ByteArrayToInt(valueByte[30:32]) // zone
+							// result.digitEndTime[7] = ByteArrayToInt(valueByte[30:32]) // zone
+							case "Key":
+								if passEventsAttributesBlock {
+									result.Resource = append(result.Resource, Attribute{Key: value})
+								} else if passAttributesBlock {
+									result.Events[len(result.Events)-1].Attributes = append(result.Events[len(result.Events)-1].Attributes, Attribute{Key: value})
+								} else {
+									result.Attributes = append(result.Attributes, Attribute{Key: value})
+								}
+
+								var countDoubleQuotes int
+								i++
+							LOOP3:
+								for ; i < len(jsonData); i++ {
+									if jsonData[i] == '"' {
+										countDoubleQuotes++
+										previousDoubleQuotes = doubleQuotes
+										doubleQuotes = i
+										if countDoubleQuotes == 6 {
+											valueByte := jsonData[previousDoubleQuotes+1 : doubleQuotes]
+											value := ByteArrayToString(valueByte)
+
+											if passEventsAttributesBlock {
+												result.Resource[len(result.Resource)-1].Value.Type = value
+												break LOOP3
+											} else if passAttributesBlock {
+												result.Events[len(result.Events)-1].Attributes[len(result.Events[len(result.Events)-1].Attributes)-1].Value.Type = value
+												break LOOP3
+											} else {
+												result.Attributes[len(result.Attributes)-1].Value.Type = value
+												break LOOP3
+											}
+										}
+									}
+								}
+
 							}
 
 							// fmt.Println(attr, string(jsonData[previousDoubleQuotes+1:doubleQuotes]))
