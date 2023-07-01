@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -13,7 +14,149 @@ func Test_Check_TracingData(t *testing.T) {
 	fmt.Println(result)
 }
 
-// 46891 ns/op
+func Test_Check_ByteArrayToValueString(t *testing.T) {
+	// Define a slice of test cases
+	tests := []struct {
+		name      string
+		jsonData  []byte
+		valueType string
+		value     string
+		next      int
+	}{
+		{
+			name:      "test case 0",
+			valueType: "STRING",
+			value:     "ValueB",
+			next:      79,
+		},
+		{
+			name:      "test case 1",
+			valueType: "INT64",
+			value:     "1",
+			next:      59,
+		},
+		{
+			name:      "test case 2",
+			valueType: "STRING",
+			value:     "more details",
+			next:      73,
+		},
+		{
+			name:      "test case 3",
+			valueType: "STRING",
+			value:     "*errors.errorString",
+			next:      80,
+		},
+		{
+			name:      "test case 4",
+			valueType: "STRING",
+			value:     "error",
+			next:      66,
+		},
+		{
+			name:      "test case 5",
+			valueType: "STRING",
+			value:     "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetry2file",
+			next:      160,
+		},
+		{
+			name:      "test case 6",
+			valueType: "STRING",
+			value:     "go",
+			next:      75,
+		},
+		{
+			name:      "test case 7",
+			valueType: "STRING",
+			value:     "opentelemetry",
+			next:      86,
+		},
+		{
+			name:      "test case 8",
+			valueType: "STRING",
+			value:     "1.14.0",
+			next:      76,
+		},
+		{
+			name:      "test case 9",
+			valueType: "INT64",
+			value:     "123456",
+			next:      75,
+		},
+	}
+
+	str := `"ValueString": {
+        "Type": "STRING",
+        "ValueString": "ValueB"
+    }`
+	tests[0].jsonData = []byte(str)
+
+	str = `"ValueString": {
+		"Type": "INT64",
+		"ValueString": 1
+    }`
+	tests[1].jsonData = []byte(str)
+
+	str = `"ValueString": {
+		"Type": "STRING",
+		"ValueString": "more details"
+    }`
+	tests[2].jsonData = []byte(str)
+
+	str = `"ValueString": {
+		"Type": "STRING",
+		"ValueString": "*errors.errorString"
+    }`
+	tests[3].jsonData = []byte(str)
+
+	str = `"ValueString": {
+		"Type": "STRING",
+		"ValueString": "error"
+    }`
+	tests[4].jsonData = []byte(str)
+
+	str = `"ValueString": {
+        "Type": "STRING",
+        "ValueString": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetry2file"
+    }`
+	tests[5].jsonData = []byte(str)
+
+	str = `"ValueString": {
+        "Type": "STRING",
+        "ValueString": "go"
+    }`
+	tests[6].jsonData = []byte(str)
+
+	str = `"ValueString": {
+        "Type": "STRING",
+        "ValueString": "opentelemetry"
+    }`
+	tests[7].jsonData = []byte(str)
+
+	str = `"ValueString": {
+        "Type": "STRING",
+        "ValueString": "1.14.0"
+	}`
+	tests[8].jsonData = []byte(str)
+
+	str = `"ValueString": {
+        "Type": "INT64",
+        "ValueString": "123456"
+	}`
+	tests[9].jsonData = []byte(str)
+
+	for _, test := range tests {
+		if test.name == "test case 3" {
+			fmt.Println()
+		}
+		valueType, value, next := ByteArrayToValueString(0, &test.jsonData)
+		assert.Equal(t, test.valueType, valueType, test.name+"'s valueType error !")
+		assert.Equal(t, test.value, value, test.name+"'s value error !")
+		assert.Equal(t, test.next, next, test.name+"'s next error !")
+	}
+}
+
+// 49928 ns/op
 func Benchmark_Estimate_TracingData(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

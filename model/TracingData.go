@@ -141,7 +141,6 @@ const (
 	InstrumentationLibraryBlock
 )
 
-// This one is better.
 func Unmarshal(jsonData []byte) (result TracingData, err error) {
 	var doubleQuotes, previousDoubleQuotes, colon int // comma, leftBrace, rightBrace int
 	var position int
@@ -280,39 +279,29 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 								result.digitEndTime[6] = ByteArrayToInt(valueByte[20:29]) // micro second
 							// result.digitEndTime[7] = ByteArrayToInt(valueByte[30:32]) // zone
 							case "Key":
-								if passEventsAttributesBlock {
-									result.Resource = append(result.Resource, Attribute{Key: value})
-								} else if passAttributesBlock {
-									result.Events[len(result.Events)-1].Attributes = append(result.Events[len(result.Events)-1].Attributes, Attribute{Key: value})
-								} else {
-									result.Attributes = append(result.Attributes, Attribute{Key: value})
-								}
-
-								var countDoubleQuotes int
 								i++
-							LOOP3:
-								for ; i < len(jsonData); i++ {
-									if jsonData[i] == '"' {
-										countDoubleQuotes++
-										previousDoubleQuotes = doubleQuotes
-										doubleQuotes = i
-										if countDoubleQuotes == 6 {
-											valueByte := jsonData[previousDoubleQuotes+1 : doubleQuotes]
-											value := ByteArrayToString(valueByte)
+								valueType, valueValue, valueI := ByteArrayToValueString(i, &jsonData)
 
-											if passEventsAttributesBlock {
-												result.Resource[len(result.Resource)-1].Value.Type = value
-												break LOOP3
-											} else if passAttributesBlock {
-												result.Events[len(result.Events)-1].Attributes[len(result.Events[len(result.Events)-1].Attributes)-1].Value.Type = value
-												break LOOP3
-											} else {
-												result.Attributes[len(result.Attributes)-1].Value.Type = value
-												break LOOP3
-											}
-										}
-									}
+								tmp := Attribute{
+									Key: value,
+									Value: struct {
+										Type  string      `json:"Type"`
+										Value interface{} `json:"ValueString"`
+									}{
+										Type:  valueType,
+										Value: valueValue,
+									},
 								}
+
+								if passEventsAttributesBlock {
+									result.Resource = append(result.Resource, tmp)
+								} else if passAttributesBlock {
+									result.Events[len(result.Events)-1].Attributes = append(result.Events[len(result.Events)-1].Attributes, tmp)
+								} else {
+									result.Attributes = append(result.Attributes, tmp)
+								}
+
+								i = valueI
 
 							}
 
@@ -343,74 +332,49 @@ func ByteArrayToInt(b []byte) (number int) {
 	return
 }
 
-// This approach is not good.
-func Unmarshal_deprecated(jsonData []byte) (result TracingData) {
-	var entryNameTimes uint8
-	var entrySpanContext, entryParent bool
-	var i, attribute int
+//go:inline
+func ByteArrayToValueString(i int, jsonData *[]byte) (valueType string, value string, next int) {
 
-	for ; i < len(jsonData); i++ {
-		if jsonData[i] == ',' || jsonData[i] == '{' || jsonData[i] == '}' {
-			// if jsonData[i] == '{' {
-			attribute = i
-		}
-		if jsonData[i] == ':' {
-			if i-1 > attribute+2 {
-				key := string(jsonData[attribute+2 : i-1])
-				switch key {
-				case "Name":
-					if entryNameTimes == 0 {
-						result.Name, i = ValueString(jsonData, i)
-						entryNameTimes++
+	var countDoubleQuotes, previousDoubleQuotes, doubleQuotes int
+
+	for ; i < len(*jsonData); i++ {
+		if (*jsonData)[i] == '"' {
+			countDoubleQuotes++
+			previousDoubleQuotes = doubleQuotes
+			doubleQuotes = i
+			if countDoubleQuotes == 6 {
+				valueByte := (*jsonData)[previousDoubleQuotes+1 : doubleQuotes]
+				valueType = ByteArrayToString(valueByte)
+			}
+			if countDoubleQuotes == 8 {
+				var previousDoubleQuotes2, doubleQuotes2, arabicStart2, arabicEnd2 int
+				for ; i < len(*jsonData); i++ {
+					if (*jsonData)[i] == '"' {
+						previousDoubleQuotes2 = doubleQuotes2
+						doubleQuotes2 = i
 					}
-				case "SpanContext":
-					entrySpanContext = true
-				case "TraceID":
-					if entrySpanContext {
-						result.SpanContext.TraceID, i = ValueString(jsonData, i)
+					if (*jsonData)[i] >= 49 && (*jsonData)[i] <= 57 {
+						if arabicStart2 == 0 {
+							arabicStart2 = i
+						}
+						arabicEnd2 = i
 					}
-					if entryParent {
-						result.Parent.TraceID, i = ValueString(jsonData, i)
+					if (*jsonData)[i] == '}' {
+						switch valueType {
+						case "STRING":
+							value = ByteArrayToString((*jsonData)[previousDoubleQuotes2+1 : doubleQuotes2])
+						case "INT64":
+							value = ByteArrayToString((*jsonData)[arabicStart2 : arabicEnd2+1])
+						}
+
+						next = i
+						return
 					}
-				case "SpanID":
-					if entrySpanContext {
-						result.SpanContext.SpanID, i = ValueString(jsonData, i)
-					}
-					if entryParent {
-						result.Parent.SpanID, i = ValueString(jsonData, i)
-					}
-				case "TraceFlags":
-					if entrySpanContext {
-						result.SpanContext.TraceFlags, i = ValueString(jsonData, i)
-					}
-					if entryParent {
-						result.Parent.TraceFlags, i = ValueString(jsonData, i)
-					}
-				case "TraceState":
-					if entrySpanContext {
-						result.SpanContext.TraceState, i = ValueString(jsonData, i)
-					}
-					if entryParent {
-						result.Parent.TraceState, i = ValueString(jsonData, i)
-					}
-				case "Remote":
-					if entrySpanContext {
-						result.SpanContext.Remote, i = ValueBool(jsonData, i)
-						entrySpanContext = false
-					}
-					if entryParent {
-						result.Parent.Remote, i = ValueBool(jsonData, i)
-						entryParent = false
-					}
-				case "SpanKind":
-					result.SpanKind, i = ValueInt(jsonData, i)
-				case "Parent":
-					entryParent = true
-				case "StartTime":
-					result.StartTime, i = ValueTime(jsonData, i)
 				}
 			}
 		}
+
 	}
+
 	return
 }
