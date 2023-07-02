@@ -146,9 +146,6 @@ func Test_Check_ByteArrayToValueString(t *testing.T) {
 	tests[9].jsonData = []byte(str)
 
 	for _, test := range tests {
-		if test.name == "test case 3" {
-			fmt.Println()
-		}
 		valueType, value, next := ByteArrayToValueString(0, &test.jsonData)
 		assert.Equal(t, test.valueType, valueType, test.name+"'s valueType error !")
 		assert.Equal(t, test.value, value, test.name+"'s value error !")
@@ -156,7 +153,7 @@ func Test_Check_ByteArrayToValueString(t *testing.T) {
 	}
 }
 
-// 49928 ns/op
+// 37789 ns/op
 func Benchmark_Estimate_TracingData(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -165,7 +162,7 @@ func Benchmark_Estimate_TracingData(b *testing.B) {
 	}
 }
 
-// 3830 -> 8259 ns/op
+// 4526 ns/op
 func Benchmark_Estimate_TracingData2(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
