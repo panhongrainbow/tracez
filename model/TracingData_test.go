@@ -165,10 +165,48 @@ func Benchmark_Estimate_TracingData(b *testing.B) {
 	}
 }
 
-// 3830 ns/op
+// 3830 -> 8259 ns/op
 func Benchmark_Estimate_TracingData2(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = Unmarshal(jsonData)
+	}
+}
+
+func Benchmark_Estimate_ByteArrayToValueString(b *testing.B) {
+
+	/*str := `"ValueString": {
+	    "Type": "STRING",
+	    "ValueString": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetry2file"
+	}`*/
+	str := `"ValueString": {
+        "Type": "STRING",
+        "ValueString": "go"
+    }`
+	jsonData = []byte(str)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ByteArrayToValueString(0, &jsonData)
+	}
+}
+
+func Benchmark_Estimate_ByteArrayToValueString2(b *testing.B) {
+
+	str := `"ValueString": {
+	    "Type": "STRING",
+	    "ValueString": "unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetry2file"
+	}`
+	/*str := `"ValueString": {
+	    "Type": "STRING",
+	    "ValueString": "go"
+	}`*/
+	jsonData = []byte(str)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for i := 0; i < len(jsonData); i++ {
+			//
+		}
 	}
 }

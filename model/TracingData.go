@@ -1,6 +1,7 @@
 package model
 
 import (
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -141,7 +142,19 @@ const (
 	InstrumentationLibraryBlock
 )
 
-func Unmarshal(jsonData []byte) (result TracingData, err error) {
+var AttributePool = sync.Pool{
+	New: func() interface{} {
+		return make([]Attribute, 0, 5)
+	},
+}
+
+func Unmarshal(jsonData []byte) (TracingData, error) {
+	result := TracingData{
+		Attributes: AttributePool.Get().([]Attribute),
+		Resource:   AttributePool.Get().([]Attribute),
+	}
+	var err error
+
 	var doubleQuotes, previousDoubleQuotes, colon int // comma, leftBrace, rightBrace int
 	var position int
 	var passAttributesBlock, passEventsAttributesBlock bool
@@ -193,7 +206,7 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 					if jsonData[i] == ',' {
 						result.SpanKind = ByteArrayToInt(jsonData[numberStart:i])
 						if err != nil {
-							return
+							return result, err
 						}
 						break LOOP1
 					}
@@ -216,7 +229,7 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 								case NotInAnyBlock:
 									result.Name = value
 								case EventsAttributesBlock:
-									result.Events = append(result.Events, Event{Name: value})
+									result.Events = append(result.Events, Event{Name: value, Attributes: AttributePool.Get().([]Attribute)})
 								case InstrumentationLibraryBlock:
 									result.InstrumentationLibrary.Name = value
 								}
@@ -316,9 +329,13 @@ func Unmarshal(jsonData []byte) (result TracingData, err error) {
 
 	}
 
-	// fmt.Println(comma, leftBrace, rightBrace)
+	AttributePool.Put(result.Attributes[:0])
+	AttributePool.Put(result.Resource[:0])
+	for j := 0; j < len(result.Events); j++ {
+		AttributePool.Put(result.Events[j].Attributes[:0])
+	}
 
-	return
+	return result, err
 }
 
 func ByteArrayToString(b []byte) string {
