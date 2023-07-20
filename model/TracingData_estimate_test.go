@@ -68,7 +68,7 @@ func Test_Estimate_omitemptySample_SyncPool(t *testing.T) {
 }
 
 // Benchmark_Estimate_omitemptySample performs benchmark testing using omitemptySample data.
-func Benchmark_Estimate_omitemptySample(b *testing.B) {
+func Benchmark_Estimate_omitemptySample2(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var sample omitemptySample

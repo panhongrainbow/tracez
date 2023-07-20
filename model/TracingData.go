@@ -156,11 +156,9 @@ var AttributePool = sync.Pool{
 // For JSON processing, third-party packages will be about twice as fast as standard packages,
 // and self-written parsers will be about 6 to 7 times faster than benchmark packages.
 // In reality, it was about 8.3 times faster, which is an acceptable result.
-func Unmarshal(jsonData []byte) (TracingData, error) {
-	result := TracingData{
-		Attributes: AttributePool.Get().([]Attribute),
-		Resource:   AttributePool.Get().([]Attribute),
-	}
+func Unmarshal(jsonData []byte, result *TracingData) error {
+	result.Attributes = AttributePool.Get().([]Attribute)
+	result.Resource = AttributePool.Get().([]Attribute)
 	var err error
 
 	var doubleQuotes, previousDoubleQuotes, colon int // comma, leftBrace, rightBrace int
@@ -207,15 +205,35 @@ func Unmarshal(jsonData []byte) (TracingData, error) {
 				passEventsAttributesBlock = true
 			case "InstrumentationLibrary":
 				position = InstrumentationLibraryBlock
-			case "SpanKind", "DroppedAttributes", "DroppedEvents", "DroppedLinks", "ChildSpanCount":
+			case "SpanKind":
 				result.SpanKind, i, err = ByteArrayToFindInt(i, &jsonData)
 				if err != nil {
-					return TracingData{}, err
+					return err
+				}
+			case "DroppedAttributes":
+				result.DroppedAttributes, i, err = ByteArrayToFindInt(i, &jsonData)
+				if err != nil {
+					return err
+				}
+			case "DroppedEvents":
+				result.DroppedEvents, i, err = ByteArrayToFindInt(i, &jsonData)
+				if err != nil {
+					return err
+				}
+			case "DroppedLinks":
+				result.DroppedLinks, i, err = ByteArrayToFindInt(i, &jsonData)
+				if err != nil {
+					return err
+				}
+			case "ChildSpanCount":
+				result.ChildSpanCount, i, err = ByteArrayToFindInt(i, &jsonData)
+				if err != nil {
+					return err
 				}
 			case "DroppedAttributeCount":
 				result.Events[len(result.Events)-1].DroppedAttributeCount, i, err = ByteArrayToFindInt(i, &jsonData)
 				if err != nil {
-					return TracingData{}, err
+					return err
 				}
 			default:
 			LOOP2:
@@ -325,6 +343,10 @@ func Unmarshal(jsonData []byte) (TracingData, error) {
 								result.Events[len(result.Events)-1].digitTime[4] = ByteArrayToInt(valueByte2[14:16]) // minute
 								result.Events[len(result.Events)-1].digitTime[5] = ByteArrayToInt(valueByte2[17:19]) // second
 								result.Events[len(result.Events)-1].digitTime[6] = ByteArrayToInt(valueByte2[20:29]) // micro second
+							case "Code":
+								result.Status.Code = ByteArrayToString(jsonData[previousDoubleQuotes+1 : doubleQuotes])
+							case "Description":
+								result.Status.Description = ByteArrayToString(jsonData[previousDoubleQuotes+1 : doubleQuotes])
 							}
 							break LOOP2
 						}
@@ -335,13 +357,7 @@ func Unmarshal(jsonData []byte) (TracingData, error) {
 
 	}
 
-	AttributePool.Put(result.Attributes[:0])
-	AttributePool.Put(result.Resource[:0])
-	for j := 0; j < len(result.Events); j++ {
-		AttributePool.Put(result.Events[j].Attributes[:0])
-	}
-
-	return result, err
+	return err
 }
 
 //go:inline
