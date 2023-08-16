@@ -1,10 +1,105 @@
 package model
 
 import (
+	"fmt"
 	"sync"
 	"time"
 	"unsafe"
 )
+
+const (
+	Block_Json_SpanContext uint8 = iota + 1
+	Block_Json_Parent
+	Block_Json_Attributes
+	Block_Json_Events
+	Block_Json_Status
+	Block_Json_Resource
+	Block_Json_InstrumentationLibrary
+	Block_Json_Others
+	Block_Error_Happens
+)
+
+// Unmarshal function processes JSON strings in the tracing log faster than standard packages.
+// Performing benchmark testing in a desktop environment is actually troublesome.
+// It is because it makes the performance unstable.
+// The best method is to do comparisons.
+// For JSON processing, third-party packages will be about twice as fast as standard packages,
+// and self-written parsers will be about 6 to 7 times faster than benchmark packages.
+// In reality, it was about 8.3 times faster, which is an acceptable result.
+func Unmarshal(jsonTraceLog []byte, result *TracingData) error {
+	// Initialize the return value first.
+	result.Attributes = AttributePool.Get().([]Attribute)
+	result.Resource = AttributePool.Get().([]Attribute)
+	var err error
+
+	// Record the processing location of the JSON string.
+	// var positionCurrent uint
+	// var positionDoubleQuotes, positionPreviousDoubleQuotes, colon int
+	// var positionPassAttributesBlock, positionPassEventsAttributesBlock bool
+
+	//
+
+	return err
+}
+
+// DetectJSONProcessingBlock scans the JSON trace log and identifies the processing block.
+//
+//go:inline
+func DetectJSONProcessingBlock(positionCurrent int, jsonTracingLog []byte) (positionNext int, block uint8, err error) {
+	// Initialize some variables.
+	var inQuotes bool
+	var keyLength int
+
+	// Iterate through the JSON trace log bytes.
+	for ; positionCurrent < len(jsonTracingLog); positionCurrent++ {
+		b := jsonTracingLog[positionCurrent]
+		if b == '"' {
+			inQuotes = !inQuotes
+		} else if inQuotes {
+			keyLength++
+		} else if keyLength > 0 && !inQuotes {
+			// There's an positionCurrent++ before this, so there's an extra +1 here.
+			// (前面有 positionCurrent++ 这里有被多加1)
+			positionNext = positionCurrent + 1 // Next time, start counting from the next byte.
+			positionCurrent--                  // (减回来)
+			break
+		}
+	}
+
+	// If no quoted key was found, return an error.
+	if keyLength == 0 {
+		err = fmt.Errorf("no quoted key found")
+		block = Block_Error_Happens
+		return
+	}
+
+	// Extract the key from the trace log.
+	key := string(jsonTracingLog[(positionCurrent - keyLength):positionCurrent])
+
+	// Determine the which block based on the key.
+	switch key {
+	case "SpanContext":
+		block = Block_Json_SpanContext
+	case "Parent":
+		block = Block_Json_Parent
+	case "Attributes":
+		block = Block_Json_Attributes
+	case "Events":
+		block = Block_Json_Events
+	case "Status":
+		block = Block_Json_Status
+	case "Resource":
+		block = Block_Json_Resource
+	case "InstrumentationLibrary":
+		block = Block_Json_InstrumentationLibrary
+	default:
+		block = Block_Json_Others
+	}
+
+	return
+}
+
+// >>>>> >>>>> >>>>> >>>>> >>>>> old
 
 type SpanContext struct {
 	TraceID    string `json:"TraceID"`
@@ -149,27 +244,29 @@ var AttributePool = sync.Pool{
 	},
 }
 
-// Unmarshal function processes JSON strings in the tracing log faster than standard packages.
+// Unmarshal_Old function processes JSON strings in the tracing log faster than standard packages.
 // Performing benchmark testing in a desktop environment is actually troublesome.
 // It is because it makes the performance unstable.
 // The best method is to do comparisons.
 // For JSON processing, third-party packages will be about twice as fast as standard packages,
 // and self-written parsers will be about 6 to 7 times faster than benchmark packages.
 // In reality, it was about 8.3 times faster, which is an acceptable result.
-func Unmarshal(jsonData []byte, result *TracingData) error {
+func Unmarshal_Old(jsonData []byte, result *TracingData) error {
+	// Initialize the return value first.
 	result.Attributes = AttributePool.Get().([]Attribute)
 	result.Resource = AttributePool.Get().([]Attribute)
 	var err error
 
-	var doubleQuotes, previousDoubleQuotes, colon int // comma, leftBrace, rightBrace int
-	var position int
-	var passAttributesBlock, passEventsAttributesBlock bool
+	// Record the processing location of the JSON string.
+	var positionCurrent int
+	var positionDoubleQuotes, positionPreviousDoubleQuotes, colon int
+	var positionPassAttributesBlock, positionPassEventsAttributesBlock bool
 
 	for i := 0; i < len(jsonData); i++ {
 		switch jsonData[i] {
 		case '"':
-			previousDoubleQuotes = doubleQuotes
-			doubleQuotes = i
+			positionPreviousDoubleQuotes = positionDoubleQuotes
+			positionDoubleQuotes = i
 			continue
 		case ':':
 			colon = i
@@ -186,25 +283,25 @@ func Unmarshal(jsonData []byte, result *TracingData) error {
 			continue
 		}
 
-		if colon > doubleQuotes && doubleQuotes > previousDoubleQuotes {
-			attr := ByteArrayToString(jsonData[previousDoubleQuotes+1 : doubleQuotes])
+		if colon > positionDoubleQuotes && positionDoubleQuotes > positionPreviousDoubleQuotes {
+			attr := ByteArrayToString(jsonData[positionPreviousDoubleQuotes+1 : positionDoubleQuotes])
 			switch attr {
 			case "SpanContext":
-				position = SpanContextBlock
+				positionCurrent = SpanContextBlock
 			case "Parent":
-				position = ParentBlock
+				positionCurrent = ParentBlock
 			case "Attributes":
-				position = AttributesBlock
+				positionCurrent = AttributesBlock
 			case "Events":
-				position = EventsAttributesBlock
-				passAttributesBlock = true
+				positionCurrent = EventsAttributesBlock
+				positionPassAttributesBlock = true
 			case "Status":
-				position = StatusBlock
+				positionCurrent = StatusBlock
 			case "Resource":
-				position = ResourceBlock
-				passEventsAttributesBlock = true
+				positionCurrent = ResourceBlock
+				positionPassEventsAttributesBlock = true
 			case "InstrumentationLibrary":
-				position = InstrumentationLibraryBlock
+				positionCurrent = InstrumentationLibraryBlock
 			case "SpanKind":
 				result.SpanKind, i, err = ByteArrayToFindInt(i, &jsonData)
 				if err != nil {
@@ -239,14 +336,14 @@ func Unmarshal(jsonData []byte, result *TracingData) error {
 			LOOP2:
 				for ; i < len(jsonData); i++ {
 					if jsonData[i] == '"' {
-						previousDoubleQuotes = doubleQuotes
-						doubleQuotes = i
-						if previousDoubleQuotes > colon {
-							valueByte2 := jsonData[previousDoubleQuotes+1 : doubleQuotes]
+						positionPreviousDoubleQuotes = positionDoubleQuotes
+						positionDoubleQuotes = i
+						if positionPreviousDoubleQuotes > colon {
+							valueByte2 := jsonData[positionPreviousDoubleQuotes+1 : positionDoubleQuotes]
 							value := ByteArrayToString(valueByte2)
 							switch attr {
 							case "Name":
-								switch position {
+								switch positionCurrent {
 								case NotInAnyBlock:
 									result.Name = value
 								case EventsAttributesBlock:
@@ -255,28 +352,28 @@ func Unmarshal(jsonData []byte, result *TracingData) error {
 									result.InstrumentationLibrary.Name = value
 								}
 							case "TraceID":
-								switch position {
+								switch positionCurrent {
 								case SpanContextBlock:
 									result.SpanContext.TraceID = value
 								case ParentBlock:
 									result.Parent.TraceID = value
 								}
 							case "SpanID":
-								switch position {
+								switch positionCurrent {
 								case SpanContextBlock:
 									result.SpanContext.SpanID = value
 								case ParentBlock:
 									result.Parent.SpanID = value
 								}
 							case "TraceFlags":
-								switch position {
+								switch positionCurrent {
 								case SpanContextBlock:
 									result.SpanContext.TraceFlags = value
 								case ParentBlock:
 									result.Parent.TraceFlags = value
 								}
 							case "TraceState":
-								switch position {
+								switch positionCurrent {
 								case SpanContextBlock:
 									result.SpanContext.TraceState = value
 								case ParentBlock:
@@ -287,7 +384,7 @@ func Unmarshal(jsonData []byte, result *TracingData) error {
 								if value == "true" || value == "True" {
 									valueBool = true
 
-									switch position {
+									switch positionCurrent {
 									case SpanContextBlock:
 										result.SpanContext.Remote = valueBool
 									case ParentBlock:
@@ -327,9 +424,9 @@ func Unmarshal(jsonData []byte, result *TracingData) error {
 									},
 								}
 
-								if passEventsAttributesBlock {
+								if positionPassEventsAttributesBlock {
 									result.Resource = append(result.Resource, tmp)
-								} else if passAttributesBlock {
+								} else if positionPassAttributesBlock {
 									result.Events[len(result.Events)-1].Attributes = append(result.Events[len(result.Events)-1].Attributes, tmp)
 								} else {
 									result.Attributes = append(result.Attributes, tmp)
@@ -344,9 +441,9 @@ func Unmarshal(jsonData []byte, result *TracingData) error {
 								result.Events[len(result.Events)-1].digitTime[5] = ByteArrayToInt(valueByte2[17:19]) // second
 								result.Events[len(result.Events)-1].digitTime[6] = ByteArrayToInt(valueByte2[20:29]) // micro second
 							case "Code":
-								result.Status.Code = ByteArrayToString(jsonData[previousDoubleQuotes+1 : doubleQuotes])
+								result.Status.Code = ByteArrayToString(jsonData[positionPreviousDoubleQuotes+1 : positionDoubleQuotes])
 							case "Description":
-								result.Status.Description = ByteArrayToString(jsonData[previousDoubleQuotes+1 : doubleQuotes])
+								result.Status.Description = ByteArrayToString(jsonData[positionPreviousDoubleQuotes+1 : positionDoubleQuotes])
 							}
 							break LOOP2
 						}

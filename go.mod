@@ -1,9 +1,8 @@
 module github.com/panhongrainbow/tracez
 
-go 1.20
+go 1.21
 
 require (
-	github.com/panhongrainbow/tracez/model v0.0.0-20230603154459-a699e4e48243
 	github.com/stretchr/testify v1.8.4
 	go.mongodb.org/mongo-driver v1.11.6
 	go.opentelemetry.io/otel v1.16.0
