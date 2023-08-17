@@ -26,29 +26,51 @@ const (
 // For JSON processing, third-party packages will be about twice as fast as standard packages,
 // and self-written parsers will be about 6 to 7 times faster than benchmark packages.
 // In reality, it was about 8.3 times faster, which is an acceptable result.
-func Unmarshal(jsonTraceLog []byte, result *TracingData) error {
+func Unmarshal(jsonTracingLog []byte, result *TracingData) error {
 	// Initialize the return value first.
 	result.Attributes = AttributePool.Get().([]Attribute)
 	result.Resource = AttributePool.Get().([]Attribute)
 	var err error
 
-	// Record the processing location of the JSON string.
-	// var positionCurrent uint
-	// var positionDoubleQuotes, positionPreviousDoubleQuotes, colon int
-	// var positionPassAttributesBlock, positionPassEventsAttributesBlock bool
+	var positionCurrent int
+	var block uint8
+	var key string
+	positionCurrent, block, key, err = DetectJSONProcessingBlock(positionCurrent, jsonTracingLog)
 
-	//
+	// Determine the which block based on the key.
+	switch block {
+	case Block_Json_SpanContext:
+		//
+	case Block_Json_Parent:
+		//
+	case Block_Json_Attributes:
+		//
+	case Block_Json_Events:
+		//
+	case Block_Json_Status:
+		//
+	case Block_Json_Resource:
+		//
+	case Block_Json_InstrumentationLibrary:
+		//
+	case Block_Json_Others:
+		if key == "Name" {
+			var keyTail, keyLength int
+			positionCurrent, keyTail, keyLength = DetectJsonString(positionCurrent, jsonTracingLog)
+			fmt.Println(positionCurrent)
+			fmt.Println(string(jsonTracingLog[(keyTail - keyLength):keyTail]))
+		}
+	}
 
 	return err
 }
 
-// DetectJSONProcessingBlock scans the JSON trace log and identifies the processing block.
+// DetectJsonString scans the JSON trace log.
 //
 //go:inline
-func DetectJSONProcessingBlock(positionCurrent int, jsonTracingLog []byte) (positionNext int, block uint8, err error) {
+func DetectJsonString(positionCurrent int, jsonTracingLog []byte) (positionNext, keyTail, keyLength int) {
 	// Initialize some variables.
 	var inQuotes bool
-	var keyLength int
 
 	// Iterate through the JSON trace log bytes.
 	for ; positionCurrent < len(jsonTracingLog); positionCurrent++ {
@@ -66,6 +88,20 @@ func DetectJSONProcessingBlock(positionCurrent int, jsonTracingLog []byte) (posi
 		}
 	}
 
+	// Determine the key value by using keyTail and keyLength.
+	keyTail = positionCurrent
+
+	return
+}
+
+// DetectJSONProcessingBlock identifies the processing block.
+//
+//go:inline
+func DetectJSONProcessingBlock(positionCurrent int, jsonTracingLog []byte) (positionNext int, block uint8, key string, err error) {
+	// Using DetectJsonString to extract the key from the JSON trace log.
+	var keyTail, keyLength int
+	positionNext, keyTail, keyLength = DetectJsonString(positionCurrent, jsonTracingLog)
+
 	// If no quoted key was found, return an error.
 	if keyLength == 0 {
 		err = fmt.Errorf("no quoted key found")
@@ -74,7 +110,7 @@ func DetectJSONProcessingBlock(positionCurrent int, jsonTracingLog []byte) (posi
 	}
 
 	// Extract the key from the trace log.
-	key := string(jsonTracingLog[(positionCurrent - keyLength):positionCurrent])
+	key = string(jsonTracingLog[(keyTail - keyLength):keyTail])
 
 	// Determine the which block based on the key.
 	switch key {
