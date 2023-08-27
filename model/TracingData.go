@@ -54,21 +54,57 @@ func Unmarshal(jsonTracingLog []byte, result *TracingData) error {
 	case Block_Json_InstrumentationLibrary:
 		//
 	case Block_Json_Others:
-		if key == "Name" {
+		switch key {
+		case "Name":
 			var keyTail, keyLength int
 			positionCurrent, keyTail, keyLength = DetectJsonString(positionCurrent, jsonTracingLog)
-			fmt.Println(positionCurrent)
-			fmt.Println(string(jsonTracingLog[(keyTail - keyLength):keyTail]))
+			fmt.Println(">>>>>", positionCurrent, keyTail, keyLength)
+			result.Name = string(jsonTracingLog[(keyTail - keyLength):keyTail])
+		default:
+			// do not thing
 		}
 	}
 
 	return err
 }
 
-// DetectJsonString scans the JSON trace log.
+// DetectJsonBool scans the bool value in JSON trace log.
 //
 //go:inline
-func DetectJsonString(positionCurrent int, jsonTracingLog []byte) (positionNext, keyTail, keyLength int) {
+func DetectJsonBool(positionCurrent int, jsonTracingLog []byte) (positionNext, boolTail, boolLength int) {
+	// Initialize some variables.
+	var inBool bool
+	var outBool int
+
+	// Iterate through the JSON trace log bytes.
+	for ; positionCurrent < len(jsonTracingLog); positionCurrent++ {
+
+		b := jsonTracingLog[positionCurrent]
+		if b == ' ' || b == ',' || b == '}' || b == ':' {
+			outBool++
+			if outBool == 1 {
+				inBool = !inBool
+			}
+			if boolLength > 0 && !inBool {
+				positionNext = positionCurrent // Exclude adding 1 here, as I need to start reading from the comma.
+				break
+			}
+		} else if inBool {
+			boolLength++
+			outBool = 0
+		}
+	}
+
+	// Determine the key value by using keyTail and keyLength.
+	boolTail = positionCurrent
+
+	return
+}
+
+// DetectJsonString scans the string value in JSON trace log.
+//
+//go:inline
+func DetectJsonString(positionCurrent int, jsonTracingLog []byte) (positionNext, keyValueTail, keyValueLength int) {
 	// Initialize some variables.
 	var inQuotes bool
 
@@ -77,19 +113,17 @@ func DetectJsonString(positionCurrent int, jsonTracingLog []byte) (positionNext,
 		b := jsonTracingLog[positionCurrent]
 		if b == '"' {
 			inQuotes = !inQuotes
+			if keyValueLength > 0 && !inQuotes {
+				positionNext = positionCurrent + 1 // Next time, start counting from the next byte.
+				break
+			}
 		} else if inQuotes {
-			keyLength++
-		} else if keyLength > 0 && !inQuotes {
-			// There's an positionCurrent++ before this, so there's an extra +1 here.
-			// (前面有 positionCurrent++ 这里有被多加1)
-			positionNext = positionCurrent + 1 // Next time, start counting from the next byte.
-			positionCurrent--                  // (减回来)
-			break
+			keyValueLength++
 		}
 	}
 
 	// Determine the key value by using keyTail and keyLength.
-	keyTail = positionCurrent
+	keyValueTail = positionCurrent
 
 	return
 }

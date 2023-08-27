@@ -10,10 +10,127 @@ import (
 
 var jsonTracingLog = []byte(`{"Name":"functionBSpan","SpanContext":{"TraceID":"77ea467445562b1afb250147b0ddc178","SpanID":"e7d262c286f5b660","TraceFlags":"01","TraceState":"","Remote":false},"Parent":{"TraceID":"77ea467445562b1afb250147b0ddc178","SpanID":"b178c20dce680429","TraceFlags":"01","TraceState":"","Remote":false},"SpanKind":1,"StartTime":"2023-05-29T01:49:32.011159939+08:00","EndTime":"2023-05-29T01:49:33.011344186+08:00","Attributes":[{"Key":"ParameterB","ValueString":{"Type":"STRING","ValueString":"ValueB"}}],"Events":[{"Name":"exception","Attributes":[{"Key":"ID","ValueString":{"Type":"INT64","ValueString":1}},{"Key":"postscript","ValueString":{"Type":"STRING","ValueString":"more details"}},{"Key":"exception.type","ValueString":{"Type":"STRING","ValueString":"*errors.errorString"}},{"Key":"exception.message","ValueString":{"Type":"STRING","ValueString":"error"}}],"DroppedAttributeCount":0,"Time":"2023-05-29T01:49:32.011163907+08:00"}],"Links":null,"Status":{"Code":"Error","Description":"functionB failed"},"DroppedAttributes":0,"DroppedEvents":0,"DroppedLinks":0,"ChildSpanCount":0,"Resource":[{"Key":"service.name","ValueString":{"Type":"STRING","ValueString":"unknown_service:___go_build_github_com_panhongrainbow_tracez_example_openTelemetry2file"}},{"Key":"telemetry.sdk.language","ValueString":{"Type":"STRING","ValueString":"go"}},{"Key":"telemetry.sdk.name","ValueString":{"Type":"STRING","ValueString":"opentelemetry"}},{"Key":"telemetry.sdk.version","ValueString":{"Type":"STRING","ValueString":"1.14.0"}}],"InstrumentationLibrary":{"Name":"functionBTracer","Version":"","SchemaURL":""}}`)
 
+// Test_Check_DetectJsonString performs testing for detecting JSON string values, comparing expected and actual results.
+func Test_Check_DetectJsonString(t *testing.T) {
+	// Initialize the starting position for testing.
+	initPosition, _, _ := DetectJsonString(0, []byte(`{"key":`))
+
+	tests := []struct {
+		name            string
+		jsonStr         []byte
+		positionCurrent int
+		expectedKey     string
+		expectedNext    int
+		expectedRest    string
+	}{
+		{
+			name:            "detect bool value in compact json string",
+			jsonStr:         []byte(`{"key":"value","otherKey":"value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "value",
+			expectedNext:    14,
+			expectedRest:    ",\"otherKey\":\"value\"}",
+		},
+		{
+			name:            "detect bool value in abnormal json string",
+			jsonStr:         []byte(`{"key"     :     "value"     ,"otherKey":"value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "value",
+			expectedNext:    24,
+			expectedRest:    "     ,\"otherKey\":\"value\"}",
+		},
+		{
+			name:            "detect bool value in abnormal json string",
+			jsonStr:         []byte(`{"key":          "value"          ,"otherKey": "value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "value",
+			expectedNext:    24,
+			expectedRest:    "          ,\"otherKey\": \"value\"}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the function to detect JSON string and get the results.
+			positionNext, keyTail, keyLength := DetectJsonString(tt.positionCurrent, tt.jsonStr)
+
+			// Extract the actual key using calculated tail and length.
+			actualKey := string(tt.jsonStr[(keyTail - keyLength):keyTail])
+
+			// Retrieve the remaining content.
+			remaining := string(tt.jsonStr[positionNext:])
+
+			// Compare the actual and expected results for key and next position.
+			assert.Equal(t, tt.expectedKey, actualKey, fmt.Sprintf("unexpected key: got %q, want %q", actualKey, tt.expectedKey))
+			assert.Equal(t, tt.expectedNext, positionNext, fmt.Sprintf("unexpected next position: got %d, want %d", positionNext, tt.expectedNext))
+			assert.Equal(t, tt.expectedRest, remaining, fmt.Sprintf("unexpected emaining content: got %s, want %s", remaining, tt.expectedRest))
+		})
+	}
+}
+
+// Test_Check_DetectJsonBool performs testing for detecting JSON boolean values, comparing expected and actual results.
+func Test_Check_DetectJsonBool(t *testing.T) {
+	// Initialize the starting position for testing.
+	initPosition, _, _ := DetectJsonString(0, []byte(`{"key":`))
+
+	tests := []struct {
+		name            string
+		jsonStr         []byte
+		positionCurrent int
+		expectedKey     string
+		expectedNext    int
+		expectedRest    string
+	}{
+		{
+			name:            "detect bool value in compact json string",
+			jsonStr:         []byte(`{"key":true,"otherKey":"value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "true",
+			expectedNext:    11,
+			expectedRest:    ",\"otherKey\":\"value\"}",
+		},
+		{
+			name:            "detect bool value in abnormal json string",
+			jsonStr:         []byte(`{"key"     :     true     ,"otherKey":"value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "true",
+			expectedNext:    21,
+			expectedRest:    "     ,\"otherKey\":\"value\"}",
+		},
+		{
+			name:            "detect bool value in abnormal json string",
+			jsonStr:         []byte(`{"key":          true          ,"otherKey": "value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "true",
+			expectedNext:    21,
+			expectedRest:    "          ,\"otherKey\": \"value\"}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the function to detect JSON boolean and get the results.
+			positionNext, keyTail, keyLength := DetectJsonBool(tt.positionCurrent, tt.jsonStr)
+
+			// Extract the actual key using calculated tail and length.
+			actualKey := string(tt.jsonStr[(keyTail - keyLength):keyTail])
+
+			// Retrieve the remaining content.
+			remaining := string(tt.jsonStr[positionNext:])
+
+			// Compare the actual and expected results for key and next position.
+			assert.Equal(t, tt.expectedKey, actualKey, fmt.Sprintf("unexpected key: got %q, want %q", actualKey, tt.expectedKey))
+			assert.Equal(t, tt.expectedNext, positionNext, fmt.Sprintf("unexpected next position: got %d, want %d", positionNext, tt.expectedNext))
+			assert.Equal(t, tt.expectedRest, remaining, fmt.Sprintf("unexpected emaining content: got %s, want %s", remaining, tt.expectedRest))
+		})
+	}
+}
+
 func Test_Check_Unmarshal(t *testing.T) {
 	var result = new(TracingData)
 	var err error
 	err = Unmarshal(jsonTracingLog, result)
+	fmt.Println(result)
 	require.NoError(t, err)
 }
 
