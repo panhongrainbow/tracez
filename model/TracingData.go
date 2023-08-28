@@ -68,10 +68,10 @@ func Unmarshal(jsonTracingLog []byte, result *TracingData) error {
 	return err
 }
 
-// DetectJsonBool scans the bool value in JSON trace log.
+// DetectJsonNonString scans the bool, int value in JSON trace log.
 //
 //go:inline
-func DetectJsonBool(positionCurrent int, jsonTracingLog []byte) (positionNext, boolTail, boolLength int) {
+func DetectJsonNonString(positionCurrent int, jsonTracingLog []byte) (positionNext, boolTail, boolLength int) {
 	// Initialize some variables.
 	var inBool bool
 	var outBool int

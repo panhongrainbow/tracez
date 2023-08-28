@@ -24,7 +24,7 @@ func Test_Check_DetectJsonString(t *testing.T) {
 		expectedRest    string
 	}{
 		{
-			name:            "detect bool value in compact json string",
+			name:            "detect string value in compact json string",
 			jsonStr:         []byte(`{"key":"value","otherKey":"value"}`),
 			positionCurrent: initPosition,
 			expectedKey:     "value",
@@ -32,7 +32,7 @@ func Test_Check_DetectJsonString(t *testing.T) {
 			expectedRest:    ",\"otherKey\":\"value\"}",
 		},
 		{
-			name:            "detect bool value in abnormal json string",
+			name:            "detect string value in json string with spaces",
 			jsonStr:         []byte(`{"key"     :     "value"     ,"otherKey":"value"}`),
 			positionCurrent: initPosition,
 			expectedKey:     "value",
@@ -40,7 +40,7 @@ func Test_Check_DetectJsonString(t *testing.T) {
 			expectedRest:    "     ,\"otherKey\":\"value\"}",
 		},
 		{
-			name:            "detect bool value in abnormal json string",
+			name:            "detect string value in json string with even spaces",
 			jsonStr:         []byte(`{"key":          "value"          ,"otherKey": "value"}`),
 			positionCurrent: initPosition,
 			expectedKey:     "value",
@@ -68,8 +68,8 @@ func Test_Check_DetectJsonString(t *testing.T) {
 	}
 }
 
-// Test_Check_DetectJsonBool performs testing for detecting JSON boolean values, comparing expected and actual results.
-func Test_Check_DetectJsonBool(t *testing.T) {
+// Test_Check_DetectJsonNonString performs testing for detecting JSON boolean values, comparing expected and actual results.
+func Test_Check_DetectJsonNonString(t *testing.T) {
 	// Initialize the starting position for testing.
 	initPosition, _, _ := DetectJsonString(0, []byte(`{"key":`))
 
@@ -82,7 +82,7 @@ func Test_Check_DetectJsonBool(t *testing.T) {
 		expectedRest    string
 	}{
 		{
-			name:            "detect bool value in compact json string",
+			name:            "detect true boolean value in compact json string",
 			jsonStr:         []byte(`{"key":true,"otherKey":"value"}`),
 			positionCurrent: initPosition,
 			expectedKey:     "true",
@@ -90,7 +90,7 @@ func Test_Check_DetectJsonBool(t *testing.T) {
 			expectedRest:    ",\"otherKey\":\"value\"}",
 		},
 		{
-			name:            "detect bool value in abnormal json string",
+			name:            "detect true boolean value in abnormal json string",
 			jsonStr:         []byte(`{"key"     :     true     ,"otherKey":"value"}`),
 			positionCurrent: initPosition,
 			expectedKey:     "true",
@@ -98,19 +98,43 @@ func Test_Check_DetectJsonBool(t *testing.T) {
 			expectedRest:    "     ,\"otherKey\":\"value\"}",
 		},
 		{
-			name:            "detect bool value in abnormal json string",
+			name:            "detect true boolean value in json string with even spaces",
 			jsonStr:         []byte(`{"key":          true          ,"otherKey": "value"}`),
 			positionCurrent: initPosition,
 			expectedKey:     "true",
 			expectedNext:    21,
 			expectedRest:    "          ,\"otherKey\": \"value\"}",
 		},
+		{
+			name:            "detect false boolean value in compact json string",
+			jsonStr:         []byte(`{"key":false,"otherKey":"value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "false",
+			expectedNext:    12,
+			expectedRest:    ",\"otherKey\":\"value\"}",
+		},
+		{
+			name:            "detect int value in compact json string",
+			jsonStr:         []byte(`{"key":123,"otherKey":"value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "123",
+			expectedNext:    10,
+			expectedRest:    ",\"otherKey\":\"value\"}",
+		},
+		{
+			name:            "detect float value in compact json string",
+			jsonStr:         []byte(`{"key":12.3,"otherKey":"value"}`),
+			positionCurrent: initPosition,
+			expectedKey:     "12.3",
+			expectedNext:    11,
+			expectedRest:    ",\"otherKey\":\"value\"}",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Call the function to detect JSON boolean and get the results.
-			positionNext, keyTail, keyLength := DetectJsonBool(tt.positionCurrent, tt.jsonStr)
+			positionNext, keyTail, keyLength := DetectJsonNonString(tt.positionCurrent, tt.jsonStr)
 
 			// Extract the actual key using calculated tail and length.
 			actualKey := string(tt.jsonStr[(keyTail - keyLength):keyTail])
