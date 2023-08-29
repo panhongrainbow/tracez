@@ -2,71 +2,151 @@ package model
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 	"sync"
+	"text/template"
 	"time"
 	"unsafe"
 )
 
-const (
-	Block_Json_SpanContext uint8 = iota + 1
-	Block_Json_Parent
-	Block_Json_Attributes
-	Block_Json_Events
-	Block_Json_Status
-	Block_Json_Resource
-	Block_Json_InstrumentationLibrary
-	Block_Json_Others
-	Block_Error_Happens
-)
+type SpanContext struct {
+	TraceID    string `json:"TraceID"`
+	SpanID     string `json:"SpanID"`
+	TraceFlags string `json:"TraceFlags"`
+	TraceState string `json:"TraceState"`
+	Remote     bool   `json:"Remote"`
+}
 
-// Unmarshal function processes JSON strings in the tracing log faster than standard packages.
-// Performing benchmark testing in a desktop environment is actually troublesome.
-// It is because it makes the performance unstable.
-// The best method is to do comparisons.
-// For JSON processing, third-party packages will be about twice as fast as standard packages,
-// and self-written parsers will be about 6 to 7 times faster than benchmark packages.
-// In reality, it was about 8.3 times faster, which is an acceptable result.
-func Unmarshal(jsonTracingLog []byte, result *TracingData) error {
-	// Initialize the return value first.
-	result.Attributes = AttributePool.Get().([]Attribute)
-	result.Resource = AttributePool.Get().([]Attribute)
-	var err error
+type Attribute struct {
+	Key   string `json:"Key"`
+	Value struct {
+		Type  string      `json:"Type"`
+		Value interface{} `json:"ValueString"`
+	} `json:"ValueString"`
+}
 
-	var positionCurrent int
-	var block uint8
-	var key string
-	positionCurrent, block, key, err = DetectJSONProcessingBlock(positionCurrent, jsonTracingLog)
+type Event struct {
+	Name                  string      `json:"Name"`
+	Attributes            []Attribute `json:"Attributes"`
+	DroppedAttributeCount int         `json:"DroppedAttributeCount"`
+	Time                  time.Time   `json:"Time"`
+	digitTime             [8]int
+}
 
-	// Determine the which block based on the key.
-	switch block {
-	case Block_Json_SpanContext:
-		//
-	case Block_Json_Parent:
-		//
-	case Block_Json_Attributes:
-		//
-	case Block_Json_Events:
-		//
-	case Block_Json_Status:
-		//
-	case Block_Json_Resource:
-		//
-	case Block_Json_InstrumentationLibrary:
-		//
-	case Block_Json_Others:
-		switch key {
-		case "Name":
-			var keyTail, keyLength int
-			positionCurrent, keyTail, keyLength = DetectJsonString(positionCurrent, jsonTracingLog)
-			fmt.Println(">>>>>", positionCurrent, keyTail, keyLength)
-			result.Name = string(jsonTracingLog[(keyTail - keyLength):keyTail])
-		default:
-			// do not thing
+type Status struct {
+	Code        string `json:"Code"`
+	Description string `json:"Description"`
+}
+
+type InstrumentationLibrary struct {
+	Name      string `json:"Name"`
+	Version   string `json:"Version"`
+	SchemaURL string `json:"SchemaURL"`
+}
+
+type TracingData struct {
+	Name                   string `json:"Name"`
+	SpanContext            SpanContext
+	Parent                 SpanContext
+	SpanKind               int       `json:"SpanKind"`
+	StartTime              time.Time `json:"StartTime"`
+	digitStartTime         [8]int
+	EndTime                time.Time `json:"EndTime"`
+	digitEndTime           [8]int
+	Attributes             []Attribute            `json:"Attributes"`
+	Events                 []Event                `json:"Events"`
+	Links                  any                    `json:"Links"`
+	Status                 Status                 `json:"Status"`
+	DroppedAttributes      int                    `json:"DroppedAttributes"`
+	DroppedEvents          int                    `json:"DroppedEvents"`
+	DroppedLinks           int                    `json:"DroppedLinks"`
+	ChildSpanCount         int                    `json:"ChildSpanCount"`
+	Resource               []Attribute            `json:"Resource"`
+	InstrumentationLibrary InstrumentationLibrary `json:"InstrumentationLibrary"`
+}
+
+type JSONInfo struct {
+	Key  string
+	Type string
+}
+
+// analyzeJSON iterates through JSON data, annotating keys with type info recursively.
+func analyzeJSON(data map[string]interface{}, prefix string, result *[]JSONInfo) {
+	// Iterate through each key-value pair in the data map
+	for key, value := range data {
+		// Create a new prefix by combining the current prefix and key
+		newPrefix := fmt.Sprintf("%s.%s", prefix, key)
+		// Determine the type of the current value using reflection
+		valueType := reflect.TypeOf(value)
+
+		// Create a JSONInfo struct to store information about the current key
+		info := JSONInfo{
+			Key: newPrefix,
+		}
+		// If the value type is not nil, assign its string representation to the info struct
+		if valueType != nil {
+			info.Type = valueType.String()
+		}
+
+		// Append the info struct to the result slice
+		*result = append(*result, info)
+
+		// Check the type of the value and recursively analyze nested maps or arrays
+		switch value.(type) {
+		case map[string]interface{}:
+			analyzeJSON(value.(map[string]interface{}), newPrefix, result)
+		case []interface{}:
+			analyzeJSON(value.([]interface{})[0].(map[string]interface{}), newPrefix, result)
 		}
 	}
-
-	return err
 }
+
+func generateUnmarshal(slice []JSONInfo) string {
+	tmpl := `
+	// Using DetectJsonString to extract the key from the JSON trace log.
+	var keyTail, keyLength int
+	positionNext, keyTail, keyLength = DetectJsonString(positionCurrent, jsonTracingLog)
+
+	// If no quoted key was found, return an error.
+	if keyLength == 0 {
+		err = fmt.Errorf("no quoted key found")
+		block = Block_Error_Happens
+		return
+	}
+
+	// Extract the key from the trace log.
+	key = string(jsonTracingLog[(keyTail - keyLength):keyTail])
+
+	// Determine the which block based on the key.
+	switch key {
+	{{- range . }}
+		case "{{ .Key }}":
+			// Handle {{ .Key }} case
+	{{- end }}
+	}
+	`
+	t, err := template.New("switchTemplate").Parse(tmpl)
+	if err != nil {
+		fmt.Println("Error creating template:", err)
+		return ""
+	}
+
+	var code strings.Builder
+	err = t.Execute(&code, slice)
+	if err != nil {
+		fmt.Println("Error executing template:", err)
+		return ""
+	}
+
+	return code.String()
+}
+
+type JSONInfoSlice []JSONInfo
+
+func (s JSONInfoSlice) Len() int           { return len(s) }
+func (s JSONInfoSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s JSONInfoSlice) Less(i, j int) bool { return s[i].Key < s[j].Key }
 
 // DetectJsonNonString scans the bool, int value in JSON trace log.
 //
@@ -128,104 +208,7 @@ func DetectJsonString(positionCurrent int, jsonTracingLog []byte) (positionNext,
 	return
 }
 
-// DetectJSONProcessingBlock identifies the processing block.
-//
-//go:inline
-func DetectJSONProcessingBlock(positionCurrent int, jsonTracingLog []byte) (positionNext int, block uint8, key string, err error) {
-	// Using DetectJsonString to extract the key from the JSON trace log.
-	var keyTail, keyLength int
-	positionNext, keyTail, keyLength = DetectJsonString(positionCurrent, jsonTracingLog)
-
-	// If no quoted key was found, return an error.
-	if keyLength == 0 {
-		err = fmt.Errorf("no quoted key found")
-		block = Block_Error_Happens
-		return
-	}
-
-	// Extract the key from the trace log.
-	key = string(jsonTracingLog[(keyTail - keyLength):keyTail])
-
-	// Determine the which block based on the key.
-	switch key {
-	case "SpanContext":
-		block = Block_Json_SpanContext
-	case "Parent":
-		block = Block_Json_Parent
-	case "Attributes":
-		block = Block_Json_Attributes
-	case "Events":
-		block = Block_Json_Events
-	case "Status":
-		block = Block_Json_Status
-	case "Resource":
-		block = Block_Json_Resource
-	case "InstrumentationLibrary":
-		block = Block_Json_InstrumentationLibrary
-	default:
-		block = Block_Json_Others
-	}
-
-	return
-}
-
 // >>>>> >>>>> >>>>> >>>>> >>>>> old
-
-type SpanContext struct {
-	TraceID    string `json:"TraceID"`
-	SpanID     string `json:"SpanID"`
-	TraceFlags string `json:"TraceFlags"`
-	TraceState string `json:"TraceState"`
-	Remote     bool   `json:"Remote"`
-}
-
-type Attribute struct {
-	Key   string `json:"Key"`
-	Value struct {
-		Type  string      `json:"Type"`
-		Value interface{} `json:"ValueString"`
-	} `json:"ValueString"`
-}
-
-type Event struct {
-	Name                  string      `json:"Name"`
-	Attributes            []Attribute `json:"Attributes"`
-	DroppedAttributeCount int         `json:"DroppedAttributeCount"`
-	Time                  time.Time   `json:"Time"`
-	digitTime             [8]int
-}
-
-type Status struct {
-	Code        string `json:"Code"`
-	Description string `json:"Description"`
-}
-
-type InstrumentationLibrary struct {
-	Name      string `json:"Name"`
-	Version   string `json:"Version"`
-	SchemaURL string `json:"SchemaURL"`
-}
-
-type TracingData struct {
-	Name                   string `json:"Name"`
-	SpanContext            SpanContext
-	Parent                 SpanContext
-	SpanKind               int       `json:"SpanKind"`
-	StartTime              time.Time `json:"StartTime"`
-	digitStartTime         [8]int
-	EndTime                time.Time `json:"EndTime"`
-	digitEndTime           [8]int
-	Attributes             []Attribute            `json:"Attributes"`
-	Events                 []Event                `json:"Events"`
-	Links                  any                    `json:"Links"`
-	Status                 Status                 `json:"Status"`
-	DroppedAttributes      int                    `json:"DroppedAttributes"`
-	DroppedEvents          int                    `json:"DroppedEvents"`
-	DroppedLinks           int                    `json:"DroppedLinks"`
-	ChildSpanCount         int                    `json:"ChildSpanCount"`
-	Resource               []Attribute            `json:"Resource"`
-	InstrumentationLibrary InstrumentationLibrary `json:"InstrumentationLibrary"`
-}
 
 func ValueString(jsonData []byte, start int) (result string, end int) {
 	var valueStart, valueEnd, count int
