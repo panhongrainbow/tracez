@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"text/template"
@@ -66,44 +67,97 @@ type TracingData struct {
 	InstrumentationLibrary InstrumentationLibrary `json:"InstrumentationLibrary"`
 }
 
-type JSONInfo struct {
-	Key  string
-	Type string
+type Analyze struct {
+	Collect []SubAnalyze
+	AreaKey []string
 }
 
-// analyzeJSON iterates through JSON data, annotating keys with type info recursively.
-func analyzeJSON(data map[string]interface{}, prefix string, result *[]JSONInfo) {
+type SubAnalyze struct {
+	Path          []string
+	VarPath       string
+	ConditionPath string
+	Key           string
+	Type          string
+	ShowKey       bool
+}
+
+// NewAnalyze analyzeJSON
+func (an *Analyze) NewAnalyze(data map[string]interface{}, prefix string) {
+	//
+	collect := new([]SubAnalyze)
+	gatherJsonKeyAndPath(data, prefix, collect)
+	sort.Sort(JSONInfoSlice(*collect))
+	//
+	an.Collect = *collect
+	an.marksDuplicatedJsonKeys()
+
+	fmt.Println()
+}
+
+// gatherJsonKeyAndPath iterates through JSON data, gathering keys with type info recursively.
+func gatherJsonKeyAndPath(data map[string]interface{}, prefix string, collect *[]SubAnalyze) {
 	// Iterate through each key-value pair in the data map
 	for key, value := range data {
 		// Create a new prefix by combining the current prefix and key
 		newPrefix := fmt.Sprintf("%s.%s", prefix, key)
+
+		// Separate the path and the key value, and it will be easier to handle later on.
+		arr := strings.Split(newPrefix, ".")
+
 		// Determine the type of the current value using reflection
 		valueType := reflect.TypeOf(value)
 
 		// Create a JSONInfo struct to store information about the current key
-		info := JSONInfo{
-			Key: newPrefix,
+		subAnalyze := SubAnalyze{
+			Path:    arr[0 : len(arr)-1],
+			VarPath: newPrefix,
+			Key:     arr[len(arr)-1],
+			ShowKey: true,
 		}
+
+		subArr := arr[1 : len(arr)-1]
+		if len(subArr) == 1 {
+			subAnalyze.ConditionPath = "if " + subArr[0] + " == true {"
+		} else if len(subArr) > 1 {
+			subAnalyze.ConditionPath = "if " + strings.Join(subArr, " == true && ") + " == true {"
+		}
+
 		// If the value type is not nil, assign its string representation to the info struct
 		if valueType != nil {
-			info.Type = valueType.String()
+			subAnalyze.Type = valueType.String()
 		}
 
 		// Append the info struct to the result slice
-		*result = append(*result, info)
+		*collect = append(*collect, subAnalyze)
 
+		// [recursive function ↩️]
 		// Check the type of the value and recursively analyze nested maps or arrays
 		switch value.(type) {
 		case map[string]interface{}:
-			analyzeJSON(value.(map[string]interface{}), newPrefix, result)
+			gatherJsonKeyAndPath(value.(map[string]interface{}), newPrefix, collect)
 		case []interface{}:
-			analyzeJSON(value.([]interface{})[0].(map[string]interface{}), newPrefix, result)
+			gatherJsonKeyAndPath(value.([]interface{})[0].(map[string]interface{}), newPrefix, collect)
 		}
 	}
 }
 
-func generateUnmarshal(slice []JSONInfo) string {
+// marksDuplicatedJsonKeys marks duplicated JSON keys.
+func (an *Analyze) marksDuplicatedJsonKeys() {
+	var perviousKey string
+	for i := 0; i < len(an.Collect); i++ {
+		if perviousKey == an.Collect[i].Key {
+			an.Collect[i].ShowKey = false
+		}
+		perviousKey = an.Collect[i].Key
+	}
+}
+
+func generateUnmarshal(slice []SubAnalyze) string {
 	tmpl := `
+// UnmarshalByGen is an automatically generated function that parses JSON data
+// and populates the provided TracingData structure.
+// It cannot be modified. (Do Not Edit ⛔️)
+func UnmarshalByGen(jsonTracingLog []byte, result *TracingData) (err error) {
 	// Using DetectJsonString to extract the key from the JSON trace log.
 	var keyTail, keyLength int
 	positionNext, keyTail, keyLength = DetectJsonString(positionCurrent, jsonTracingLog)
@@ -116,15 +170,27 @@ func generateUnmarshal(slice []JSONInfo) string {
 	}
 
 	// Extract the key from the trace log.
-	key = string(jsonTracingLog[(keyTail - keyLength):keyTail])
+	key := string(jsonTracingLog[(keyTail - keyLength):keyTail])
 
 	// Determine the which block based on the key.
 	switch key {
 	{{- range . }}
+		{{- if eq .ShowKey true }}
 		case "{{ .Key }}":
-			// Handle {{ .Key }} case
+		{{- end }}
+		{{- if ne .ConditionPath "" }}
+			{{ .ConditionPath }}
+				// handle1
+			}
+		{{- end }}
+		{{- if eq .ConditionPath "" }}
+			if firstLayer == true {
+				// handle2
+			}
+		{{- end }}
 	{{- end }}
 	}
+}
 	`
 	t, err := template.New("switchTemplate").Parse(tmpl)
 	if err != nil {
@@ -142,7 +208,7 @@ func generateUnmarshal(slice []JSONInfo) string {
 	return code.String()
 }
 
-type JSONInfoSlice []JSONInfo
+type JSONInfoSlice []SubAnalyze
 
 func (s JSONInfoSlice) Len() int           { return len(s) }
 func (s JSONInfoSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

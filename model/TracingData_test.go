@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"sort"
 	"testing"
 )
 
@@ -18,13 +17,11 @@ func Test_Check_analyzeJSON(t *testing.T) {
 	err := json.Unmarshal(jsonTracingLog, &m)
 	require.NoError(t, err)
 
-	// Initialize JSONInfo slice and analyze JSON
-	info := make([]JSONInfo, 0)
-	analyzeJSON(m, "root", &info)
-	sort.Sort(JSONInfoSlice(info))
+	an := Analyze{}
+	an.NewAnalyze(m, "root")
 
 	// Generate code for unmarshalling
-	codes := generateUnmarshal(info)
+	codes := generateUnmarshal(an.Collect)
 	fmt.Println(codes)
 }
 
