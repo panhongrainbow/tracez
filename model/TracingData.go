@@ -68,8 +68,10 @@ type TracingData struct {
 }
 
 type Analyze struct {
-	Collect []SubAnalyze
-	AreaKey []string
+	VarName        string
+	Collect        []SubAnalyze
+	FirstLayerKey  []string
+	SecondLayerKey []string
 }
 
 type SubAnalyze struct {
@@ -79,23 +81,25 @@ type SubAnalyze struct {
 	Key           string
 	Type          string
 	ShowKey       bool
+	InFirstLayer  string
+	InSecondLayer string
+	Unique        bool
 }
 
 // NewAnalyze analyzeJSON
 func (an *Analyze) NewAnalyze(data map[string]interface{}, prefix string) {
 	//
 	collect := new([]SubAnalyze)
-	gatherJsonKeyAndPath(data, prefix, collect)
+	NewSubAnalyze(data, prefix, collect)
 	sort.Sort(JSONInfoSlice(*collect))
 	//
+	an.VarName = prefix
 	an.Collect = *collect
 	an.marksDuplicatedJsonKeys()
-
-	fmt.Println()
 }
 
-// gatherJsonKeyAndPath iterates through JSON data, gathering keys with type info recursively.
-func gatherJsonKeyAndPath(data map[string]interface{}, prefix string, collect *[]SubAnalyze) {
+// NewSubAnalyze iterates through JSON data, gathering keys with type info recursively.
+func NewSubAnalyze(data map[string]interface{}, prefix string, collect *[]SubAnalyze) {
 	// Iterate through each key-value pair in the data map
 	for key, value := range data {
 		// Create a new prefix by combining the current prefix and key
@@ -116,10 +120,15 @@ func gatherJsonKeyAndPath(data map[string]interface{}, prefix string, collect *[
 		}
 
 		subArr := arr[1 : len(arr)-1]
-		if len(subArr) == 1 {
+		/*if len(subArr) == 1 {
 			subAnalyze.ConditionPath = "if " + subArr[0] + " == true {"
 		} else if len(subArr) > 1 {
 			subAnalyze.ConditionPath = "if " + strings.Join(subArr, " == true && ") + " == true {"
+		}*/
+		if len(subArr) == 1 {
+			subAnalyze.ConditionPath = "firstLayerKey == Enter_FirstLayer_" + subArr[0]
+		} else if len(subArr) > 1 {
+			subAnalyze.ConditionPath = "firstLayerKey == Enter_FirstLayer_" + subArr[0] + "&& secondLayerKey == Enter_SecondLayer_" + subArr[1]
 		}
 
 		// If the value type is not nil, assign its string representation to the info struct
@@ -134,9 +143,9 @@ func gatherJsonKeyAndPath(data map[string]interface{}, prefix string, collect *[
 		// Check the type of the value and recursively analyze nested maps or arrays
 		switch value.(type) {
 		case map[string]interface{}:
-			gatherJsonKeyAndPath(value.(map[string]interface{}), newPrefix, collect)
+			NewSubAnalyze(value.(map[string]interface{}), newPrefix, collect)
 		case []interface{}:
-			gatherJsonKeyAndPath(value.([]interface{})[0].(map[string]interface{}), newPrefix, collect)
+			NewSubAnalyze(value.([]interface{})[0].(map[string]interface{}), newPrefix, collect)
 		}
 	}
 }
@@ -149,17 +158,56 @@ func (an *Analyze) marksDuplicatedJsonKeys() {
 			an.Collect[i].ShowKey = false
 		}
 		perviousKey = an.Collect[i].Key
+		if len(an.Collect[i].Path) == 1 {
+			an.Collect[i].InFirstLayer = "NotAnywhere"
+		}
+		if len(an.Collect[i].Path) > 1 {
+			an.Collect[i].InFirstLayer = "FirstLayer_" + an.Collect[i].Path[1]
+			an.FirstLayerKey = append(an.FirstLayerKey, an.Collect[i].Path[1])
+		}
+		if len(an.Collect[i].Path) > 2 {
+			an.Collect[i].InSecondLayer = "SecondLayer_" + an.Collect[i].Path[2]
+			an.SecondLayerKey = append(an.SecondLayerKey, an.Collect[i].Path[2])
+		}
 	}
+	an.FirstLayerKey = removeDuplicatesAndSort(an.FirstLayerKey)
+	an.SecondLayerKey = removeDuplicatesAndSort(an.SecondLayerKey)
 }
 
-func generateUnmarshal(slice []SubAnalyze) string {
+func removeDuplicatesAndSort(input []string) []string {
+	uniqueMap := make(map[string]bool)
+	var result []string
+
+	for _, item := range input {
+		if !uniqueMap[item] {
+			uniqueMap[item] = true
+			result = append(result, item)
+		}
+	}
+
+	sort.Strings(result) // 使用sort.Strings來對切片進行排序
+	return result
+}
+
+func generateUnmarshal(an Analyze) string {
 	tmpl := `
+const (
+    Enter_NotAnywhere = iota
+	{{- range .FirstLayerKey }}
+	Enter_FirstLayer_{{ . }}
+	{{- end }}
+	{{- range .SecondLayerKey }}
+	Enter_SecondLayer_{{ . }}
+	{{- end }}
+)
+
 // UnmarshalByGen is an automatically generated function that parses JSON data
 // and populates the provided TracingData structure.
 // It cannot be modified. (Do Not Edit ⛔️)
-func UnmarshalByGen(jsonTracingLog []byte, result *TracingData) (err error) {
+func UnmarshalByGen(jsonTracingLog []byte, {{ .VarName }} *TracingData) (err error) {
+	var firstLayerKey, secondLayerKey int
 	// Using DetectJsonString to extract the key from the JSON trace log.
-	var keyTail, keyLength int
+	var positionNext, keyTail, keyLength int
 	positionNext, keyTail, keyLength = DetectJsonString(positionCurrent, jsonTracingLog)
 
 	// If no quoted key was found, return an error.
@@ -168,30 +216,35 @@ func UnmarshalByGen(jsonTracingLog []byte, result *TracingData) (err error) {
 		block = Block_Error_Happens
 		return
 	}
-
+	
 	// Extract the key from the trace log.
 	key := string(jsonTracingLog[(keyTail - keyLength):keyTail])
 
 	// Determine the which block based on the key.
 	switch key {
-	{{- range . }}
+	{{- range .Collect }}
+		// >>>>> {{ .Type }}
 		{{- if eq .ShowKey true }}
 		case "{{ .Key }}":
 		{{- end }}
 		{{- if ne .ConditionPath "" }}
-			{{ .ConditionPath }}
-				// handle1
+			if {{ .ConditionPath }} {
+				positionNext, keyTail, keyLength = DetectJsonString(positionNext, jsonTracingLog)
+				{{ .VarPath }} = string(jsonTracingLog[(keyTail - keyLength):keyTail])
+				firstLayerKey = Enter_{{ .InFirstLayer }}
 			}
 		{{- end }}
 		{{- if eq .ConditionPath "" }}
-			if firstLayer == true {
-				// handle2
+			if firstLayerKey == Enter_NotAnywhere {
+				positionNext, keyTail, keyLength = DetectJsonString(positionNext, jsonTracingLog)
+				{{ .VarPath }} = string(jsonTracingLog[(keyTail - keyLength):keyTail])
+				firstLayerKey = Enter_{{ .InFirstLayer }}
 			}
 		{{- end }}
 	{{- end }}
 	}
 }
-	`
+`
 	t, err := template.New("switchTemplate").Parse(tmpl)
 	if err != nil {
 		fmt.Println("Error creating template:", err)
@@ -199,7 +252,7 @@ func UnmarshalByGen(jsonTracingLog []byte, result *TracingData) (err error) {
 	}
 
 	var code strings.Builder
-	err = t.Execute(&code, slice)
+	err = t.Execute(&code, an)
 	if err != nil {
 		fmt.Println("Error executing template:", err)
 		return ""
@@ -207,6 +260,16 @@ func UnmarshalByGen(jsonTracingLog []byte, result *TracingData) (err error) {
 
 	return code.String()
 }
+
+/*func (an *Analyze) CollectFirstLayerKey() {
+	for i := 0; i < len(an.Collect); i++ {
+		if len(an.Collect[i].Path) == 1 {
+			an.FirstLayerKey
+		}
+	}
+
+	return
+}*/
 
 type JSONInfoSlice []SubAnalyze
 
@@ -259,7 +322,8 @@ func DetectJsonString(positionCurrent int, jsonTracingLog []byte) (positionNext,
 		b := jsonTracingLog[positionCurrent]
 		if b == '"' {
 			inQuotes = !inQuotes
-			if keyValueLength > 0 && !inQuotes {
+			// if keyValueLength > 0 && !inQuotes {
+			if !inQuotes {
 				positionNext = positionCurrent + 1 // Next time, start counting from the next byte.
 				break
 			}
