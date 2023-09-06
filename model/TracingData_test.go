@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
 )
 
@@ -29,6 +30,79 @@ func Test_Check_Unmarshal(t *testing.T) {
 	tData := TracingData{}
 	UnmarshalByGen(jsonTracingLog, &tData)
 	fmt.Println()
+}
+
+// TestDetect_Check_JsonElement primarily focuses on verifying the extraction of elements in JSON.
+func TestDetect_Check_JsonElement(t *testing.T) {
+	testCases := []struct {
+		input  string
+		output string
+	}{
+		// Test case 1: JSON object with a name field containing "John".
+		{
+			input:  `"name": "John"`,
+			output: "name,John",
+		},
+		// Test case 2: JSON object with an age field containing the number 30.
+		{
+			input:  `"age": 30`,
+			output: "age,30",
+		},
+		// Test case 3: JSON object with a city field containing "New York".
+		{
+			input:  `   {"city": "New York"}`,
+			output: "city,New York",
+		},
+		// Test case 4: JSON object with a state field containing "California".
+		{
+			input:  `{"state": "California"}   `,
+			output: "state,California,",
+		},
+		// Test case 5: Complex JSON object with nested fields and an array.
+		{
+			input: `{
+  "name": "John Doe",
+  "age": 30,
+  "address": {
+    "street": "123 Main St",
+    "city": "New York",
+    "zip": "10001"
+  },
+  "contacts": [
+    {
+      "type": "email",
+      "value": "john@example.com"
+    },
+    {
+      "type": "phone",
+      "value": "+1 123-456-7890"
+    }
+  ]
+}`,
+			output: "name,John Doe,age,30,address,street,123 Main St,city,New York,zip,10001,contacts,[\n,type,email,value,john@example.com,type,phone,value,+1 123-456-7890,]\n",
+		},
+	}
+
+	// Perform individual tests within the loop.
+	for _, tt := range testCases {
+		// Set initial variables.
+		var positionNext, nonStringTail, nonStringLength int
+		var keyValues []string
+		// Loop through the input string to extract JSON elements.
+		for ; positionNext < len(tt.input); positionNext++ {
+			positionNext, nonStringTail, nonStringLength = DetectJsonElement(positionNext, []byte(tt.input))
+			eachKeyValue := string([]byte(tt.input)[(nonStringTail - nonStringLength):nonStringTail])
+			keyValues = append(keyValues, eachKeyValue)
+		}
+
+		// Check if the extracted keys match the expected output.
+		require.Equal(t, tt.output, strings.Join(keyValues, ","))
+
+		// Reset variables for the next test case.
+		positionNext = 0
+		nonStringTail = 0
+		nonStringLength = 0
+	}
 }
 
 // Test_Check_DetectJsonString performs testing for detecting JSON string values, comparing expected and actual results.
