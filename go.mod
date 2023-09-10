@@ -3,6 +3,7 @@ module github.com/panhongrainbow/tracez
 go 1.21
 
 require (
+	github.com/goccy/go-json v0.10.2
 	github.com/stretchr/testify v1.8.4
 	go.mongodb.org/mongo-driver v1.11.6
 	go.opentelemetry.io/otel v1.16.0
