@@ -280,7 +280,7 @@ func (s JSONInfoSlice) Less(i, j int) bool { return s[i].Key < s[j].Key }
 // DetectJsonElement combines the DetectJsonNonString and DetectJsonString functions in DetectJsonElement.
 //
 //go:inline
-func DetectJsonElement(positionCurrent int, jsonTracingLog []byte) (positionNext, boolTail, boolLength int) {
+func DetectJsonElement(positionCurrent int, jsonTracingLog []byte) (positionNext, elementTail, elementLength int) {
 
 	// It is divided into two halves:
 	// One where if the next element is considered a string, it is processed using the DetectJsonString function,
@@ -289,6 +289,11 @@ func DetectJsonElement(positionCurrent int, jsonTracingLog []byte) (positionNext
 	// The following code integration will be performed.
 	for ; positionCurrent < len(jsonTracingLog); positionCurrent++ {
 		b := jsonTracingLog[positionCurrent]
+
+		if b == '[' || b == ']' || b == '{' || b == '}' {
+			return positionCurrent + 1, positionCurrent + 1, 1
+		}
+
 		if b == '"' {
 			positionCurrent--
 			if positionCurrent < 0 {
