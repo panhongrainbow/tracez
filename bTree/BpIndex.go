@@ -19,6 +19,27 @@ type BpItem struct {
 	Val interface{}
 }
 
+func NewBpIndex(item []BpItem) (index *BpIndex) {
+	index = &BpIndex{
+		Data: make([]*BpData, BpWidth),
+		// Isleaf: true,
+	}
+	for i := 0; i < BpWidth; i++ {
+		index.Data[i] = &BpData{
+			Items: make([]BpItem, 0, BpWidth),
+		}
+	}
+	for i := 0; i < len(item); i++ {
+		index.insertIndexValue(item[i])
+	}
+
+	/*index.Data[0].Items = append(index.Data[0].Items, item...)
+	length := len(index.Data[0].Items)
+	index.Intervals = append(index.Intervals, item[length-1].Key)*/
+
+	return
+}
+
 func (index *BpIndex) insertIndexValue(item BpItem) {
 	if index.Isleaf {
 		if len(index.Intervals) == 0 {
@@ -28,6 +49,13 @@ func (index *BpIndex) insertIndexValue(item BpItem) {
 		} else {
 			index.insertExistIndexValue(item)
 		}
+	}
+	if !index.Isleaf {
+		fmt.Println()
+		idx := sort.Search(len(index.Intervals), func(i int) bool {
+			return index.Intervals[i] >= item.Key
+		})
+		index.Index[idx].insertIndexValue(item)
 	}
 	return
 }
@@ -46,7 +74,43 @@ func (index *BpIndex) insertExistIndexValue(item BpItem) {
 	}
 
 	if idx == 0 && len(index.Data[0].Items) >= BpWidth {
-		fmt.Println("split")
+		// >>>>> split
+		index.Data[0].insertBpDataValue(item)
+		extra := index.SplitIndex()
+
+		if len(index.Index) == 0 {
+			main := NewBpIndex([]BpItem{})
+
+			sub := NewBpIndex([]BpItem{})
+			sub.Isleaf = true
+
+			for i := 0; i < len(extra); i++ {
+				sub.insertIndexValue(extra[i])
+			}
+
+			backup := copyBpIndex(index)
+
+			main.Index = append(main.Index, sub, backup)
+
+			for i := 0; i < len(main.Index); i++ {
+				length := len(main.Index[i].Intervals)
+
+				//  .  .
+				// -- --
+
+				main.Intervals = append(main.Intervals, main.Index[i].Intervals[length-1])
+			}
+
+			*index = *main
+
+			return
+		}
+
+		if len(index.Index) != 0 {
+			//
+			return
+		}
+
 		return
 	}
 
@@ -62,9 +126,38 @@ func (index *BpIndex) insertExistIndexValue(item BpItem) {
 		}
 	}
 
-	fmt.Println(">>>>>", idx-1)
-
 	return
+}
+
+func copyBpIndex(index *BpIndex) *BpIndex {
+	if index == nil {
+		return nil
+	}
+
+	// 复制Intervals切片
+	intervalsCopy := make([]int64, len(index.Intervals))
+	copy(intervalsCopy, index.Intervals)
+
+	// 递归复制Index切片
+	var indexCopy []*BpIndex
+	for _, subIndex := range index.Index {
+		subIndexCopy := subIndex
+		indexCopy = append(indexCopy, subIndexCopy)
+	}
+
+	// 递归复制Data切片
+	var dataCopy []*BpData
+	for _, data := range index.Data {
+		dataCopy = append(dataCopy, data) // 此处假设BpData为结构体，直接复制指针
+	}
+
+	// 创建新的BpIndex结构体并复制字段
+	return &BpIndex{
+		Isleaf:    index.Isleaf,
+		Intervals: intervalsCopy,
+		Index:     indexCopy,
+		Data:      dataCopy,
+	}
 }
 
 func (index *BpIndex) insertExistIndexValue2(item BpItem) {
