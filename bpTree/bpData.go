@@ -1,4 +1,4 @@
-package bTree
+package bpTree
 
 import "sort"
 
@@ -6,6 +6,12 @@ import "sort"
 type BpData struct {
 	// MaxKey int64
 	Items []BpItem
+}
+
+// BpItem 用於記錄數值
+type BpItem struct {
+	Key int64
+	Val interface{}
 }
 
 // not assign index

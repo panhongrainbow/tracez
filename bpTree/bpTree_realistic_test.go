@@ -1,4 +1,4 @@
-package bTree
+package bpTree
 
 import (
 	"fmt"
