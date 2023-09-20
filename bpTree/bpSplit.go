@@ -7,7 +7,7 @@ package bpTree
 //	.--
 //
 // --
-func (index *BpIndex) SplitIndex() (item []BpItem) {
+func (index *BpIndex2) SplitIndex() (item []BpItem) {
 	// new index
 	// sub := NewBpIndex(index.DataNodes[0].Items[0:BpHalfWidth])
 	// index.IndexNodes = append(index.IndexNodes, sub)

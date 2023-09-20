@@ -13,7 +13,7 @@ var (
 // BpTree is the root of Tree B.
 type BpTree struct {
 	mutex sync.Mutex // lock
-	root  *BpIndex   // root tree
+	root  *BpIndex2  // root tree
 }
 
 // NewBpTree initializes B plus tree structure with specified width and data entries.
@@ -27,7 +27,7 @@ func NewBpTree(width int) (tree *BpTree) {
 
 	// Create root tree instance
 	tree = &BpTree{
-		root: &BpIndex{
+		root: &BpIndex2{
 			DataNodes: make([]*BpData, BpWidth),
 			IsLeaf:    true, // Initially, the root node will be filled with data.
 		},

@@ -5,17 +5,116 @@ import (
 	"sort"
 )
 
-// BpIndex is the index of the B+ tree.
+// BpIndex is the index of the B plus tree.
 type BpIndex struct {
-	IsLeaf     bool       // Whether it is approaching the bottom data level
-	Intervals  []int64    // The maximum values of each group of BpData
+	Index      []int64    // The maximum values of each group of BpData
 	IndexNodes []*BpIndex // Index nodes
-	DataNodes  []*BpData  // Data nodes
+	DataNode   []*BpData  // Data nodes
+}
+
+// getBpIdxIndex retrieves the key from the BpIndex structure.
+// If the Index slice is empty, it attempts to retrieve the key from the associated DataNode.
+func (idx *BpIndex) getBpIdxIndex() (key int64, err error) {
+	// Check if the Index slice has values.
+	if len(idx.Index) > 0 {
+		key = idx.Index[0]
+	}
+
+	// If there is no index in the BpIndex, set an error indicating no key.
+	if len(idx.Index) == 0 {
+		err = fmt.Errorf("no key available")
+	}
+
+	return
+}
+
+func (idx *BpIndex) PushBpIndex(idxs ...*BpIndex) {
+	return
+}
+
+// 中间拆，推上去
+func (idx *BpIndex) SplitBpIndexAndPop() (key int64) {
+	return
+}
+
+func (idx *BpIndex) PushBpData(datas ...*BpData) {
+	return
+}
+
+func (idx *BpIndex) SplitBpDataAndPop() (newIdx *BpIndex) {
+	return
+}
+
+// >>>>> >>>>> >>>>> >>>>> >>>>>
+
+// insertBpDataValue inserts a key into the BpIndex.
+func (idx *BpIndex) insertBpIdxValue(key int64) {
+	// If there are existing items, insert the new item among them.
+	if len(idx.Index) > 0 {
+		idx.insertExistBpIdxValue(key)
+	}
+
+	// If there is no existing index, simply append the new key.
+	if len(idx.Index) == 0 {
+		idx.Index = append(idx.Index, key)
+		return
+	}
+
+	return
+}
+
+// insertExistBpIdxValue inserts a key into the existing sorted BpIndex's index.
+func (idx *BpIndex) insertExistBpIdxValue(key int64) {
+	// Use binary search to find the index(i) where the key should be inserted.
+	i := sort.Search(len(idx.Index), func(i int) bool {
+		return idx.Index[i] >= key
+	})
+
+	// Expand the slice to accommodate the new key.
+	idx.Index = append(idx.Index, 0)
+
+	// Shift the elements to the right to make space for the new key.
+	copy(idx.Index[i+1:], idx.Index[i:])
+
+	// Insert the new key at the correct position.
+	idx.Index[i] = key
+}
+
+// split divides the BpIndex's index into two parts if it contains more items than the specified width.
+func (idx *BpIndex) split(width int) (err error) {
+	// Check if the number of index in the BpData is less than or equal to the specified width.
+	if len(idx.Index) <= width {
+		// If it's not greater than the width, return an error.
+		return fmt.Errorf("cannot split BpData node with less than or equal to %d items", width)
+	}
+
+	// Create a new index node to store the items that will be moved.
+	node := &BpIndex{}
+	node.Index = idx.Index[width:]
+
+	//
+	// node.IndexNodes
+
+	// Update the current index node to retain the first 'width' items.
+	idx.Index = idx.Index[0:width]
+
+	// No error occurred during the split, so return nil to indicate success.
+	return nil
+}
+
+// >>>>> >>>>> >>>>> >>>>> >>>>>
+
+// BpIndex2 is the index of the B+ tree.
+type BpIndex2 struct {
+	IsLeaf     bool        // Whether it is approaching the bottom data level
+	Intervals  []int64     // The maximum values of each group of BpData
+	IndexNodes []*BpIndex2 // Index nodes
+	DataNodes  []*BpData   // Data nodes
 }
 
 // NewBpIdxIndexNode creates a new index node.
-func NewBpIdxIndexNode() (index *BpIndex) {
-	index = &BpIndex{
+func NewBpIdxIndexNode() (index *BpIndex2) {
+	index = &BpIndex2{
 		DataNodes: []*BpData{},
 		IsLeaf:    false,
 	}
@@ -28,8 +127,8 @@ func NewBpIdxIndexNode() (index *BpIndex) {
 }
 
 // NewBpIdxDataNode creates a new data node.
-func NewBpIdxDataNode() (index *BpIndex) {
-	index = &BpIndex{
+func NewBpIdxDataNode() (index *BpIndex2) {
+	index = &BpIndex2{
 		DataNodes: make([]*BpData, BpWidth),
 		IsLeaf:    true,
 	}
@@ -41,7 +140,7 @@ func NewBpIdxDataNode() (index *BpIndex) {
 	return
 }
 
-func (index *BpIndex) insertIndexValue(item BpItem) {
+func (index *BpIndex2) insertIndexValue(item BpItem) {
 	if index.IsLeaf {
 		if len(index.Intervals) == 0 {
 			// 插入最左邊
@@ -64,7 +163,7 @@ func (index *BpIndex) insertIndexValue(item BpItem) {
 //   .   .   .
 // --- --- ---
 
-func (index *BpIndex) insertExistIndexValue(item BpItem) {
+func (index *BpIndex2) insertExistIndexValue(item BpItem) {
 	idx := sort.Search(len(index.Intervals), func(i int) bool {
 		return index.Intervals[i] >= item.Key
 	})
@@ -133,7 +232,7 @@ func (index *BpIndex) insertExistIndexValue(item BpItem) {
 	return
 }
 
-func copyBpIndex(index *BpIndex) *BpIndex {
+func copyBpIndex(index *BpIndex2) *BpIndex2 {
 	if index == nil {
 		return nil
 	}
@@ -143,7 +242,7 @@ func copyBpIndex(index *BpIndex) *BpIndex {
 	copy(intervalsCopy, index.Intervals)
 
 	// 递归复制Index切片
-	var indexCopy []*BpIndex
+	var indexCopy []*BpIndex2
 	for _, subIndex := range index.IndexNodes {
 		subIndexCopy := subIndex
 		indexCopy = append(indexCopy, subIndexCopy)
@@ -156,7 +255,7 @@ func copyBpIndex(index *BpIndex) *BpIndex {
 	}
 
 	// 创建新的BpIndex结构体并复制字段
-	return &BpIndex{
+	return &BpIndex2{
 		IsLeaf:     index.IsLeaf,
 		Intervals:  intervalsCopy,
 		IndexNodes: indexCopy,
@@ -164,7 +263,7 @@ func copyBpIndex(index *BpIndex) *BpIndex {
 	}
 }
 
-func (index *BpIndex) insertExistIndexValue2(item BpItem) {
+func (index *BpIndex2) insertExistIndexValue2(item BpItem) {
 	idx := sort.Search(BpWidth, func(i int) bool {
 		return index.Intervals[i] >= item.Key
 	})
