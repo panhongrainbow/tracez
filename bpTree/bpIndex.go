@@ -9,7 +9,13 @@ import (
 type BpIndex struct {
 	Index      []int64    // The maximum values of each group of BpData
 	IndexNodes []*BpIndex // Index nodes
-	DataNode   []*BpData  // Data nodes
+	DataNodes  []*BpData  // Data nodes
+}
+
+// getBpDataLength returns the length of BpData's items slice.
+func (idx *BpIndex) getBpIndexNodesLength() (length int) {
+	length = len(idx.IndexNodes)
+	return
 }
 
 // getBpIdxIndex retrieves the key from the BpIndex structure.
@@ -28,106 +34,269 @@ func (idx *BpIndex) getBpIdxIndex() (key int64, err error) {
 	return
 }
 
-func (idx *BpIndex) PushBpIndex(idxs ...*BpIndex) {
-	return
-}
-
-// 中间拆，推上去
-func (idx *BpIndex) SplitBpIndexAndPop() (key int64) {
-	return
-}
-
-func (idx *BpIndex) PushBpData(datas ...*BpData) {
-	return
-}
-
-func (idx *BpIndex) SplitBpDataAndPop() (newIdx *BpIndex) {
-	return
-}
-
-// >>>>> >>>>> >>>>> >>>>> >>>>>
-
-// insertBpDataValue inserts a key into the BpIndex.
-func (idx *BpIndex) insertBpIdxValue(key int64) {
-	// If there are existing items, insert the new item among them.
-	if len(idx.Index) > 0 {
-		idx.insertExistBpIdxValue(key)
-	}
-
-	// If there is no existing index, simply append the new key.
-	if len(idx.Index) == 0 {
-		idx.Index = append(idx.Index, key)
+// checkBpIdxIndex checks and retrieves index from nodes, handle errors appropriately.
+func (idx *BpIndex) checkBpIdxIndex() (err error) {
+	// Check if both IndexNodes and DataNodes have data, which is incorrect as we don't know where to retrieve the index.
+	if (len(idx.IndexNodes) != 0) && (len(idx.DataNodes) != 0) {
+		err = fmt.Errorf("both IndexNodes and DataNodes have data, cannot determine which one is the index source")
 		return
 	}
 
+	// If IndexNodes have data, retrieve index from them.
+	if len(idx.IndexNodes) != 0 {
+		if len(idx.IndexNodes) != (len(idx.Index) + 1) {
+			idx.Index = nil
+			// abandon i = 0
+			for i := 1; i < len(idx.IndexNodes); i++ {
+				var ix int64
+				// Retrieve index from IndexNodes
+				ix, err = idx.IndexNodes[i].getBpIdxIndex()
+				if err != nil {
+					return
+				}
+				idx.Index = append(idx.Index, ix)
+			}
+		}
+	}
+
+	// If DataNodes have data, retrieve index from them.
+	if len(idx.DataNodes) != 0 {
+		if len(idx.DataNodes) != (len(idx.Index) + 1) {
+			idx.Index = nil
+			// abandon i = 0
+			for i := 1; i < len(idx.DataNodes); i++ {
+				var ix int64
+				// Retrieve index from DataNodes
+				ix, err = idx.DataNodes[i].getBpDataIndex()
+				if err != nil {
+					return
+				}
+				idx.Index = append(idx.Index, ix)
+			}
+		}
+	}
+
 	return
 }
 
-// insertExistBpIdxValue inserts a key into the existing sorted BpIndex's index.
-func (idx *BpIndex) insertExistBpIdxValue(key int64) {
-	// Use binary search to find the index(i) where the key should be inserted.
-	i := sort.Search(len(idx.Index), func(i int) bool {
-		return idx.Index[i] >= key
+// insertBpDataValue inserts a new index into the BpIndex.
+// 经由 BpIndex 直接在新增
+func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (node *BpIndex, err error) {
+
+	var newIndex int64
+	var newDataNode *BpData
+
+	// If there are existing items, insert the new item among them.
+	if newNode == nil && len(idx.Index) > 0 {
+		// Verify if the index for IndexNodes is correct?
+		// (先检查索吊数量是否正确)
+		if len(idx.IndexNodes) > 0 &&
+			(len(idx.IndexNodes) != (len(idx.Index) + 1)) {
+			err = fmt.Errorf("the number of indexes is incorrect, %v", idx.Index)
+			return
+		}
+
+		// Verify if the index for IndexNodes is correct?
+		if len(idx.DataNodes) > 0 &&
+			(len(idx.DataNodes) != (len(idx.Index) + 1)) {
+			err = fmt.Errorf("the number of indexes is incorrect, %v", idx.Index)
+			return
+		}
+
+		// Use binary search to find the index(i) where the key should be inserted.
+		ix := sort.Search(len(idx.Index), func(i int) bool {
+			return idx.Index[i] >= item.Key
+		})
+
+		// If there are index nodes, recursively insert the item into the appropriate node.
+		// (这里有递回去找到接近资料切片的地方)
+		if len(idx.IndexNodes) > 0 {
+			_, err = idx.IndexNodes[ix].insertBpIdxNewValue(nil, item)
+			return // Break here to avoid inserting elsewhere. (立刻中断)
+		}
+
+		// If there are data nodes, insert the new item at the determined index.
+		if len(idx.DataNodes) > 0 {
+			idx.DataNodes[ix].insertBpDataValue(item) // Insert item at index ix. // >>>>> (add to DataNodes)
+			if len(idx.DataNodes[ix].Items) >= BpWidth {
+				newDataNode, err = idx.DataNodes[ix].split() // newIndex
+				if err != nil {
+					return
+				}
+
+				// idx.DataNodes = append(idx.DataNodes, newDataNode)
+
+				// Expand the slice to accommodate the new item.
+				idx.DataNodes = append(idx.DataNodes, &BpData{})
+
+				// Shift the elements to the right to make space for the new item.
+				copy(idx.DataNodes[(ix+1)+1:], idx.DataNodes[(ix+1):])
+
+				// Insert the new item at the correct position.
+				idx.DataNodes[ix+1] = newDataNode
+
+				newIndex = newDataNode.Items[0].Key
+
+				// DataNode 转成 IndexNode
+				// ...
+			}
+		}
+	}
+
+	// The length of idx.Index is 0, which only occurs in one scenario where there is only one DataNodesDataNodes.
+	// (Idx.Index 的长度为 0，只有在一个状况才会发生，资料分片只有一份)
+	if newNode == nil && len(idx.Index) == 0 {
+		if len(idx.DataNodes) != 1 {
+			err = fmt.Errorf("the number of indexes is incorrect initially")
+			return
+		}
+		idx.DataNodes[0].insertBpDataValue(item) // >>>>> (add to DataNodes)
+
+		if idx.DataNodes[0].getBpDataLength() >= BpWidth {
+			newDataNode, err = idx.DataNodes[0].split() // newIndex
+			if err != nil {
+				return
+			}
+
+			idx.DataNodes = append(idx.DataNodes, newDataNode)
+			newIndex = newDataNode.Items[0].Key
+		}
+	}
+
+	if newDataNode != nil {
+		err = idx.insertBpIdxNewIndex(newIndex)
+		if err != nil {
+			return
+		}
+
+		if idx.getBpIndexNodesLength() >= BpWidth {
+			node, err = idx.split(BpWidth) // 这个新节点要由上层去处理
+		}
+
+		return // Break here to avoid inserting elsewhere. (立刻中断)
+	}
+
+	if newNode != nil {
+		err = idx.insertBpIdxNewIndexNode(newNode)
+		if err != nil {
+			return
+		}
+
+		if idx.getBpIndexNodesLength() >= BpWidth {
+			node, err = idx.split(BpWidth) // 这个新节点要由上层去处理
+		}
+	}
+
+	return
+}
+
+// insertBpIdxNewIndex inserts a new index at the correct position using binary search.
+func (idx *BpIndex) insertBpIdxNewIndex(newIx int64) (err error) {
+	// Use binary search to find the position where the index should be inserted.
+	ix := sort.Search(len(idx.Index), func(i int) bool {
+		return idx.Index[i] >= newIx
 	})
 
-	// Expand the slice to accommodate the new key.
+	// Expand the slice to accommodate the new item.
 	idx.Index = append(idx.Index, 0)
 
-	// Shift the elements to the right to make space for the new key.
-	copy(idx.Index[i+1:], idx.Index[i:])
+	// Shift the elements to the right to make space for the new item.
+	copy(idx.Index[ix+1:], idx.Index[ix:])
 
-	// Insert the new key at the correct position.
-	idx.Index[i] = key
+	// Insert the new item at the correct position.
+	idx.Index[ix] = newIx
+
+	return
+}
+
+// insertBpIdxNewIndexNode inserts a new index node at the correct position using binary search.
+func (idx *BpIndex) insertBpIdxNewIndexNode(newIdx *BpIndex) (err error) {
+	// Use binary search to find the position where the index should be inserted.
+	ix := sort.Search(len(idx.Index), func(i int) bool {
+		return idx.Index[i] >= newIdx.Index[0]
+	})
+
+	// >>>>> 失处理节点
+
+	// Expand the slice to accommodate the new item.
+	idx.IndexNodes = append(idx.IndexNodes, &BpIndex{})
+
+	// Shift the elements to the right to make space for the new item.
+	copy(idx.IndexNodes[ix+1:], idx.IndexNodes[ix:])
+
+	// Insert the new item at the correct position.
+	idx.IndexNodes[ix] = newIdx.IndexNodes[0]
+
+	// >>>>> 再处理索引
+
+	// Expand the slice to accommodate the new item.
+	idx.Index = append(idx.Index, 0)
+
+	// Shift the elements to the right to make space for the new item.
+	copy(idx.Index[ix+1:], idx.Index[ix:])
+
+	// Insert the new item at the correct position.
+	idx.Index[ix] = newIdx.Index[0]
+
+	return
 }
 
 // split divides the BpIndex's index into two parts if it contains more items than the specified width.
-func (idx *BpIndex) split(width int) (err error) {
+func (idx *BpIndex) split(width int) (node *BpIndex, err error) {
 	// Check if the number of index in the BpData is less than or equal to the specified width.
-	if len(idx.Index) <= width {
+	if len(idx.IndexNodes) <= width {
 		// If it's not greater than the width, return an error.
-		return fmt.Errorf("cannot split BpData node with less than or equal to %d items", width)
+		err = fmt.Errorf("cannot split IndexNodes with less than or equal to %d items", width)
+		return
 	}
 
 	// Create a new index node to store the items that will be moved.
-	node := &BpIndex{}
-	node.Index = idx.Index[width:]
+	node = &BpIndex{}
+	node.IndexNodes = idx.IndexNodes[width:]
 
-	//
-	// node.IndexNodes
+	// Check and repair the new index node. (对新节点进行检查和修复)
+	err = node.checkBpIdxIndex()
+	if err != nil {
+		return
+	}
 
-	// Update the current index node to retain the first 'width' items.
-	idx.Index = idx.Index[0:width]
+	// Update the current index node to retain the first width items.
+	idx.IndexNodes = idx.IndexNodes[0:width]
+
+	// Handling the indexes of two nodes. (处理两个节点的索引)
+	length := len(idx.IndexNodes) - 1
+	idx.Index = idx.Index[0:length]
+
+	err = node.checkBpIdxIndex()
+	if err != nil {
+		return
+	}
 
 	// No error occurred during the split, so return nil to indicate success.
-	return nil
+	return
 }
 
 // >>>>> >>>>> >>>>> >>>>> >>>>>
 
 // BpIndex2 is the index of the B+ tree.
-type BpIndex2 struct {
+/*type BpIndex2 struct {
 	IsLeaf     bool        // Whether it is approaching the bottom data level
 	Intervals  []int64     // The maximum values of each group of BpData
 	IndexNodes []*BpIndex2 // Index nodes
 	DataNodes  []*BpData   // Data nodes
-}
+}*/
 
 // NewBpIdxIndexNode creates a new index node.
-func NewBpIdxIndexNode() (index *BpIndex2) {
+/*func NewBpIdxIndexNode() (index *BpIndex2) {
 	index = &BpIndex2{
 		DataNodes: []*BpData{},
 		IsLeaf:    false,
 	}
-	/*for i := 0; i < BpWidth; i++ {
-		index.DataNodes[i] = &BpData{
-			Items: make([]BpItem, BpWidth),
-		}
-	}*/
 	return
-}
+}*/
 
 // NewBpIdxDataNode creates a new data node.
-func NewBpIdxDataNode() (index *BpIndex2) {
+/*func NewBpIdxDataNode() (index *BpIndex2) {
 	index = &BpIndex2{
 		DataNodes: make([]*BpData, BpWidth),
 		IsLeaf:    true,
@@ -138,9 +307,9 @@ func NewBpIdxDataNode() (index *BpIndex2) {
 		}
 	}
 	return
-}
+}*/
 
-func (index *BpIndex2) insertIndexValue(item BpItem) {
+/*func (index *BpIndex2) insertIndexValue(item BpItem) {
 	if index.IsLeaf {
 		if len(index.Intervals) == 0 {
 			// 插入最左邊
@@ -158,40 +327,40 @@ func (index *BpIndex2) insertIndexValue(item BpItem) {
 		index.IndexNodes[idx].insertIndexValue(item)
 	}
 	return
-}
+}*/
 
 //   .   .   .
 // --- --- ---
 
-func (index *BpIndex2) insertExistIndexValue(item BpItem) {
-	idx := sort.Search(len(index.Intervals), func(i int) bool {
-		return index.Intervals[i] >= item.Key
-	})
+/*func (index *BpIndex2) insertExistIndexValue(item BpItem) {
+idx := sort.Search(len(index.Intervals), func(i int) bool {
+	return index.Intervals[i] >= item.Key
+})
 
-	if idx == 0 && len(index.DataNodes[0].Items) < BpWidth {
-		index.DataNodes[0].insertBpDataValue(item)
-		return
-	}
+if idx == 0 && len(index.DataNodes[0].Items) < BpWidth {
+	index.DataNodes[0].insertBpDataValue(item)
+	return
+}
 
-	if idx == 0 && len(index.DataNodes[0].Items) >= BpWidth {
-		// >>>>> split
-		index.DataNodes[0].insertBpDataValue(item)
-		extra := index.SplitIndex()
+if idx == 0 && len(index.DataNodes[0].Items) >= BpWidth {
+	// >>>>> split
+	index.DataNodes[0].insertBpDataValue(item)
+	extra := index.SplitIndex()
 
-		if len(index.IndexNodes) == 0 {
-			// main := NewBpIndex([]BpItem{})
+	if len(index.IndexNodes) == 0 {
+		// main := NewBpIndex([]BpItem{})
 
-			/*sub := NewBpIndex([]BpItem{})
-			sub.IsLeaf = true*/
+		/*sub := NewBpIndex([]BpItem{})
+		sub.IsLeaf = true*/
 
-			main := NewBpIdxIndexNode()
-			sub := NewBpIdxDataNode()
+/*main := NewBpIdxIndexNode()
+sub := NewBpIdxDataNode()*/
 
-			for i := 0; i < len(extra); i++ {
-				sub.insertIndexValue(extra[i])
-			}
+/*for i := 0; i < len(extra); i++ {
+	sub.insertIndexValue(extra[i])
+}*/
 
-			backup := copyBpIndex(index)
+/*backup := copyBpIndex(index)
 
 			main.IndexNodes = append(main.IndexNodes, sub, backup)
 
@@ -230,9 +399,9 @@ func (index *BpIndex2) insertExistIndexValue(item BpItem) {
 	}
 
 	return
-}
+}*/
 
-func copyBpIndex(index *BpIndex2) *BpIndex2 {
+/*func copyBpIndex(index *BpIndex2) *BpIndex2 {
 	if index == nil {
 		return nil
 	}
@@ -261,9 +430,9 @@ func copyBpIndex(index *BpIndex2) *BpIndex2 {
 		IndexNodes: indexCopy,
 		DataNodes:  dataCopy,
 	}
-}
+}*/
 
-func (index *BpIndex2) insertExistIndexValue2(item BpItem) {
+/*func (index *BpIndex2) insertExistIndexValue2(item BpItem) {
 	idx := sort.Search(BpWidth, func(i int) bool {
 		return index.Intervals[i] >= item.Key
 	})
@@ -278,4 +447,4 @@ func (index *BpIndex2) insertExistIndexValue2(item BpItem) {
 	index.DataNodes[dataIndex].Items[idx] = item
 
 	return
-}
+}*/

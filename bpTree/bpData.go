@@ -18,6 +18,12 @@ type BpItem struct {
 	Val interface{} // The associated value.
 }
 
+// getBpDataLength returns the length of BpData's items slice.
+func (data *BpData) getBpDataLength() (length int) {
+	length = len(data.Items)
+	return
+}
+
 // getBpDataIndex retrieves the key from the first BpItem in the BpData, if available.
 func (data *BpData) getBpDataIndex() (key int64, err error) {
 	// If there are items in the BpData, retrieve the key from the first item.
@@ -66,23 +72,19 @@ func (data *BpData) insertExistBpDataValue(item BpItem) {
 }
 
 // split divides the BpData node into two nodes if it contains more items than the specified width.
-func (data *BpData) split(width int) (err error) {
-	// Check if the number of items in the BpData is less than or equal to the specified width.
-	if len(data.Items) <= width {
-		// If it's not greater than the width, return an error.
-		return fmt.Errorf("cannot split BpData node with less than or equal to %d items", width)
-	}
-
+func (data *BpData) split() (node *BpData, err error) {
 	// Create a new BpData node to store the items that will be moved.
-	node := &BpData{}
-	node.Items = data.Items[width:]
+	node = &BpData{}
+	length := len(data.Items)
+	// node.Items = data.Items[(length - 2):length]
+	node.Items = append(node.Items, data.Items[(length-2):length]...)
 	node.Previous = data
 	node.Next = data.Next
 
 	// Update the current BpData node to retain the first 'width' items.
-	data.Items = data.Items[0:width]
+	data.Items = data.Items[:(length - 2)]
 	data.Next = node
 
 	// No error occurred during the split, so return nil to indicate success.
-	return nil
+	return
 }

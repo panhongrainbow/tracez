@@ -26,7 +26,7 @@ func Test_BpData_getBpDataIndex(t *testing.T) {
 	// Test case: Retrieve key when items are not present.
 	data.Items = nil
 	key, err = data.getBpDataIndex()
-	assert.Error(t, err, "no data available")
+	assert.Error(t, err, "expect no data available")
 	assert.Equal(t, int64(0), key, "Expected key to be 0 for an empty slice")
 }
 
@@ -57,8 +57,11 @@ func Test_BpData_Check_split(t *testing.T) {
 	}
 
 	// Split the data node into two nodes with a width of 2.
-	err := data.split(3)
+	key, err := data.split()
 	assert.Nil(t, err, "Expected no error")
+
+	// The index for generating a new node is 4.
+	assert.Equal(t, int64(4), key)
 
 	// Check the state of the original node.
 	assert.Len(t, data.Items, 3, "Expected the original slice to have 3 items after split")

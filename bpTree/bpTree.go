@@ -1,6 +1,7 @@
 package bpTree
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -10,10 +11,10 @@ var (
 	BpHalfWidth int // the half width of B plus tree.
 )
 
-// BpTree is the root of Tree B.
+// BpTree is the root of Tree B plus.
 type BpTree struct {
 	mutex sync.Mutex // lock
-	root  *BpIndex2  // root tree
+	root  *BpIndex   // root tree
 }
 
 // NewBpTree initializes B plus tree structure with specified width and data entries.
@@ -27,41 +28,26 @@ func NewBpTree(width int) (tree *BpTree) {
 
 	// Create root tree instance
 	tree = &BpTree{
-		root: &BpIndex2{
-			DataNodes: make([]*BpData, BpWidth),
-			IsLeaf:    true, // Initially, the root node will be filled with data.
+		root: &BpIndex{
+			DataNodes: make([]*BpData, 0, BpWidth+1), // The addition of 1 is because data chunks may temporarily exceed the width.
 		},
 	}
 
-	// Prepare a certain number of links to the bpData nodes initially.
-	// root
-	//             <= Links are used to record the maximum values of bpData.
-	//  []  []  [] <= Represents individual data entries.
-	for i := 0; i < BpWidth; i++ {
-		tree.root.DataNodes[i] = &BpData{
-			Items: make([]BpItem, 0, width),
-		}
-	}
+	// 先準備 1 個資料切片，1 個資料切片不會產生索引
+	tree.root.DataNodes = append(tree.root.DataNodes, &BpData{})
 
 	return
 }
 
 // InsertValue ensures thread safety, insert item in B plus tree index, release lock.
-
-// root
-//	  .  .  . <= The first-level index.
-//	---  -  - <= The data is concentrated on the left side.
-
-// root
-// .               .    <= The first-level index.
-// .	        .  .  . <= The second-level index.
-// - [] [] ---  -  - <= Represents individual data entries, and the data is concentrated on the left side.
 func (tree *BpTree) InsertValue(item BpItem) {
 	// Acquire a lock to ensure thread safety.
 	tree.mutex.Lock()
 
 	// Insert the item into the B plus tree index.
-	tree.root.insertIndexValue(item)
+	node, err := tree.root.insertBpIdxNewValue(nil, item)
+	fmt.Println(node)
+	fmt.Println(err)
 
 	// Release the lock to allow other threads to access the tree.
 	tree.mutex.Unlock()
