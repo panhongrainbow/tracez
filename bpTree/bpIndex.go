@@ -173,6 +173,39 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (node *Bp
 			node, err = idx.split(BpWidth) // 这个新节点要由上层去处理
 		}
 
+		if len(idx.Index) >= BpWidth && len(idx.Index)%2 != 0 { // 进行 pop 和奇数
+			indexLen := (len(idx.Index) - 1) / 2
+			dataLen := len(idx.DataNodes) / 2
+
+			leftNode := &BpIndex{
+				/*Index:      idx.Index[:indexLen],
+				IndexNodes: []*BpIndex{},
+				DataNodes:  idx.DataNodes[:dataLen],*/
+			}
+			leftNode.Index = append(leftNode.Index, idx.Index[:indexLen]...)
+			leftNode.DataNodes = append(leftNode.DataNodes, idx.DataNodes[:dataLen]...)
+
+			rightNode := &BpIndex{
+				/*Index:      idx.Index[indexLen+1:],
+				IndexNodes: []*BpIndex{},
+				DataNodes:  idx.DataNodes[dataLen:],*/
+			}
+			rightNode.Index = append(rightNode.Index, idx.Index[indexLen+1:]...)
+			rightNode.DataNodes = append(rightNode.DataNodes, idx.DataNodes[dataLen:]...)
+
+			middleValue := idx.Index[indexLen : indexLen+1]
+			middleNode := &BpIndex{
+				Index:      middleValue,
+				IndexNodes: []*BpIndex{leftNode, rightNode},
+				DataNodes:  []*BpData{},
+			}
+
+			*idx = *middleNode
+
+			return
+
+		}
+
 		return // Break here to avoid inserting elsewhere. (立刻中断)
 	}
 
@@ -252,7 +285,7 @@ func (idx *BpIndex) split(width int) (node *BpIndex, err error) {
 
 	// Create a new index node to store the items that will be moved.
 	node = &BpIndex{}
-	node.IndexNodes = idx.IndexNodes[width:]
+	node.IndexNodes = append(node.IndexNodes, idx.IndexNodes[width:]...)
 
 	// Check and repair the new index node. (对新节点进行检查和修复)
 	err = node.checkBpIdxIndex()
@@ -275,176 +308,3 @@ func (idx *BpIndex) split(width int) (node *BpIndex, err error) {
 	// No error occurred during the split, so return nil to indicate success.
 	return
 }
-
-// >>>>> >>>>> >>>>> >>>>> >>>>>
-
-// BpIndex2 is the index of the B+ tree.
-/*type BpIndex2 struct {
-	IsLeaf     bool        // Whether it is approaching the bottom data level
-	Intervals  []int64     // The maximum values of each group of BpData
-	IndexNodes []*BpIndex2 // Index nodes
-	DataNodes  []*BpData   // Data nodes
-}*/
-
-// NewBpIdxIndexNode creates a new index node.
-/*func NewBpIdxIndexNode() (index *BpIndex2) {
-	index = &BpIndex2{
-		DataNodes: []*BpData{},
-		IsLeaf:    false,
-	}
-	return
-}*/
-
-// NewBpIdxDataNode creates a new data node.
-/*func NewBpIdxDataNode() (index *BpIndex2) {
-	index = &BpIndex2{
-		DataNodes: make([]*BpData, BpWidth),
-		IsLeaf:    true,
-	}
-	for i := 0; i < BpWidth; i++ {
-		index.DataNodes[i] = &BpData{
-			Items: make([]BpItem, BpWidth),
-		}
-	}
-	return
-}*/
-
-/*func (index *BpIndex2) insertIndexValue(item BpItem) {
-	if index.IsLeaf {
-		if len(index.Intervals) == 0 {
-			// 插入最左邊
-			index.Intervals = append(index.Intervals, item.Key)
-			index.DataNodes[0].Items = append(index.DataNodes[0].Items, item)
-		} else {
-			index.insertExistIndexValue(item)
-		}
-	}
-	if !index.IsLeaf {
-		fmt.Println()
-		idx := sort.Search(len(index.Intervals), func(i int) bool {
-			return index.Intervals[i] >= item.Key
-		})
-		index.IndexNodes[idx].insertIndexValue(item)
-	}
-	return
-}*/
-
-//   .   .   .
-// --- --- ---
-
-/*func (index *BpIndex2) insertExistIndexValue(item BpItem) {
-idx := sort.Search(len(index.Intervals), func(i int) bool {
-	return index.Intervals[i] >= item.Key
-})
-
-if idx == 0 && len(index.DataNodes[0].Items) < BpWidth {
-	index.DataNodes[0].insertBpDataValue(item)
-	return
-}
-
-if idx == 0 && len(index.DataNodes[0].Items) >= BpWidth {
-	// >>>>> split
-	index.DataNodes[0].insertBpDataValue(item)
-	extra := index.SplitIndex()
-
-	if len(index.IndexNodes) == 0 {
-		// main := NewBpIndex([]BpItem{})
-
-		/*sub := NewBpIndex([]BpItem{})
-		sub.IsLeaf = true*/
-
-/*main := NewBpIdxIndexNode()
-sub := NewBpIdxDataNode()*/
-
-/*for i := 0; i < len(extra); i++ {
-	sub.insertIndexValue(extra[i])
-}*/
-
-/*backup := copyBpIndex(index)
-
-			main.IndexNodes = append(main.IndexNodes, sub, backup)
-
-			for i := 0; i < len(main.IndexNodes); i++ {
-				length := len(main.IndexNodes[i].Intervals)
-
-				//  .  .
-				// -- --
-
-				main.Intervals = append(main.Intervals, main.IndexNodes[i].Intervals[length-1])
-			}
-
-			*index = *main
-
-			return
-		}
-
-		if len(index.IndexNodes) != 0 {
-			//
-			return
-		}
-
-		return
-	}
-
-	if idx > 0 && idx < BpWidth && len(index.Intervals) < BpWidth {
-		index.DataNodes[idx].insertBpDataValue(item)
-		if len(index.Intervals) < (idx + 1) { // (len(index.IndexNodes)-1) == idx
-			index.Intervals = append(index.Intervals, item.Key)
-			return
-		}
-		if len(index.Intervals) >= (idx + 1) {
-			length := len(index.DataNodes[idx].Items)
-			index.Intervals[idx] = index.DataNodes[idx].Items[length-1].Key
-		}
-	}
-
-	return
-}*/
-
-/*func copyBpIndex(index *BpIndex2) *BpIndex2 {
-	if index == nil {
-		return nil
-	}
-
-	// 复制Intervals切片
-	intervalsCopy := make([]int64, len(index.Intervals))
-	copy(intervalsCopy, index.Intervals)
-
-	// 递归复制Index切片
-	var indexCopy []*BpIndex2
-	for _, subIndex := range index.IndexNodes {
-		subIndexCopy := subIndex
-		indexCopy = append(indexCopy, subIndexCopy)
-	}
-
-	// 递归复制Data切片
-	var dataCopy []*BpData
-	for _, data := range index.DataNodes {
-		dataCopy = append(dataCopy, data) // 此处假设BpData为结构体，直接复制指针
-	}
-
-	// 创建新的BpIndex结构体并复制字段
-	return &BpIndex2{
-		IsLeaf:     index.IsLeaf,
-		Intervals:  intervalsCopy,
-		IndexNodes: indexCopy,
-		DataNodes:  dataCopy,
-	}
-}*/
-
-/*func (index *BpIndex2) insertExistIndexValue2(item BpItem) {
-	idx := sort.Search(BpWidth, func(i int) bool {
-		return index.Intervals[i] >= item.Key
-	})
-
-	index.Intervals = append(index.Intervals, 0)
-	copy(index.Intervals[idx+1:], index.Intervals[idx:])
-	index.Intervals[idx] = item.Key
-
-	dataIndex := idx - 1
-	index.DataNodes[dataIndex].Items = append(index.DataNodes[dataIndex].Items, BpItem{})
-	copy(index.DataNodes[dataIndex].Items[idx+1:], index.DataNodes[dataIndex].Items[idx:])
-	index.DataNodes[dataIndex].Items[idx] = item
-
-	return
-}*/
