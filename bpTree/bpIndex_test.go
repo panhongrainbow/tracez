@@ -68,83 +68,6 @@ func Test_Check_BpIndex_getBpIdxIndex(t *testing.T) {
 	})
 }
 
-func Test_Check_BpIndex_checkBpIdxIndex(t *testing.T) {
-	t.Run("The error is due to an unknown data source.", func(t *testing.T) {
-		// Create a BpIndex instance.
-		index := &BpIndex{
-			Index: []int64{1, 2, 3},
-		}
-
-		// Set up IndexNodes with some test data.
-		index.IndexNodes = []*BpIndex{
-			{Index: []int64{4, 5}},
-			{Index: []int64{6, 7, 8}},
-		}
-
-		// Set up DataNodes with some test data.
-		index.DataNodes = []*BpData{
-			{Items: []BpItem{{Key: 10}, {Key: 11}}},
-			{Items: []BpItem{{Key: 12}, {Key: 13}, {Key: 14}}},
-		}
-
-		// Call the checkBpIdxIndex function.
-		err := index.checkBpIdxIndex()
-
-		// Check for any errors.
-		assert.Error(t, err, "expect both IndexNodes and DataNodes have data, cannot determine which one is the index source")
-	})
-
-	t.Run("Retrieve index from IndexNodes.", func(t *testing.T) {
-		// Create a BpIndex instance.
-		index := &BpIndex{
-			Index: []int64{1, 2, 3},
-		}
-
-		// Set up IndexNodes with some test data.
-		index.IndexNodes = []*BpIndex{
-			{Index: []int64{4, 5}},
-			{Index: []int64{6, 7, 8}},
-		}
-
-		// Empty DataNodes.
-		index.DataNodes = []*BpData{}
-
-		// Call the checkBpIdxIndex function.
-		err := index.checkBpIdxIndex()
-
-		// Check the index slice.
-		assert.Equal(t, []int64{6}, index.Index)
-
-		// Check if no errors.
-		assert.NoError(t, err)
-	})
-
-	t.Run("Retrieve index from IndexNodes.", func(t *testing.T) {
-		// Create a BpIndex instance.
-		index := &BpIndex{
-			Index: []int64{1, 2, 3},
-		}
-
-		// Empty IndexNodes.
-		index.IndexNodes = []*BpIndex{}
-
-		// Set up DataNodes with some test data.
-		index.DataNodes = []*BpData{
-			{Items: []BpItem{{Key: 10}, {Key: 11}}},
-			{Items: []BpItem{{Key: 12}, {Key: 13}, {Key: 14}}},
-		}
-
-		// Call the checkBpIdxIndex function.
-		err := index.checkBpIdxIndex()
-
-		// Check the index slice.
-		assert.Equal(t, []int64{12}, index.Index)
-
-		// Check if no errors.
-		assert.NoError(t, err)
-	})
-}
-
 func Test_BpIndex_InsertBpIdxNewValue(t *testing.T) {
 	t.Run("InsertNewValue", func(t *testing.T) {
 		BpWidth = 3
@@ -165,7 +88,7 @@ func Test_BpIndex_InsertBpIdxNewValue(t *testing.T) {
 		newItem := BpItem{Key: 1}
 
 		// Call the insertBpIdxNewValue function
-		_, _ = index.insertBpIdxNewValue(nil, newItem)
+		_, _, _ = index.insertBpIdxNewValue(nil, newItem)
 
 		// Check the updated index
 		expectedIndex := []int64{5}

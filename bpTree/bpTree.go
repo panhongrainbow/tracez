@@ -1,7 +1,6 @@
 package bpTree
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -45,9 +44,19 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	tree.mutex.Lock()
 
 	// Insert the item into the B plus tree index.
-	node, err := tree.root.insertBpIdxNewValue(nil, item)
-	fmt.Println(node)
-	fmt.Println(err)
+	popKey, popNode, err := tree.root.insertBpIdxNewValue(nil, item)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if popNode != nil && popKey == 0 {
+		tree.root.cmpAndMergeIndexNode(popNode, tree.root)
+	}
+
+	if popKey != 0 {
+		tree.root.cmpAndOrganizeIndexNode(popKey, popNode, tree.root)
+	}
 
 	// Release the lock to allow other threads to access the tree.
 	tree.mutex.Unlock()
