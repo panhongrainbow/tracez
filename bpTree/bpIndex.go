@@ -12,6 +12,7 @@ type BpIndex struct {
 	Index      []int64    // The maximum values of each group of BpData
 	IndexNodes []*BpIndex // Index nodes
 	DataNodes  []*BpData  // Data nodes
+	Mark       bool
 }
 
 // >>>>> >>>>> >>>>> get length and index
@@ -96,6 +97,26 @@ func (idx *BpIndex) insertBpIdxNewIndexNode(newIdx *BpIndex) (err error) {
 	return
 }
 
+func (idx *BpIndex) mergeBpIdxNewIndexNode(newIdx *BpIndex) (err error) {
+	// Use binary search to find the position where the index should be inserted.
+	ix := sort.Search(len(idx.IndexNodes), func(i int) bool {
+		return idx.IndexNodes[i].DigKey() >= newIdx.Index[0]
+	})
+
+	// >>>>> 失处理节点
+
+	// Expand the slice to accommodate the new item.
+	idx.IndexNodes = append(idx.IndexNodes, &BpIndex{})
+
+	// Shift the elements to the right to make space for the new item.
+	copy(idx.IndexNodes[ix+1:], idx.IndexNodes[ix:])
+
+	// Insert the new item at the correct position.
+	idx.IndexNodes[ix] = newIdx
+
+	return
+}
+
 func (idx *BpIndex) insertBpIdxNewDataNode(sideNode *BpData) (err error) {
 
 	if len(idx.DataNodes) > 0 {
@@ -172,6 +193,19 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey i
 				popNode = nil
 			}
 
+			if popNode != nil && popKey == 0 {
+				// >>>>>>>>>>>>>> XXXXXXXXXXX
+				idx.insertBpIdxNewIndex(popNode.Index[0])
+				idx.IndexNodes = append(idx.IndexNodes[:ix], idx.IndexNodes[ix+1:]...)
+				for i := 0; i < len(popNode.IndexNodes); i++ {
+					if popNode.IndexNodes[i] != nil {
+						idx.mergeBpIdxNewIndexNode(popNode.IndexNodes[i])
+					}
+				}
+				popNode = nil
+
+			}
+
 			if len(idx.Index) >= BpWidth && len(idx.Index)%2 != 0 { // 进行 pop 和奇数
 				indexLen := (len(idx.Index) - 1) / 2
 				indexNodeLen := len(idx.IndexNodes) / 2
@@ -194,7 +228,11 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey i
 					DataNodes:  []*BpData{},
 				}
 
-				*idx = *middleNode
+				// *idx = *middleNode
+				popNode = middleNode
+
+				// >>>>>>>>>>>>>> XXXXXXXXXXX
+				idx.Mark = true
 
 				return
 			}
@@ -271,7 +309,7 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey i
 			_, popNode, err = idx.basicSplit()
 		}
 
-		if len(idx.Index) >= BpWidth && len(idx.Index)%2 != 0 { // 进行 pop 和奇数
+		if len(idx.Index) >= BpWidth && len(idx.Index)%2 != 0 { // 进行 pop 和奇数 (可能没在使用)
 			indexLen := (len(idx.Index) - 1) / 2
 			dataLen := len(idx.DataNodes) / 2
 
@@ -420,10 +458,24 @@ func (idx *BpIndex) cmpAndOrganizeIndexNode(podKey int64, indexes ...*BpIndex) {
 	return
 }
 
+func (idx *BpIndex) DigKey() (key int64) {
+	node := idx
+	for {
+		if len(node.DataNodes) == 0 {
+			node = node.IndexNodes[0]
+		} else {
+			key = node.DataNodes[0].Items[0].Key
+			break
+		}
+	}
+	return
+}
+
 func (idx *BpIndex) cmpAndCombineIndexNode(popKey int64, indexNode *BpIndex) (err error) {
 	//
 	ix := sort.Search(len(idx.IndexNodes), func(i int) bool {
-		return idx.IndexNodes[i].Index[0] >= indexNode.Index[0]
+		// return idx.IndexNodes[i].Index[0] >= indexNode.Index[0]
+		return idx.IndexNodes[i].DigKey() >= indexNode.Index[0]
 	})
 
 	idx.IndexNodes = append(idx.IndexNodes, &BpIndex{})

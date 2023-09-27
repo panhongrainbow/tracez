@@ -27,5 +27,13 @@ func Test_Check_Btree(t *testing.T) {
 	root.InsertValue(BpItem{Key: 15})
 	root.InsertValue(BpItem{Key: 15})
 	root.InsertValue(BpItem{Key: 15})
+	root.InsertValue(BpItem{Key: 8})
+	root.InsertValue(BpItem{Key: 3})
+	root.InsertValue(BpItem{Key: 7})
+	root.InsertValue(BpItem{Key: 10})
+	root.InsertValue(BpItem{Key: 9})
+	root.InsertValue(BpItem{Key: 9})
+	root.InsertValue(BpItem{Key: 8})
+	root.InsertValue(BpItem{Key: 8})
 	fmt.Println()
 }
