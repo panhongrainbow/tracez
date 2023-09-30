@@ -8,63 +8,174 @@ import (
 	"testing"
 )
 
-// Test_Check_BpIndex_getBpIdxIndex includes subtests that explore key retrieval from the Index slice,
-// handling of side nodes within the linked DataNode, and successful key retrieval from the DataNode.
-func Test_Check_BpIndex_getBpIdxIndex(t *testing.T) {
-	t.Run("RetrieveFromIndexSlice", func(t *testing.T) {
-		// Test case: Retrieve key from the Index slice.
-		index := &BpIndex{
-			Index: []int64{10, 20, 30},
-		}
+func Test_Check_BpIndex_Operation(t *testing.T) {
+	t.Run("pop and insert dNode", func(t *testing.T) {
+		// Set up Bp Parameters.
+		BpWidth = 3
+		BpHalfWidth = 2
 
-		key, err := index.getBpIdxIndex()
-		assert.Nil(t, err, "Expected no error when retrieving from the Index slice")
-		assert.Equal(t, int64(10), key, "Expected key to be 10")
+		// Create a root tree with a specific structure (indexes are [7], [5], [11 to 13]).
+		root := createRootTree7and5and11to13()
+
+		// Check the updated data structure.
+		assert.Equal(t, []int64{11, 13}, root.IndexNodes[1].Index)
+		assert.Equal(t, []int64{10}, root.IndexNodes[1].IndexNodes[0].Index)
+		assert.Equal(t, 2, root.IndexNodes[1].IndexNodes[0].DataNodes[0].dataLength())
+
+		// >>>>> Insert a BpItem.
+
+		// Insert a key (8) among the data items in the first data node.
+		root.IndexNodes[1].IndexNodes[0].DataNodes[0].insertAmong(BpItem{Key: 8})
+
+		// >>>>> Split a BpData.
+
+		// Split the data node and obtain the side and any potential error.
+		side, err := root.IndexNodes[1].IndexNodes[0].DataNodes[0].split()
+		require.NoError(t, err, "split should not return an error")
+
+		// >>>>> Merge a popped dNode.
+
+		// Merge a popped data node based on the split side.
+		err = root.IndexNodes[1].IndexNodes[0].mergePopDnode(side)
+		require.NoError(t, err, "mergePopDnode should not return an error")
+
+		// Check the updated data structure.
+		assert.Equal(t, []int64{8, 10}, root.IndexNodes[1].IndexNodes[0].Index)
+		assert.Equal(t, 3, len(root.IndexNodes[1].IndexNodes[0].DataNodes))
+		assert.Equal(t, int64(7), root.IndexNodes[1].IndexNodes[0].DataNodes[0].Items[0].Key)
+		assert.Equal(t, int64(8), root.IndexNodes[1].IndexNodes[0].DataNodes[1].Items[0].Key)
+		assert.Equal(t, int64(9), root.IndexNodes[1].IndexNodes[0].DataNodes[1].Items[1].Key)
+		assert.Equal(t, int64(10), root.IndexNodes[1].IndexNodes[0].DataNodes[2].Items[0].Key)
+
+		// Print the resulting tree structure.
+		// root.Print()
 	})
+	t.Run("protrude and insert iNode", func(t *testing.T) {
+		// Set up Bp Parameters.
+		BpWidth = 3
+		BpHalfWidth = 2
 
-	t.Run("RetrieveFromIndexNode", func(t *testing.T) {
-		// Test case: Retrieve key from the associated DataNode (BpData),
-		// However, it is the side node and return no key message.
-		index := &BpIndex{}
-		dataNode1 := &BpData{
-			Items: []BpItem{
-				{Key: 5, Val: "Value1"},
-			},
-		}
-		dataNode2 := &BpData{
-			Items: []BpItem{
-				{Key: 6, Val: "Value2"},
-			},
-		}
-		index.DataNodes = append(index.DataNodes, dataNode1, dataNode2)
+		// Create a root tree with a specific structure (indexes are [7], [5], [11 to 13]).
+		root := createRootTree7and5and11to13()
 
-		key, err := index.getBpIdxIndex()
-		assert.Equal(t, int64(0), key, "Expected key to be 0")
-		// index 切片没资料就是错
-		assert.EqualError(t, err, "no key available", "Expected specific error message because of no key in index")
+		// Check the updated data structure.
+		assert.Equal(t, []int64{11, 13}, root.IndexNodes[1].Index)
+		assert.Equal(t, []int64{10}, root.IndexNodes[1].IndexNodes[0].Index)
+		assert.Equal(t, 2, root.IndexNodes[1].IndexNodes[0].DataNodes[0].dataLength())
+
+		// >>>>> Insert a BpItem.
+
+		// Insert a key (2) among the data items in the first data node.
+		root.IndexNodes[0].IndexNodes[0].DataNodes[0].insertAmong(BpItem{Key: 2})
+
+		// >>>>> Split a BpData.
+
+		// Split the data node and obtain the side and any potential error.
+		dSide, err := root.IndexNodes[0].IndexNodes[0].DataNodes[0].split()
+		require.NoError(t, err, "split should not return an error")
+
+		// >>>>> Merge a popped dNode.
+
+		// Merge a popped data node based on the split side.
+		err = root.IndexNodes[0].IndexNodes[0].mergePopDnode(dSide)
+		require.NoError(t, err, "mergePopDnode should not return an error")
+
+		// Check the updated data structure.
+		assert.Equal(t, []int64{1, 3, 4}, root.IndexNodes[0].IndexNodes[0].Index)
+		assert.Equal(t, 4, len(root.IndexNodes[0].IndexNodes[0].DataNodes))
+		assert.Equal(t, int64(1), root.IndexNodes[0].IndexNodes[0].DataNodes[0].Items[0].Key)
+		assert.Equal(t, int64(1), root.IndexNodes[0].IndexNodes[0].DataNodes[1].Items[0].Key)
+		assert.Equal(t, int64(2), root.IndexNodes[0].IndexNodes[0].DataNodes[1].Items[1].Key)
+		assert.Equal(t, int64(3), root.IndexNodes[0].IndexNodes[0].DataNodes[2].Items[0].Key)
+		assert.Equal(t, int64(4), root.IndexNodes[0].IndexNodes[0].DataNodes[2].Items[1].Key)
+		assert.Equal(t, int64(4), root.IndexNodes[0].IndexNodes[0].DataNodes[3].Items[0].Key)
+		assert.Equal(t, int64(5), root.IndexNodes[0].IndexNodes[0].DataNodes[3].Items[1].Key)
+
+		// >>>>> Protrude an iNode.
+
+		// Protrude the index node and retrieve the side (iSide).
+		iSide, err := root.IndexNodes[0].IndexNodes[0].protrude()
+		require.NoError(t, err, "protrude should not return an error")
+
+		// Remove the first index node from the parent's index nodes.
+		root.IndexNodes[0].IndexNodes = root.IndexNodes[0].IndexNodes[1:]
+
+		// Create a new index node instance.
+		newNode := &BpIndex{}
+
+		// >>>>> Take apart and reassemble.
+
+		// Take apart the index node and reassemble it using iSide.
+		newNode.TakeApartReassemble(iSide, root.IndexNodes[0])
+
+		// Update the parent's index nodes with the reassembled node.
+		root.IndexNodes[0] = newNode
+
+		// Check the updated data structure.
+		assert.Equal(t, []int64{3, 5}, root.IndexNodes[0].Index)
+		assert.Equal(t, []int64{1}, root.IndexNodes[0].IndexNodes[0].Index)
+		assert.Equal(t, []int64{4}, root.IndexNodes[0].IndexNodes[1].Index)
+		assert.Equal(t, []int64{6}, root.IndexNodes[0].IndexNodes[2].Index)
+		assert.Equal(t, []int64{11, 13}, root.IndexNodes[1].Index)
+		assert.Equal(t, int64(1), root.IndexNodes[0].IndexNodes[0].DataNodes[0].Items[0].Key)
+		assert.Equal(t, int64(1), root.IndexNodes[0].IndexNodes[0].DataNodes[1].Items[0].Key)
+		assert.Equal(t, int64(2), root.IndexNodes[0].IndexNodes[0].DataNodes[1].Items[1].Key)
+		assert.Equal(t, int64(3), root.IndexNodes[0].IndexNodes[1].DataNodes[0].Items[0].Key)
+		assert.Equal(t, int64(4), root.IndexNodes[0].IndexNodes[1].DataNodes[1].Items[0].Key)
+		assert.Equal(t, int64(5), root.IndexNodes[0].IndexNodes[2].DataNodes[0].Items[0].Key)
+		assert.Equal(t, int64(6), root.IndexNodes[0].IndexNodes[2].DataNodes[1].Items[0].Key)
+
+		// Print the resulting tree structure.
+		// newNode.Print()
 	})
+	t.Run("protrude 15 15to15 15", func(t *testing.T) {
+		// Set up Bp Parameters.
+		BpWidth = 3
+		BpHalfWidth = 2
 
-	t.Run("RetrieveFromDataNode", func(t *testing.T) {
-		// Test case: Retrieve key from the associated DataNode (BpData).
-		index := &BpIndex{}
-		dataNode1 := &BpData{
-			Items: []BpItem{
-				{Key: 5, Val: "Value1"},
-			},
-		}
-		dataNode2 := &BpData{
-			Items: []BpItem{
-				{Key: 6, Val: "Value2"},
-			},
-		}
+		// Create a root tree with a specific structure (indexes are [15], [15to15], [15]).
+		root := createRootTree15and15to15and15()
 
-		// Now the data node has data.
-		index.DataNodes = append(index.DataNodes, dataNode1, dataNode2)
+		// >>>>> Insert a BpItem.
 
-		key, err := index.getBpIdxIndex()
-		assert.Equal(t, int64(0), key, "Expected key to be 0")
-		// index 切片没资料就是错
-		assert.EqualError(t, err, "no key available", "Expected specific error message because of no key in index")
+		// Insert a key (15) among the data items in the first data node.
+		root.IndexNodes[0].DataNodes[0].insertAmong(BpItem{Key: 15})
+
+		// >>>>> Split a BpData.
+
+		// Split the data node and obtain the side and any potential error.
+		dSide, err := root.IndexNodes[0].DataNodes[0].split()
+		require.NoError(t, err, "split should not return an error")
+
+		// >>>>> Merge a popped dNode.
+
+		// Merge a popped data node based on the split side.
+		err = root.IndexNodes[0].mergePopDnode(dSide)
+		require.NoError(t, err, "mergePopDnode should not return an error")
+
+		// >>>>> Protrude an iNode.
+
+		// Protrude the index node and retrieve the side (iSide).
+		iSide, err := root.IndexNodes[0].protrude()
+		require.NoError(t, err, "protrude should not return an error")
+
+		// Remove the first index node from the parent's index nodes.
+		root.IndexNodes = root.IndexNodes[1:]
+
+		// Create a new index node instance.
+		newNode := &BpIndex{}
+
+		// >>>>> Take apart and reassemble.
+
+		// Take apart the index node and reassemble it using iSide.
+		newNode.TakeApartReassemble(iSide, root)
+
+		// Check the updated data structure.
+		assert.Equal(t, 1, newNode.IndexNodes[0].DataNodes[0].dataLength())
+		assert.Equal(t, 2, newNode.IndexNodes[0].DataNodes[1].dataLength())
+
+		// Print the resulting tree structure.
+		// newNode.Print()
 	})
 }
 
@@ -137,7 +248,7 @@ func Test_BpIndex_InsertBpIdxNewIndex(t *testing.T) {
 		}
 
 		// Call the function
-		err := idx.insertBpIdxNewIndex(test.newIndex)
+		err := idx.insertBpIX(test.newIndex)
 		require.NoError(t, err)
 
 		// Check if the result matches the expected output

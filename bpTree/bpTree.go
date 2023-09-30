@@ -51,7 +51,7 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	}
 
 	if popNode != nil && popKey == 0 {
-		tree.root.cmpAndMergeIndexNode(popNode, tree.root)
+		tree.root.TakeApartReassemble(popNode, tree.root)
 	}
 
 	if popKey != 0 {

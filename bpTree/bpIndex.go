@@ -12,145 +12,163 @@ type BpIndex struct {
 	Index      []int64    // The maximum values of each group of BpData
 	IndexNodes []*BpIndex // Index nodes
 	DataNodes  []*BpData  // Data nodes
-	Mark       bool
+	Split      bool       // After splitting the nodes, mark it.
 }
 
-// >>>>> >>>>> >>>>> get length and index
+// >>>>> >>>>> >>>>> get method
 
-// getBpIdxIndex retrieves the key from the BpIndex structure. (求 索引节点的 索引)
-// If the Index slice is empty, it attempts to retrieve the key from the associated DataNode.
-func (idx *BpIndex) getBpIdxIndex() (key int64, err error) {
-	// Check if the Index slice has values.
-	if len(idx.Index) > 0 {
-		key = idx.Index[0]
+// indexLength returns the length of index slice. (求索引结点的长度)
+func (inode *BpIndex) indexLength() (length int) {
+	length = len(inode.Index)
+	return
+}
+
+// iNodesLength returns the length of BpIndex Node slice. (求索引结点的长度)
+func (inode *BpIndex) iNodesLength() (length int) {
+	length = len(inode.IndexNodes)
+	return
+}
+
+// dNodesLength returns the length of BpData Node slice. (求资料结点的长度)
+func (inode *BpIndex) dNodesLength() (length int) {
+	length = len(inode.DataNodes)
+	return
+}
+
+// >>>>> >>>>> >>>>> insert method
+
+// insertBpIX inserts a new index at the correct position using binary search.
+func (inode *BpIndex) insertBpIX(newIx int64) (err error) {
+	// Use binary search to find the position where the index should be inserted.
+	ix := sort.Search(len(inode.Index), func(i int) bool {
+		return inode.Index[i] >= newIx
+	})
+
+	// Expand the slice to accommodate the new item.
+	inode.Index = append(inode.Index, 0)
+
+	// Shift the elements to the right to make space for the new item.
+	copy(inode.Index[ix+1:], inode.Index[ix:])
+
+	// Insert the new item at the correct position.
+	inode.Index[ix] = newIx
+
+	return
+}
+
+// protrude performs index upgrade, when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+// (进行索引升级，当索引切片的中间值会弹出升级成上层的 Index)
+func (inode *BpIndex) protrude() (popMiddleNode *BpIndex, err error) {
+	// Calculate the current index lengths for splitting.
+	indexLen := (len(inode.Index) - 1) / 2
+	indexNodeLen := len(inode.IndexNodes) / 2
+	dataNodeLen := len(inode.DataNodes) / 2
+
+	// Pop operation
+
+	// Create a new left node.
+	leftNode := &BpIndex{}
+	leftNode.Index = append(leftNode.Index, inode.Index[:indexLen]...)
+	leftNode.IndexNodes = append(leftNode.IndexNodes, inode.IndexNodes[:indexNodeLen]...)
+	leftNode.DataNodes = append(leftNode.DataNodes, inode.DataNodes[:dataNodeLen]...)
+
+	// Create a new right node.
+	rightNode := &BpIndex{}
+	rightNode.Index = append(rightNode.Index, inode.Index[indexLen+1:]...)
+	rightNode.IndexNodes = append(rightNode.IndexNodes, inode.IndexNodes[indexNodeLen:]...)
+	rightNode.DataNodes = append(rightNode.DataNodes, inode.DataNodes[dataNodeLen:]...)
+
+	// Create a new middle node.
+	middleValue := inode.Index[indexLen : indexLen+1]
+	popMiddleNode = &BpIndex{
+		Index:      middleValue,
+		IndexNodes: []*BpIndex{leftNode, rightNode},
+		DataNodes:  []*BpData{},
 	}
 
-	// If there is no index in the BpIndex, set an error indicating no key.
-	if len(idx.Index) == 0 {
-		err = fmt.Errorf("no key available")
+	// Make a mark, already split.
+	// inode.Split = true // 不需要
+
+	return
+}
+
+// searchInsertInode will merge index nodes into the node array, but it will not update its own index array."
+// (这个不会更新索引 index，只有在更新 Inode 时，才会思考，因底层有 link list)
+func (inode *BpIndex) searchInsertInode(newIdx *BpIndex) (err error) {
+	// Use binary search to find the position where the index should be inserted.
+	ix := sort.Search(len(inode.IndexNodes), func(i int) bool {
+		return inode.IndexNodes[i].digDigKey() >= newIdx.Index[0]
+	})
+
+	// Expand the slice to accommodate the new item.
+	inode.IndexNodes = append(inode.IndexNodes, &BpIndex{})
+
+	// Shift the elements to the right to make space for the new item.
+	copy(inode.IndexNodes[ix+1:], inode.IndexNodes[ix:])
+
+	// Insert the new item at the correct position.
+	inode.IndexNodes[ix] = newIdx
+
+	return
+}
+
+func (inode *BpIndex) digDigKey() (key int64) {
+	node := inode
+	for {
+		if len(node.DataNodes) == 0 {
+			node = node.IndexNodes[0]
+		} else {
+			key = node.DataNodes[0].Items[0].Key
+			break
+		}
+	}
+	return
+}
+
+func (inode *BpIndex) mergePopDnode(side *BpData) (err error) {
+	var newIx int64
+
+	if len(inode.IndexNodes) > 0 {
+		// Cannot directly insert a pure index node.
+		// When it is POPed up, it is merged directly by the parent node.
+		// (POP上来直接被父节点合拼)
+		return fmt.Errorf("data cannot be inserted directly into wrong index nodes")
 	}
 
-	return
-}
-
-// getBpDataLength returns the length of BpData's items slice. (求索引结点的长度)
-func (idx *BpIndex) getBpIndexNodesLength() (length int) {
-	length = len(idx.IndexNodes)
-	return
-}
-
-func (idx *BpIndex) getBpDataNodesLength() (length int) {
-	length = len(idx.DataNodes)
-	return
-}
-
-// >>>>> >>>>> >>>>> insert index, indexNode, dataNode
-
-// insertBpIdxNewIndex inserts a new index at the correct position using binary search.
-func (idx *BpIndex) insertBpIdxNewIndex(newIx int64) (err error) {
-	// Use binary search to find the position where the index should be inserted.
-	ix := sort.Search(len(idx.Index), func(i int) bool {
-		return idx.Index[i] >= newIx
-	})
-
-	// Expand the slice to accommodate the new item.
-	idx.Index = append(idx.Index, 0)
-
-	// Shift the elements to the right to make space for the new item.
-	copy(idx.Index[ix+1:], idx.Index[ix:])
-
-	// Insert the new item at the correct position.
-	idx.Index[ix] = newIx
-
-	return
-}
-
-// insertBpIdxNewIndexNode inserts a new index node at the correct position using binary search.
-func (idx *BpIndex) insertBpIdxNewIndexNode(newIdx *BpIndex) (err error) {
-	// Use binary search to find the position where the index should be inserted.
-	ix := sort.Search(len(idx.Index), func(i int) bool {
-		return idx.Index[i] >= newIdx.Index[0]
-	})
-
-	// >>>>> 失处理节点
-
-	// Expand the slice to accommodate the new item.
-	idx.IndexNodes = append(idx.IndexNodes, &BpIndex{})
-
-	// Shift the elements to the right to make space for the new item.
-	copy(idx.IndexNodes[ix+1:], idx.IndexNodes[ix:])
-
-	// Insert the new item at the correct position.
-	idx.IndexNodes[ix] = newIdx.IndexNodes[0]
-
-	// >>>>> 再处理索引
-
-	// Expand the slice to accommodate the new item.
-	idx.Index = append(idx.Index, 0)
-
-	// Shift the elements to the right to make space for the new item.
-	copy(idx.Index[ix+1:], idx.Index[ix:])
-
-	// Insert the new item at the correct position.
-	idx.Index[ix] = newIdx.Index[0]
-
-	return
-}
-
-func (idx *BpIndex) mergeBpIdxNewIndexNode(newIdx *BpIndex) (err error) {
-	// Use binary search to find the position where the index should be inserted.
-	ix := sort.Search(len(idx.IndexNodes), func(i int) bool {
-		return idx.IndexNodes[i].DigKey() >= newIdx.Index[0]
-	})
-
-	// >>>>> 失处理节点
-
-	// Expand the slice to accommodate the new item.
-	idx.IndexNodes = append(idx.IndexNodes, &BpIndex{})
-
-	// Shift the elements to the right to make space for the new item.
-	copy(idx.IndexNodes[ix+1:], idx.IndexNodes[ix:])
-
-	// Insert the new item at the correct position.
-	idx.IndexNodes[ix] = newIdx
-
-	return
-}
-
-func (idx *BpIndex) insertBpIdxNewDataNode(sideNode *BpData) (err error) {
-
-	if len(idx.DataNodes) > 0 {
+	if len(inode.DataNodes) > 0 {
 		// Use binary search to find the position where the index should be inserted.
-		ix := sort.Search(len(idx.Index), func(i int) bool {
-			return idx.Index[i] >= sideNode.Items[0].Key
+		ix := sort.Search(len(inode.DataNodes), func(i int) bool {
+			return inode.DataNodes[i].Items[0].Key >= side.Items[0].Key
 		})
+
+		for i := ix; i < len(inode.DataNodes); i++ {
+			if inode.DataNodes[ix].Split == true {
+				ix = ix + 1
+				break
+			}
+		}
+
+		inode.DataNodes[ix].Split = false
 
 		// >>>>> 失处理节点
 
 		// Expand the slice to accommodate the new item.
-		idx.DataNodes = append(idx.DataNodes, &BpData{})
+		inode.DataNodes = append(inode.DataNodes, &BpData{})
 
 		// Shift the elements to the right to make space for the new item.
-		copy(idx.DataNodes[ix+1:], idx.DataNodes[ix:])
+		copy(inode.DataNodes[ix+1:], inode.DataNodes[ix:])
 
 		// Insert the new item at the correct position.
-		idx.DataNodes[ix] = sideNode
+		inode.DataNodes[ix] = side
 
 		// >>>>> 再处理索引
 
-		// Expand the slice to accommodate the new item.
-		idx.Index = append(idx.Index, 0)
-
-		// Shift the elements to the right to make space for the new item.
-		copy(idx.Index[ix+1:], idx.Index[ix:])
-
-		// Insert the new item at the correct position.
-		idx.Index[ix] = sideNode.Items[0].Key
+		newIx, err = side.index()
+		err = inode.insertBpIX(newIx)
 	}
 
-	// 才一个资料切片，不会有索引
-	if len(idx.DataNodes) == 0 {
-		idx.DataNodes = append(idx.DataNodes, sideNode)
+	if len(inode.DataNodes) == 0 {
+		inode.DataNodes = append(inode.DataNodes, side)
 	}
 
 	return
@@ -158,18 +176,18 @@ func (idx *BpIndex) insertBpIdxNewDataNode(sideNode *BpData) (err error) {
 
 // insertBpDataValue inserts a new index into the BpIndex.
 // 经由 BpIndex 直接在新增
-func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey int64, popNode *BpIndex, err error) {
+func (inode *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey int64, popNode *BpIndex, err error) {
 
 	var newIndex int64
 	var sideDataNode *BpData
 
 	// If there are existing items, insert the new item among them.
-	if newNode == nil && len(idx.Index) > 0 {
+	if newNode == nil && len(inode.Index) > 0 {
 		// (当索引大于 0，就可以直接开始找位置)
 
 		// Use binary search to find the index(i) where the key should be inserted.
-		ix := sort.Search(len(idx.Index), func(i int) bool {
-			return idx.Index[i] >= item.Key
+		ix := sort.Search(len(inode.Index), func(i int) bool {
+			return inode.Index[i] >= item.Key
 		})
 
 		// >>>>> >>>>> >>>>> 进入递归
@@ -177,51 +195,52 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey i
 		// Verify if the index for IndexNodes is correct?
 		// (先检查索吊数量是否正确)
 
-		if len(idx.IndexNodes) > 0 {
-			if len(idx.IndexNodes) != (len(idx.Index) + 1) {
-				err = fmt.Errorf("the number of indexes is incorrect, %v", idx.Index)
+		if len(inode.IndexNodes) > 0 {
+			if len(inode.IndexNodes) != (len(inode.Index) + 1) {
+				err = fmt.Errorf("the number of indexes is incorrect, %v", inode.Index)
 				return
 			}
 
 			// If there are index nodes, recursively insert the item into the appropriate node.
 			// (这里有递回去找到接近资料切片的地方)
-			popKey, popNode, err = idx.IndexNodes[ix].insertBpIdxNewValue(nil, item)
+			popKey, popNode, err = inode.IndexNodes[ix].insertBpIdxNewValue(nil, item)
 			// >>>>>>>>>>>>>> XXXXXXXXXXX
 			if popKey != 0 {
-				err = idx.cmpAndCombineIndexNode(popKey, popNode)
+				err = inode.cmpAndCombineIndexNode(popKey, popNode)
 				popKey = 0
 				popNode = nil
 			}
 
 			if popNode != nil && popKey == 0 {
 				// >>>>>>>>>>>>>> XXXXXXXXXXX
-				idx.insertBpIdxNewIndex(popNode.Index[0])
-				idx.IndexNodes = append(idx.IndexNodes[:ix], idx.IndexNodes[ix+1:]...)
+				inode.insertBpIX(popNode.Index[0])
+				inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 				for i := 0; i < len(popNode.IndexNodes); i++ {
 					if popNode.IndexNodes[i] != nil {
-						idx.mergeBpIdxNewIndexNode(popNode.IndexNodes[i])
+						fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+						inode.searchInsertInode(popNode.IndexNodes[i])
 					}
 				}
-				popNode = nil
 
+				popNode = nil
 			}
 
-			if len(idx.Index) >= BpWidth && len(idx.Index)%2 != 0 { // 进行 pop 和奇数
-				indexLen := (len(idx.Index) - 1) / 2
-				indexNodeLen := len(idx.IndexNodes) / 2
-				dataNodeLen := len(idx.DataNodes) / 2
+			if len(inode.Index) >= BpWidth && len(inode.Index)%2 != 0 { // 进行 pop 和奇数
+				indexLen := (len(inode.Index) - 1) / 2
+				indexNodeLen := len(inode.IndexNodes) / 2
+				dataNodeLen := len(inode.DataNodes) / 2
 
 				leftNode := &BpIndex{}
-				leftNode.Index = append(leftNode.Index, idx.Index[:indexLen]...)
-				leftNode.IndexNodes = append(leftNode.IndexNodes, idx.IndexNodes[:indexNodeLen]...)
-				leftNode.DataNodes = append(leftNode.DataNodes, idx.DataNodes[:dataNodeLen]...)
+				leftNode.Index = append(leftNode.Index, inode.Index[:indexLen]...)
+				leftNode.IndexNodes = append(leftNode.IndexNodes, inode.IndexNodes[:indexNodeLen]...)
+				leftNode.DataNodes = append(leftNode.DataNodes, inode.DataNodes[:dataNodeLen]...)
 
 				rightNode := &BpIndex{}
-				rightNode.Index = append(rightNode.Index, idx.Index[indexLen+1:]...)
-				rightNode.IndexNodes = append(rightNode.IndexNodes, idx.IndexNodes[indexNodeLen:]...)
-				rightNode.DataNodes = append(rightNode.DataNodes, idx.DataNodes[dataNodeLen:]...)
+				rightNode.Index = append(rightNode.Index, inode.Index[indexLen+1:]...)
+				rightNode.IndexNodes = append(rightNode.IndexNodes, inode.IndexNodes[indexNodeLen:]...)
+				rightNode.DataNodes = append(rightNode.DataNodes, inode.DataNodes[dataNodeLen:]...)
 
-				middleValue := idx.Index[indexLen : indexLen+1]
+				middleValue := inode.Index[indexLen : indexLen+1]
 				middleNode := &BpIndex{
 					Index:      middleValue,
 					IndexNodes: []*BpIndex{leftNode, rightNode},
@@ -232,7 +251,7 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey i
 				popNode = middleNode
 
 				// >>>>>>>>>>>>>> XXXXXXXXXXX
-				idx.Mark = true
+				inode.Split = true
 
 				return
 			}
@@ -241,34 +260,34 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey i
 		}
 
 		// If there are data nodes, insert the new item at the determined index.
-		if len(idx.DataNodes) > 0 {
+		if len(inode.DataNodes) > 0 {
 			// Verify if the index for IndexNodes is correct?
-			if len(idx.DataNodes) != (len(idx.Index) + 1) {
-				err = fmt.Errorf("the number of indexes is incorrect, %v", idx.Index)
+			if len(inode.DataNodes) != (len(inode.Index) + 1) {
+				err = fmt.Errorf("the number of indexes is incorrect, %v", inode.Index)
 				return
 			}
 
 			// >>>>> >>>>> >>>>> 进入底层，新增资料
-			idx.DataNodes[ix].insertBpDataValue(item) // Insert item at index ix.
+			inode.DataNodes[ix].insert(item) // Insert item at index ix.
 
-			if len(idx.DataNodes[ix].Items) >= BpWidth {
-				sideDataNode, err = idx.DataNodes[ix].split()
+			if len(inode.DataNodes[ix].Items) >= BpWidth {
+				sideDataNode, err = inode.DataNodes[ix].split()
 				if err != nil {
 					return
 				}
 
-				idx.DataNodes = append(idx.DataNodes, &BpData{})
-				copy(idx.DataNodes[(ix+1)+1:], idx.DataNodes[(ix+1):])
-				idx.DataNodes[ix+1] = sideDataNode
+				inode.DataNodes = append(inode.DataNodes, &BpData{})
+				copy(inode.DataNodes[(ix+1)+1:], inode.DataNodes[(ix+1):])
+				inode.DataNodes[ix+1] = sideDataNode
 
-				err = idx.insertBpIdxNewIndex(sideDataNode.Items[0].Key)
+				err = inode.insertBpIX(sideDataNode.Items[0].Key)
 				if err != nil {
 					return
 				}
 			}
 
-			if len(idx.Index) >= BpWidth {
-				popKey, popNode, err = idx.basicSplit()
+			if len(inode.Index) >= BpWidth {
+				popKey, popNode, err = inode.basicSplit()
 				if err != nil {
 					return
 				}
@@ -280,71 +299,60 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey i
 
 	// The length of idx.Index is 0, which only occurs in one scenario where there is only one DataNodesDataNodes.
 	// (Idx.Index 的长度为 0，只有在一个状况才会发生，资料分片只有一份)
-	if newNode == nil && len(idx.Index) == 0 {
-		if len(idx.DataNodes) != 1 {
+	if newNode == nil && len(inode.Index) == 0 {
+		if len(inode.DataNodes) != 1 {
 			err = fmt.Errorf("the number of indexes is incorrect initially")
 			return
 		}
-		idx.DataNodes[0].insertBpDataValue(item) // >>>>> (add to DataNodes)
+		inode.DataNodes[0].insert(item) // >>>>> (add to DataNodes)
 
-		if idx.DataNodes[0].getBpDataLength() >= BpWidth {
-			sideDataNode, err = idx.DataNodes[0].split() // newIndex
+		if inode.DataNodes[0].dataLength() >= BpWidth {
+			sideDataNode, err = inode.DataNodes[0].split() // newIndex
 			if err != nil {
 				return
 			}
 
-			idx.DataNodes = append(idx.DataNodes, sideDataNode)
+			inode.DataNodes = append(inode.DataNodes, sideDataNode)
 			newIndex = sideDataNode.Items[0].Key
 		}
 	}
 
 	if sideDataNode != nil {
-		err = idx.insertBpIdxNewIndex(newIndex)
+		err = inode.insertBpIX(newIndex)
 		if err != nil {
 			return
 		}
 
-		if idx.getBpIndexNodesLength() >= BpWidth {
+		if inode.iNodesLength() >= BpWidth {
 			// node, err = idx.split(BpWidth) // 这个新节点要由上层去处理
-			_, popNode, err = idx.basicSplit()
+			_, popNode, err = inode.basicSplit()
 		}
 
-		if len(idx.Index) >= BpWidth && len(idx.Index)%2 != 0 { // 进行 pop 和奇数 (可能没在使用)
-			indexLen := (len(idx.Index) - 1) / 2
-			dataLen := len(idx.DataNodes) / 2
+		if len(inode.Index) >= BpWidth && len(inode.Index)%2 != 0 { // 进行 pop 和奇数 (可能没在使用)
+			indexLen := (len(inode.Index) - 1) / 2
+			dataLen := len(inode.DataNodes) / 2
 
 			leftNode := &BpIndex{}
-			leftNode.Index = append(leftNode.Index, idx.Index[:indexLen]...)
-			leftNode.DataNodes = append(leftNode.DataNodes, idx.DataNodes[:dataLen]...)
+			leftNode.Index = append(leftNode.Index, inode.Index[:indexLen]...)
+			leftNode.DataNodes = append(leftNode.DataNodes, inode.DataNodes[:dataLen]...)
 
 			rightNode := &BpIndex{}
-			rightNode.Index = append(rightNode.Index, idx.Index[indexLen+1:]...)
-			rightNode.DataNodes = append(rightNode.DataNodes, idx.DataNodes[dataLen:]...)
+			rightNode.Index = append(rightNode.Index, inode.Index[indexLen+1:]...)
+			rightNode.DataNodes = append(rightNode.DataNodes, inode.DataNodes[dataLen:]...)
 
-			middleValue := idx.Index[indexLen : indexLen+1]
+			middleValue := inode.Index[indexLen : indexLen+1]
 			middleNode := &BpIndex{
 				Index:      middleValue,
 				IndexNodes: []*BpIndex{leftNode, rightNode},
 				DataNodes:  []*BpData{},
 			}
 
-			*idx = *middleNode
+			*inode = *middleNode
 
 			return
 		}
 
 		return // Break here to avoid inserting elsewhere. (立刻中断)
-	}
-
-	if newNode != nil {
-		err = idx.insertBpIdxNewIndexNode(newNode)
-		if err != nil {
-			return
-		}
-
-		if idx.getBpIndexNodesLength() >= BpWidth {
-			popKey, popNode, err = idx.basicSplit() // 这个新节点要由上层去处理
-		}
 	}
 
 	return
@@ -353,36 +361,36 @@ func (idx *BpIndex) insertBpIdxNewValue(newNode *BpIndex, item BpItem) (popKey i
 // >>>>> >>>>> >>>>> split and maintain
 
 // 每次切开会有一个 Key 弹出
-func (idx *BpIndex) basicSplit() (key int64, side *BpIndex, err error) {
+func (inode *BpIndex) basicSplit() (key int64, side *BpIndex, err error) {
 	BpHalfWidth = 2
 
 	// Check if both IndexNodes and DataNodes have data, which is incorrect as we don't know where to retrieve the index.
-	if (len(idx.IndexNodes) != 0) && (len(idx.DataNodes) != 0) {
+	if (len(inode.IndexNodes) != 0) && (len(inode.DataNodes) != 0) {
 		err = fmt.Errorf("both IndexNodes and DataNodes have data, cannot determine which one is the index source")
 		return
 	}
 
-	if len(idx.IndexNodes) != 0 {
+	if len(inode.IndexNodes) != 0 {
 		side = &BpIndex{}
-		side.Index = append(side.Index, idx.Index[BpHalfWidth:]...)
-		side.IndexNodes = append(side.IndexNodes, idx.IndexNodes[BpHalfWidth:]...)
+		side.Index = append(side.Index, inode.Index[BpHalfWidth:]...)
+		side.IndexNodes = append(side.IndexNodes, inode.IndexNodes[BpHalfWidth:]...)
 
-		key = idx.Index[BpHalfWidth-1 : BpHalfWidth][0]
+		key = inode.Index[BpHalfWidth-1 : BpHalfWidth][0]
 
-		idx.Index = idx.Index[0 : BpHalfWidth-1] // 减一为要少一个数量
-		idx.IndexNodes = idx.IndexNodes[0:BpHalfWidth]
+		inode.Index = inode.Index[0 : BpHalfWidth-1] // 减一为要少一个数量
+		inode.IndexNodes = inode.IndexNodes[0:BpHalfWidth]
 	}
 
-	if len(idx.DataNodes) != 0 {
+	if len(inode.DataNodes) != 0 {
 		side = &BpIndex{}
-		length := len(idx.DataNodes)
-		side.Index = append(side.Index, idx.Index[(length-BpHalfWidth):]...)
-		side.DataNodes = append(side.DataNodes, idx.DataNodes[(length-BpHalfWidth):]...)
+		length := len(inode.DataNodes)
+		side.Index = append(side.Index, inode.Index[(length-BpHalfWidth):]...)
+		side.DataNodes = append(side.DataNodes, inode.DataNodes[(length-BpHalfWidth):]...)
 
-		key = idx.Index[(length - BpHalfWidth - 1):(length - BpHalfWidth)][0]
+		key = inode.Index[(length - BpHalfWidth - 1):(length - BpHalfWidth)][0]
 
-		idx.Index = idx.Index[0:(length - BpHalfWidth - 1)] // 减一为要少一个数量
-		idx.DataNodes = idx.DataNodes[0:(length - BpHalfWidth)]
+		inode.Index = inode.Index[0:(length - BpHalfWidth - 1)] // 减一为要少一个数量
+		inode.DataNodes = inode.DataNodes[0:(length - BpHalfWidth)]
 	}
 
 	return
@@ -390,7 +398,7 @@ func (idx *BpIndex) basicSplit() (key int64, side *BpIndex, err error) {
 
 // >>>>> >>>>> >>>>> compare and merge
 
-func (idx *BpIndex) cmpAndMergeIndexNode(indexes ...*BpIndex) {
+func (inode *BpIndex) TakeApartReassemble(indexes ...*BpIndex) {
 	//
 	for _, v := range indexes {
 		if len(v.Index) == 0 {
@@ -417,24 +425,24 @@ func (idx *BpIndex) cmpAndMergeIndexNode(indexes ...*BpIndex) {
 	}
 
 	//
-	idx.Index = []int64{}
-	idx.IndexNodes = []*BpIndex{}
-	idx.DataNodes = []*BpData{}
+	inode.Index = []int64{}
+	inode.IndexNodes = []*BpIndex{}
+	inode.DataNodes = []*BpData{}
 
 	//
 	for _, v := range indexes {
-		idx.Index = append(idx.Index, v.Index...)
-		idx.IndexNodes = append(idx.IndexNodes, v.IndexNodes...)
-		idx.DataNodes = append(idx.DataNodes, v.DataNodes...)
+		inode.Index = append(inode.Index, v.Index...)
+		inode.IndexNodes = append(inode.IndexNodes, v.IndexNodes...)
+		inode.DataNodes = append(inode.DataNodes, v.DataNodes...)
 	}
 
 	//
-	idx.Index = idx.Index[1:]
+	inode.Index = inode.Index[1:]
 
 	return
 }
 
-func (idx *BpIndex) cmpAndOrganizeIndexNode(podKey int64, indexes ...*BpIndex) {
+func (inode *BpIndex) cmpAndOrganizeIndexNode(podKey int64, indexes ...*BpIndex) {
 	//
 	sort.SliceStable(indexes, func(i, j int) bool {
 		return (*indexes[i]).Index[0] < (*indexes[j]).Index[0]
@@ -453,37 +461,24 @@ func (idx *BpIndex) cmpAndOrganizeIndexNode(podKey int64, indexes ...*BpIndex) {
 		newTree.IndexNodes = append(newTree.IndexNodes, tmp)
 	}
 
-	*idx = *newTree
+	*inode = *newTree
 
 	return
 }
 
-func (idx *BpIndex) DigKey() (key int64) {
-	node := idx
-	for {
-		if len(node.DataNodes) == 0 {
-			node = node.IndexNodes[0]
-		} else {
-			key = node.DataNodes[0].Items[0].Key
-			break
-		}
-	}
-	return
-}
-
-func (idx *BpIndex) cmpAndCombineIndexNode(popKey int64, indexNode *BpIndex) (err error) {
+func (inode *BpIndex) cmpAndCombineIndexNode(popKey int64, indexNode *BpIndex) (err error) {
 	//
-	ix := sort.Search(len(idx.IndexNodes), func(i int) bool {
+	ix := sort.Search(len(inode.IndexNodes), func(i int) bool {
 		// return idx.IndexNodes[i].Index[0] >= indexNode.Index[0]
-		return idx.IndexNodes[i].DigKey() >= indexNode.Index[0]
+		return inode.IndexNodes[i].digDigKey() >= indexNode.Index[0]
 	})
 
-	idx.IndexNodes = append(idx.IndexNodes, &BpIndex{})
-	copy(idx.IndexNodes[ix+1:], idx.IndexNodes[ix:])
-	idx.IndexNodes[ix] = indexNode
+	inode.IndexNodes = append(inode.IndexNodes, &BpIndex{})
+	copy(inode.IndexNodes[ix+1:], inode.IndexNodes[ix:])
+	inode.IndexNodes[ix] = indexNode
 
 	//
-	err = idx.insertBpIdxNewIndex(popKey)
+	err = inode.insertBpIX(popKey)
 
 	return
 }
