@@ -74,9 +74,6 @@ func (data *BpData) insertAmong(item BpItem) {
 
 // split divides the BpData node into two nodes if it contains more items than the specified width.
 func (data *BpData) split() (side *BpData, err error) {
-	// 暂时的
-	BpHalfWidth = 2
-
 	// Create a new BpData node to store the items that will be moved.
 	side = &BpData{}
 	length := len(data.Items)

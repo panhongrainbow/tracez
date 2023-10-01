@@ -7,7 +7,7 @@ import (
 // The width and half-width for B plus tree.
 var (
 	BpWidth     int // the width of B plus tree.
-	BpHalfWidth int // the half width of B plus tree.
+	BpHalfWidth int // the half-width of B plus tree.
 )
 
 // BpTree is the root of Tree B plus.
@@ -23,7 +23,7 @@ func NewBpTree(width int) (tree *BpTree) {
 		width = 3
 	}
 	BpWidth = width
-	BpHalfWidth = int((float32(BpWidth) + 0.1) / 2)
+	BpHalfWidth = int((float32(BpWidth)-0.1)/2) + 1
 
 	// Create root tree instance
 	tree = &BpTree{
@@ -44,18 +44,21 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	tree.mutex.Lock()
 
 	// Insert the item into the B plus tree index.
-	popKey, popNode, err := tree.root.insertBpIdxNewValue(nil, item)
+	popIx, popKey, popNode, status, err := tree.root.insertItem(nil, item)
 
 	if err != nil {
 		panic(err)
 	}
 
-	if popNode != nil && popKey == 0 {
+	if status == status_protrude_inode && popNode != nil {
+		// if popKey == 0 && popNode != nil {
 		tree.root.TakeApartReassemble(popNode, tree.root)
 	}
 
-	if popKey != 0 {
-		tree.root.cmpAndOrganizeIndexNode(popKey, popNode, tree.root)
+	if status == status_protrude_dnode {
+		// if popKey != 0 {
+		tree.root.prepareProtrudeDnode(popIx, popKey, tree.root, popNode)
+		// tree.root.cmpAndOrganizeIndexNode(popIx, popKey, popNode)
 	}
 
 	// Release the lock to allow other threads to access the tree.

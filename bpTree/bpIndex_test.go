@@ -198,8 +198,8 @@ func Test_BpIndex_InsertBpIdxNewValue(t *testing.T) {
 		// Create a new BpItem
 		newItem := BpItem{Key: 1}
 
-		// Call the insertBpIdxNewValue function
-		_, _, _ = index.insertBpIdxNewValue(nil, newItem)
+		// Call the insertItem function
+		_, _, _, _, _ = index.insertItem(nil, newItem)
 
 		// Check the updated index
 		expectedIndex := []int64{5}
