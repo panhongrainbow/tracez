@@ -40,6 +40,8 @@ func (data *BpData) index() (key int64, err error) {
 	return
 }
 
+// >>>>> >>>>> >>>>> insert
+
 // insertBpDataValue inserts a BpItem into the BpData.
 func (data *BpData) insert(item BpItem) {
 	// If there are existing items, insert the new item among them.
@@ -89,5 +91,22 @@ func (data *BpData) split() (side *BpData, err error) {
 	data.Split = true
 
 	// No error
+	return
+}
+
+// >>>>> >>>>> >>>>> delete
+
+func (data *BpData) delete(item BpItem) (deleted bool) {
+	// Use binary search to find the index where the item should be deleted.
+	ix := sort.Search(len(data.Items), func(i int) bool {
+		return data.Items[i].Key >= item.Key
+	})
+
+	if ix < len(data.Items) && data.Items[ix].Key == item.Key {
+		copy(data.Items[ix:], data.Items[ix+1:])
+		data.Items = data.Items[:len(data.Items)-1]
+		deleted = true
+	}
+
 	return
 }

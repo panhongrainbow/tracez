@@ -157,6 +157,10 @@ func (inode *BpIndex) mergePopDnode(side *BpData) (err error) {
 const (
 	status_protrude_inode = iota + 1
 	status_protrude_dnode
+	status_delete_item
+	status_delete_Non
+	status_de_protrude
+	status_delete_protrude
 )
 
 // insertBpDataValue inserts a new index into the BpIndex.

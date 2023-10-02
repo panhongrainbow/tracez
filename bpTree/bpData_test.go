@@ -43,6 +43,25 @@ func Test_Check_BpData_insert(t *testing.T) {
 	assert.Equal(t, 2, data.dataLength(), "Expected two items in the slice")
 }
 
+func Test_Check_BpData_delete(t *testing.T) {
+	data := &BpData{
+		Items: []BpItem{
+			{Key: 1, Val: "Value1"},
+			{Key: 2, Val: "Value2"},
+			{Key: 3, Val: "Value3"},
+			{Key: 4, Val: "Value4"},
+			{Key: 5, Val: "Value5"},
+		},
+	}
+
+	assert.Equal(t, 5, data.dataLength(), "Expected five items in the slice")
+
+	item := BpItem{Key: 3, Val: "Value3"}
+
+	data.delete(item)
+
+}
+
 // Test_Check_BpData_split checks the split method, which divides a BpData node into two nodes if it contains more items than the specified width.
 func Test_Check_BpData_split(t *testing.T) {
 	// Set parameters.

@@ -4,9 +4,9 @@ import "fmt"
 
 func (inode *BpIndex) Print() {
 	fmt.Println()
-	if len(inode.Index) > 0 {
-		fmt.Println("[⭕️IndexNode]:", inode.Index)
-	}
+	// if len(inode.Index) > 0 {
+	fmt.Println("[⭕️IndexNode]:", inode.Index)
+	// }
 
 	if len(inode.IndexNodes) > 0 {
 		for _, indexNode := range inode.IndexNodes {
@@ -14,12 +14,12 @@ func (inode *BpIndex) Print() {
 		}
 	}
 
-	if len(inode.DataNodes) > 0 {
-		for _, dataNode := range inode.DataNodes {
-			fmt.Printf("[🧺 DataNode]:\n")
-			dataNode.Print()
-		}
+	// if len(inode.DataNodes) > 0 {
+	for _, dataNode := range inode.DataNodes {
+		fmt.Printf("[🟣 DataNode]:\n")
+		dataNode.Print()
 	}
+	// }
 }
 
 func (data *BpData) Print() {
