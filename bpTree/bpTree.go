@@ -61,6 +61,14 @@ func (tree *BpTree) InsertValue(item BpItem) {
 		// tree.root.cmpAndOrganizeIndexNode(popIx, popKey, popNode)
 	}
 
+	if len(tree.root.Index) >= BpWidth && len(tree.root.Index)%2 != 0 {
+		popNode, _ = tree.root.protrude()
+		tree.root = popNode
+	} else if len(tree.root.Index) >= BpWidth && len(tree.root.Index)%2 == 0 {
+		popNode, _ = tree.root.protrude2()
+		tree.root = popNode
+	}
+
 	// Release the lock to allow other threads to access the tree.
 	tree.mutex.Unlock()
 
