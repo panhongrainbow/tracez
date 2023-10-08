@@ -445,4 +445,113 @@ func Test_Check_Btree(t *testing.T) {
 		// head.Print()
 		// root.root.Print()
 	})
+	t.Run("tests inserting B-tree with a width of 6.", func(t *testing.T) {
+		// Initialize B-tree.
+		root := NewBpTree(6)
+		// Insert 50 data entries continuously.
+		root.InsertValue(BpItem{Key: 40})
+		root.InsertValue(BpItem{Key: 38})
+		root.InsertValue(BpItem{Key: 10})
+		root.InsertValue(BpItem{Key: 81})
+		root.InsertValue(BpItem{Key: 98})
+		root.InsertValue(BpItem{Key: 4})
+		root.InsertValue(BpItem{Key: 30})
+		root.InsertValue(BpItem{Key: 67})
+		root.InsertValue(BpItem{Key: 35})
+		root.InsertValue(BpItem{Key: 89})
+		root.InsertValue(BpItem{Key: 96})
+		root.InsertValue(BpItem{Key: 78})
+		root.InsertValue(BpItem{Key: 95})
+		root.InsertValue(BpItem{Key: 86})
+		root.InsertValue(BpItem{Key: 19})
+		root.InsertValue(BpItem{Key: 1})
+		root.InsertValue(BpItem{Key: 99})
+		root.InsertValue(BpItem{Key: 59})
+		root.InsertValue(BpItem{Key: 49})
+		root.InsertValue(BpItem{Key: 65})
+		root.InsertValue(BpItem{Key: 37})
+		root.InsertValue(BpItem{Key: 73})
+		root.InsertValue(BpItem{Key: 9})
+		root.InsertValue(BpItem{Key: 29})
+		root.InsertValue(BpItem{Key: 97})
+		root.InsertValue(BpItem{Key: 77})
+		root.InsertValue(BpItem{Key: 5})
+		root.InsertValue(BpItem{Key: 18})
+		root.InsertValue(BpItem{Key: 69})
+		root.InsertValue(BpItem{Key: 46})
+		root.InsertValue(BpItem{Key: 72})
+		root.InsertValue(BpItem{Key: 6})
+		root.InsertValue(BpItem{Key: 36})
+		root.InsertValue(BpItem{Key: 22})
+		root.InsertValue(BpItem{Key: 56})
+		root.InsertValue(BpItem{Key: 62})
+		root.InsertValue(BpItem{Key: 23})
+		root.InsertValue(BpItem{Key: 94})
+		root.InsertValue(BpItem{Key: 11})
+		root.InsertValue(BpItem{Key: 71})
+		root.InsertValue(BpItem{Key: 34})
+		root.InsertValue(BpItem{Key: 13})
+		root.InsertValue(BpItem{Key: 100})
+		root.InsertValue(BpItem{Key: 60})
+		root.InsertValue(BpItem{Key: 24})
+		root.InsertValue(BpItem{Key: 91})
+		root.InsertValue(BpItem{Key: 25})
+		root.InsertValue(BpItem{Key: 66})
+		root.InsertValue(BpItem{Key: 50})
+		root.InsertValue(BpItem{Key: 80})
+
+		// Check the distribution of the entire B-tree.
+		assert.Equal(t, []int64{36, 65}, root.root.Index, "Top-level index is incorrect")
+
+		assert.Equal(t, []int64{10, 22, 30}, root.root.IndexNodes[0].Index, "Index error for the 1st data node on the 1st level down")
+		assert.Equal(t, []int64{40, 56}, root.root.IndexNodes[1].Index, "Index error for the 2nd data node on the 1st level down")
+		assert.Equal(t, []int64{72, 78, 89, 97}, root.root.IndexNodes[2].Index, "Index error for the 3rd data node on the 1st level down")
+
+		assert.Equal(t, []BpItem{{Key: 1}, {Key: 4}, {Key: 5}, {Key: 6}, {Key: 9}}, root.root.IndexNodes[0].DataNodes[0].Items, "Data error for the 1st data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 10}, {Key: 11}, {Key: 13}, {Key: 18}, {Key: 19}}, root.root.IndexNodes[0].DataNodes[1].Items, "Data error for the 2nd data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 22}, {Key: 23}, {Key: 24}, {Key: 25}, {Key: 29}}, root.root.IndexNodes[0].DataNodes[2].Items, "Data error for the 3rd data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 30}, {Key: 34}, {Key: 35}}, root.root.IndexNodes[0].DataNodes[3].Items, "Data error for the 4th data node on the 2nd level down")
+
+		assert.Equal(t, []BpItem{{Key: 36}, {Key: 37}, {Key: 38}}, root.root.IndexNodes[1].DataNodes[0].Items, "Data error for the 6th data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 40}, {Key: 46}, {Key: 49}, {Key: 50}}, root.root.IndexNodes[1].DataNodes[1].Items, "Data error for the 7th data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 56}, {Key: 59}, {Key: 60}, {Key: 62}}, root.root.IndexNodes[1].DataNodes[2].Items, "Data error for the 8th data node on the 2nd level down")
+
+		assert.Equal(t, []BpItem{{Key: 65}, {Key: 66}, {Key: 67}, {Key: 69}, {Key: 71}}, root.root.IndexNodes[2].DataNodes[0].Items, "Data error for the 10th data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 72}, {Key: 73}, {Key: 77}}, root.root.IndexNodes[2].DataNodes[1].Items, "Data error for the 11th data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 78}, {Key: 80}, {Key: 81}, {Key: 86}}, root.root.IndexNodes[2].DataNodes[2].Items, "Data error for the 12th data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 89}, {Key: 91}, {Key: 94}, {Key: 95}, {Key: 96}}, root.root.IndexNodes[2].DataNodes[3].Items, "Data error for the 13th data node on the 2nd level down")
+		assert.Equal(t, []BpItem{{Key: 97}, {Key: 98}, {Key: 99}, {Key: 100}}, root.root.IndexNodes[2].DataNodes[4].Items, "Data error for the 13th data node on the 2nd level down")
+
+		// Retrieve the head node of the bottom-level Link List.
+		head := root.root.BpDataHead()
+
+		// Check the continuity of the bottom-level Link List.
+		tests := []struct {
+			position     int
+			expectedKeys []int64
+		}{
+			{0, []int64{1, 4, 5, 6, 9}},
+			{1, []int64{10, 11, 13, 18, 19}},
+			{2, []int64{22, 23, 24, 25, 29}},
+			{3, []int64{30, 34, 35}},
+			{4, []int64{36, 37, 38}},
+			{5, []int64{40, 46, 49, 50}},
+			{6, []int64{56, 59, 60, 62}},
+			{7, []int64{65, 66, 67, 69, 71}},
+			{8, []int64{72, 73, 77}},
+			{9, []int64{78, 80, 81, 86}},
+			{10, []int64{89, 91, 94, 95, 96}},
+			{11, []int64{97, 98, 99, 100}},
+		}
+
+		// Start checking the continuity of the Link List.
+		for _, test := range tests {
+			actualKeys := head.PrintNodeKeys(test.position)
+			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
+		}
+
+		// You can use the following functions to print the entire B-tree distribution.
+		// head.Print()
+		// root.root.Print()
+	})
 }
