@@ -35,35 +35,86 @@ func (inode *BpIndex) BpDataHead() (head *BpData) {
 	}
 }
 
-func (data *BpData) Print() {
+func (inode *BpIndex) BpDataTail() (head *BpData) {
+	current := inode
+	for {
+		if len(current.DataNodes) == 0 {
+			length := len(current.IndexNodes)
+			current = current.IndexNodes[length-1]
+		} else {
+			length := len(current.DataNodes)
+			return current.DataNodes[length-1]
+		}
+	}
+}
+
+func (data *BpData) PrintAscent() {
 	current := data
-	i := 0
+	nodeNumber := 0
 
 	for current != nil {
-		fmt.Printf("[🟣 DataNode]: NO %d \n", i)
-		for _, item := range current.Items {
-			fmt.Printf("Key: %d\n", item.Key)
+		fmt.Printf("[🟣 DataNode]: NO %d \n", nodeNumber)
+		length := len(current.Items)
+		for i := 0; i < length; i++ {
+			fmt.Printf("Key: %d\n", current.Items[i].Key)
 		}
 
-		i++
+		nodeNumber++
 		current = current.Next
 	}
 }
 
-func (data *BpData) PrintNodeKeys(number int) (keys []int64) {
+func (data *BpData) PrintDescent() {
 	current := data
-	i := 0
+	nodeNumber := 0
 
 	for current != nil {
-		if i == number {
-			for _, item := range current.Items {
-				keys = append(keys, item.Key)
+		fmt.Printf("[🟣 DataNode]: NO %d \n", nodeNumber)
+		length := len(current.Items)
+		for i := length - 1; i >= 0; i-- {
+			fmt.Printf("Key: %d\n", current.Items[i].Key)
+		}
+
+		nodeNumber++
+		current = current.Previous
+	}
+}
+
+func (data *BpData) PrintNodeAscent(number int) (keys []int64) {
+	current := data
+	nodeNumber := 0
+
+	for current != nil {
+		if nodeNumber == number {
+			length := len(current.Items)
+			for i := 0; i < length; i++ {
+				keys = append(keys, current.Items[i].Key)
 			}
 			return
 		}
 
-		i++
+		nodeNumber++
 		current = current.Next
+	}
+
+	return
+}
+
+func (data *BpData) PrintNodeDescent(number int) (keys []int64) {
+	current := data
+	nodeNumber := 0
+
+	for current != nil {
+		if nodeNumber == number {
+			length := len(current.Items)
+			for i := length - 1; i >= 0; i-- {
+				keys = append(keys, current.Items[i].Key)
+			}
+			return
+		}
+
+		nodeNumber++
+		current = current.Previous
 	}
 
 	return

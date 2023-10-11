@@ -76,18 +76,31 @@ func (data *BpData) insertAmong(item BpItem) {
 
 // split divides the BpData node into two nodes if it contains more items than the specified width.
 func (data *BpData) split() (side *BpData, err error) {
-	// Create a new BpData node to store the items that will be moved.
-	side = &BpData{}
+	// Create a new BpData node to store the items that will be moved.移动资料了
+	side = &BpData{} // It is the new node.
 	length := len(data.Items)
-	side.Items = append(side.Items, data.Items[(length-BpHalfWidth):length]...) // data.Items[length:length] 为空，在最后面往前 BpHalfWidth
-	side.Previous = data
-	side.Next = data.Next
+	side.Items = append(side.Items, data.Items[(length-BpHalfWidth):length]...) // Add the last BpHalfWidth items from data.Items to the new node.后半部的旧资料移动到新节点
 
-	// Reduce the original node.
-	data.Items = data.Items[:(length - BpHalfWidth)] // 上面一行切到 length-BpHalfWidth
-	data.Next = side
+	// Adjust pointers for the first old node and the new node.
+	side.Previous = data  // The previous node of the new node is the first old node.新节点 的上一个节点为 第1旧节点
+	side.Next = data.Next // The next node of the new node is the next node of the current node.新节点 的下一个节点为 第2旧节点
 
-	// Make a mark, already split.
+	// Reduce the data in the original node (first old node)
+	data.Items = data.Items[:(length - BpHalfWidth)] // Remove the last BpHalfWidth items from data.Items to the end in the first old node.上面一行切到 length-BpHalfWidth 為基準
+	data.Next = side                                 // Set the next node of the first old node to the new node.第1旧节点 的下一个节点为 新节点
+
+	// Correct the connections between nodes!
+	// There is an error here, so it needs to be corrected.
+	// The situation is that when a new node is created between two old nodes, the connection between the first old node and the new node is updated.
+	// However, the connection between the new node and the second-old node still needs to be updated.新节点 和 第二旧节点 之间还是要更新
+	// [First old node (named data)] <--> [New node (named side)]
+	//       \_______________________________________________________ [Second old node (got the value by data.Next.Next)]
+
+	if data.Next != nil && data.Next.Next != nil {
+		data.Next.Next.Previous = side // Update the previous node of the second-old node to the new node.第2旧节点 的上一个节点为 新节点
+	}
+
+	// Mark the split as completed
 	data.Split = true
 
 	// No error
