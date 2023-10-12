@@ -178,9 +178,58 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
 		}
 
+		// Testing the continuity of the data in the opposite direction.
+		tail := root.root.BpDataTail()
+
+		tests = []struct {
+			position     int
+			expectedKeys []int64
+		}{
+			{0, []int64{100, 99}},
+			{1, []int64{98}},
+			{2, []int64{97, 96}},
+			{3, []int64{95, 94}},
+			{4, []int64{91, 89}},
+			{5, []int64{86, 81}},
+			{6, []int64{80, 78}},
+			{7, []int64{77}},
+			{8, []int64{73}},
+			{9, []int64{72, 71}},
+			{10, []int64{69}},
+			{11, []int64{67}},
+			{12, []int64{66, 65}},
+			{13, []int64{62}},
+			{14, []int64{60, 59}},
+			{15, []int64{56, 50}},
+			{16, []int64{49}},
+			{17, []int64{46, 40}},
+			{18, []int64{38}},
+			{19, []int64{37, 36}},
+			{20, []int64{35}},
+			{21, []int64{34, 30}},
+			{22, []int64{29, 25}},
+			{23, []int64{24}},
+			{24, []int64{23}},
+			{25, []int64{22}},
+			{26, []int64{19}},
+			{27, []int64{18, 13}},
+			{28, []int64{11}},
+			{29, []int64{10}},
+			{30, []int64{9, 6}},
+			{31, []int64{5}},
+			{32, []int64{4}},
+			{33, []int64{1}},
+		}
+
+		for _, test := range tests {
+			actualKeys := tail.PrintNodeDescent(test.position)
+			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
+		}
+
 		// You can use the following functions to print the entire B-tree distribution.
-		// head.PrintAscent()
-		// root.root.Print()
+		// root.root.Print() // Print the entire B Plus tree.
+		// head.PrintAscent() // Print continuous data in the forward direction.
+		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
 	// For B-tree with a width of 4, perform tests inserting.
 	t.Run("tests inserting B-tree with a width of 4.", func(t *testing.T) {
@@ -320,9 +369,46 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
 		}
 
+		// Testing the continuity of the data in the opposite direction.
+		tail := root.root.BpDataTail()
+
+		tests = []struct {
+			position     int
+			expectedKeys []int64
+		}{
+			{0, []int64{100, 99, 98}},
+			{1, []int64{97, 96}},
+			{2, []int64{95, 94}},
+			{3, []int64{91, 89}},
+			{4, []int64{86, 81}},
+			{5, []int64{80, 78, 77}},
+			{6, []int64{73, 72}},
+			{7, []int64{71, 69, 67}},
+			{8, []int64{66, 65, 62}},
+			{9, []int64{60, 59}},
+			{10, []int64{56, 50, 49}},
+			{11, []int64{46, 40}},
+			{12, []int64{38, 37}},
+			{13, []int64{36, 35}},
+			{14, []int64{34, 30}},
+			{15, []int64{29, 25}},
+			{16, []int64{24, 23}},
+			{17, []int64{22, 19}},
+			{18, []int64{18, 13}},
+			{19, []int64{11, 10}},
+			{20, []int64{9, 6, 5}},
+			{21, []int64{4, 1}},
+		}
+
+		for _, test := range tests {
+			actualKeys := tail.PrintNodeDescent(test.position)
+			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
+		}
+
 		// You can use the following functions to print the entire B-tree distribution.
-		// head.PrintAscent()
-		// root.root.Print()
+		// root.root.Print() // Print the entire B Plus tree.
+		// head.PrintAscent() // Print continuous data in the forward direction.
+		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
 	t.Run("tests inserting B-tree with a width of 5.", func(t *testing.T) {
 		// Initialize B-tree.
@@ -441,9 +527,41 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
 		}
 
+		// Testing the continuity of the data in the opposite direction.
+		tail := root.root.BpDataTail()
+
+		tests = []struct {
+			position     int
+			expectedKeys []int64
+		}{
+			{0, []int64{100, 99, 98, 97}},
+			{1, []int64{96, 95}},
+			{2, []int64{94, 91, 89}},
+			{3, []int64{86, 81}},
+			{4, []int64{80, 78, 77, 73}},
+			{5, []int64{72, 71, 69, 67}},
+			{6, []int64{66, 65, 62}},
+			{7, []int64{60, 59}},
+			{8, []int64{56, 50, 49}},
+			{9, []int64{46, 40}},
+			{10, []int64{38, 37, 36}},
+			{11, []int64{35, 34, 30}},
+			{12, []int64{29, 25, 24}},
+			{13, []int64{23, 22}},
+			{14, []int64{19, 18}},
+			{15, []int64{13, 11, 10, 9}},
+			{16, []int64{6, 5, 4, 1}},
+		}
+
+		for _, test := range tests {
+			actualKeys := tail.PrintNodeDescent(test.position)
+			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
+		}
+
 		// You can use the following functions to print the entire B-tree distribution.
-		// head.PrintAscent()
-		// root.root.Print()
+		// root.root.Print() // Print the entire B Plus tree.
+		// head.PrintAscent() // Print continuous data in the forward direction.
+		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
 	t.Run("tests inserting B-tree with a width of 6.", func(t *testing.T) {
 		// Initialize B-tree.
@@ -550,9 +668,36 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
 		}
 
+		// Testing the continuity of the data in the opposite direction.
+		tail := root.root.BpDataTail()
+
+		tests = []struct {
+			position     int
+			expectedKeys []int64
+		}{
+			{0, []int64{100, 99, 98, 97}},
+			{1, []int64{96, 95, 94, 91, 89}},
+			{2, []int64{86, 81, 80, 78}},
+			{3, []int64{77, 73, 72}},
+			{4, []int64{71, 69, 67, 66, 65}},
+			{5, []int64{62, 60, 59, 56}},
+			{6, []int64{50, 49, 46, 40}},
+			{7, []int64{38, 37, 36}},
+			{8, []int64{35, 34, 30}},
+			{9, []int64{29, 25, 24, 23, 22}},
+			{10, []int64{19, 18, 13, 11, 10}},
+			{11, []int64{9, 6, 5, 4, 1}},
+		}
+
+		for _, test := range tests {
+			actualKeys := tail.PrintNodeDescent(test.position)
+			assert.Equal(t, test.expectedKeys, actualKeys, "Bottom-level Link list at position "+strconv.Itoa(test.position)+" is not continuous")
+		}
+
 		// You can use the following functions to print the entire B-tree distribution.
-		// head.PrintAscent()
-		// root.root.Print()
+		// root.root.Print() // Print the entire B Plus tree.
+		// head.PrintAscent() // Print continuous data in the forward direction.
+		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
 	t.Run("tests inserting B-tree with a width of 7.", func(t *testing.T) {
 		// Initialize B-tree.
@@ -678,8 +823,8 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 		}
 
 		// You can use the following functions to print the entire B-tree distribution.
-		// root.root.Print() // Print the entire B+ tree
-		// head.PrintAscent() // Print continuous data in the forward direction
-		// tail.PrintDescent() // Print continuous data in the reverse direction
+		// root.root.Print() // Print the entire B Plus tree.
+		// head.PrintAscent() // Print continuous data in the forward direction.
+		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
 }
