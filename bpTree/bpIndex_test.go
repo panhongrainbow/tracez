@@ -8,6 +8,99 @@ import (
 	"testing"
 )
 
+// Test_Check_inode_splitWithDnode tests the splitting of the bottom-level index node in a B Plus tree,
+// including the splitting of the BpData slice.
+func Test_Check_inode_splitWithDnode(t *testing.T) {
+	// Set up a bottom-level index node
+	inode := &BpIndex{
+		Index: []int64{10, 20, 30},
+		DataNodes: []*BpData{
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 5}},
+				Split:    false,
+			},
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 15}},
+				Split:    false,
+			},
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 25}},
+				Split:    false,
+			},
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 35}},
+				Split:    false,
+			},
+		},
+	}
+
+	// The three parts after splitting
+
+	// Key after splitting
+	expectedKey := int64(20)
+
+	// Old node iNode after splitting
+	expectedInode := &BpIndex{
+		Index: []int64{10},
+		DataNodes: []*BpData{
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 5}},
+				Split:    false,
+			},
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 15}},
+				Split:    false,
+			},
+		},
+	}
+
+	// New node side after splitting
+	expectedSide := &BpIndex{
+		Index: []int64{30},
+		DataNodes: []*BpData{
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 25}},
+				Split:    false,
+			},
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 35}},
+				Split:    false,
+			},
+		},
+	}
+
+	// Call the function to be tested
+	key, side, err := inode.splitWithDnode()
+
+	// Check for errors
+	assert.NoError(t, err, "Unexpected error")
+
+	// Check the returned key
+	assert.Equal(t, expectedKey, key, "Key mismatch")
+
+	// Check the origin iNode
+	assert.Equal(t, expectedInode, inode, "Side mismatch")
+
+	// Check the returned side
+	assert.Equal(t, expectedSide, side, "Side mismatch")
+}
+
 func Test_Check_BpIndex_Operation(t *testing.T) {
 	t.Run("pop and insert dNode", func(t *testing.T) {
 		// Set up Bp Parameters.

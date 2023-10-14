@@ -357,29 +357,57 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 // >>>>> >>>>> >>>>> split and maintain
 
+// splitWithDnode splits the bottom-level index node effectively and returns a new independent key and index node.
 func (inode *BpIndex) splitWithDnode() (key int64, side *BpIndex, err error) {
-	// Check if both IndexNodes and DataNodes have data, which is incorrect as we don't know where to retrieve the index.
-	if (len(inode.IndexNodes) != 0) && (len(inode.DataNodes) != 0) {
-		err = fmt.Errorf("both IndexNodes and DataNodes have data, cannot determine which one is the index source")
+
+	BpWidth = 3
+	BpHalfWidth = 2
+
+	// Check if both IndexNodes and DataNodes have data,
+	// which is incorrect as we don't know the type of node.
+	if len(inode.IndexNodes) != 0 && len(inode.DataNodes) != 0 {
+		err = fmt.Errorf("both IndexNodes and DataNodes have data, we cannot determine the type of node")
 		return
 	}
 
-	/*if len(inode.IndexNodes) != 0 {
-	// 这不要考虑，因为一定是下层的 iNode 的 index 过大
-	}*/
-
+	// Handle splitting based on DataNodes.
 	if len(inode.DataNodes) != 0 {
+		// Create a new node named side.
 		side = &BpIndex{}
 		length := len(inode.DataNodes)
+
+		// Append a portion of the Index and DataNodes to the 'side' structure.
 		side.Index = append(side.Index, inode.Index[(length-BpHalfWidth):]...)
+		// This is equivalent to side.Index = append(side.Index, inode.Index[(length-BpHalfWidth):len(inode.Index)])
+		// 这里等于 side.Index = append(side.Index, inode.Index[(length-BpHalfWidth):len(inode.Index)])
+
 		side.DataNodes = append(side.DataNodes, inode.DataNodes[(length-BpHalfWidth):]...)
+		// This is equivalent to side.DataNodes = append(side.DataNodes, inode.DataNodes[(length-BpHalfWidth):len(inode.DataNodes)]),
+		// where len(inode.DataNodes) will be one more than len(inode.Index)
+		// Hence, side.DataNodes will be one more than side.Index, so the slicing operation is correct.
 
-		key = inode.Index[(length - BpHalfWidth - 1):(length - BpHalfWidth)][0]
+		// 这里等于 side.DataNodes = append(side.DataNodes, inode.DataNodes[(length-BpHalfWidth):len(inode.DataNodes)])，len(inode.DataNodes) 会比 len(inode.Index) 多 1 个
+		// 最后 side.DataNodes 会比 side.Index 多 1 个，所以切割操作正确
 
-		inode.Index = inode.Index[0:(length - BpHalfWidth - 1)] // 减一为要少一个数量
-		inode.DataNodes = inode.DataNodes[0:(length - BpHalfWidth)]
+		// The logic here is a bit complex, where the length is the length of the DataNode slice,
+		// and the expression [(length-BpHalfWidth):] determines how much data the new node should take.
+		// When [(length-BpHalfWidth):] is applied to the index code, side.Index = append(side.Index, inode.Index[(length-BpHalfWidth):]...),
+		// the length will be one less than side.DataNodes. This ensures that DataNodes has one more element than Index,
+		// so the overall logic is correct.
+
+		// 这里的程式码有点复杂，其中长度 length 为 DataNode 切片的长度，那式子 [(length-BpHalfWidth):] 中的 BpHalfWidth 意思就为新节点要取多少笔资料，
+		// 再把 [(length-BpHalfWidth):] 套上 index 的代码中，side.Index = append(side.Index, inode.Index[(length-BpHalfWidth):]...)，长度会比 side.DataNodes 少 1 个
+		// 这样就符合 DataNodes 的切片长度比 Index 多 1，整个逻辑是正确的
+
+		// Update the 'key' assignment with a value from the original Index.
+		key = inode.Index[length-BpHalfWidth-1]
+
+		// Update the original Index and DataNodes by removing the appended portion.
+		inode.Index = inode.Index[0 : length-BpHalfWidth-1]
+		inode.DataNodes = inode.DataNodes[0 : length-BpHalfWidth]
 	}
 
+	// Just return and don't worry about anything.
 	return
 }
 

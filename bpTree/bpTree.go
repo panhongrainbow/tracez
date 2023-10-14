@@ -51,14 +51,11 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	}
 
 	if status == status_protrude_inode && popNode != nil {
-		// if popKey == 0 && popNode != nil {
 		tree.root.TakeApartReassemble(popNode, tree.root)
 	}
 
 	if status == status_protrude_dnode {
-		// if popKey != 0 {
 		tree.root.prepareProtrudeDnode(popIx, popKey, tree.root, popNode)
-		// tree.root.cmpAndOrganizeIndexNode(popIx, popKey, popNode)
 	}
 
 	if len(tree.root.Index) >= BpWidth && len(tree.root.Index)%2 != 0 {
