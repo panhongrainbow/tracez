@@ -359,10 +359,6 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 // splitWithDnode splits the bottom-level index node effectively and returns a new independent key and index node.
 func (inode *BpIndex) splitWithDnode() (key int64, side *BpIndex, err error) {
-
-	BpWidth = 3
-	BpHalfWidth = 2
-
 	// Check if both IndexNodes and DataNodes have data,
 	// which is incorrect as we don't know the type of node.
 	if len(inode.IndexNodes) != 0 && len(inode.DataNodes) != 0 {

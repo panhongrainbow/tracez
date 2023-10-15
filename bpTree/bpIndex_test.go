@@ -11,6 +11,11 @@ import (
 // Test_Check_inode_splitWithDnode tests the splitting of the bottom-level index node in a B Plus tree,
 // including the splitting of the BpData slice.
 func Test_Check_inode_splitWithDnode(t *testing.T) {
+
+	// Set up the total length and splitting length for B Plus Tree.
+	BpWidth = 3
+	BpHalfWidth = 2
+
 	// Set up a bottom-level index node
 	inode := &BpIndex{
 		Index: []int64{10, 20, 30},
