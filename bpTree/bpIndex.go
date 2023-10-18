@@ -409,50 +409,6 @@ func (inode *BpIndex) splitWithDnode() (key int64, side *BpIndex, err error) {
 
 // >>>>> >>>>> >>>>> compare and merge
 
-func (inode *BpIndex) TakeApartReassemble(indexes ...*BpIndex) {
-	//
-	for _, v := range indexes {
-		if len(v.Index) == 0 {
-			if len(v.IndexNodes) > 0 {
-				v.Index = insertAtFront(v.Index, v.IndexNodes[0].Index[0])
-			} else if len(v.DataNodes) > 0 {
-				v.Index = insertAtFront(v.Index, v.DataNodes[0].Items[0].Key)
-			}
-		}
-	}
-
-	//
-	sort.SliceStable(indexes, func(i, j int) bool {
-		return (*indexes[i]).Index[0] < (*indexes[j]).Index[0]
-	})
-
-	for _, v := range indexes {
-		if len(v.IndexNodes) > 0 && len(v.Index) != len(v.IndexNodes) {
-			v.Index = insertAtFront(v.Index, v.IndexNodes[0].Index[0])
-		}
-		if len(v.DataNodes) > 0 && len(v.Index) != len(v.DataNodes) {
-			v.Index = insertAtFront(v.Index, v.DataNodes[0].Items[0].Key)
-		}
-	}
-
-	//
-	inode.Index = []int64{}
-	inode.IndexNodes = []*BpIndex{}
-	inode.DataNodes = []*BpData{}
-
-	//
-	for _, v := range indexes {
-		inode.Index = append(inode.Index, v.Index...)
-		inode.IndexNodes = append(inode.IndexNodes, v.IndexNodes...)
-		inode.DataNodes = append(inode.DataNodes, v.DataNodes...)
-	}
-
-	//
-	inode.Index = inode.Index[1:]
-
-	return
-}
-
 func (inode *BpIndex) prepareProtrudeDnode(podIx int, podKey int64, indexes ...*BpIndex) {
 	newTree := &BpIndex{}
 	newTree.Index = []int64{podKey}

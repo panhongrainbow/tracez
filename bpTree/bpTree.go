@@ -51,7 +51,7 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	}
 
 	if status == status_protrude_inode && popNode != nil {
-		tree.root.TakeApartReassemble(popNode, tree.root)
+		tree.root = popNode
 	}
 
 	if status == status_protrude_dnode {
