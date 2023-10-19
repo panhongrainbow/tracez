@@ -11,12 +11,11 @@ import (
 // Test_Check_inode_splitWithDnode tests the splitting of the bottom-level index node in a B Plus tree,
 // including the splitting of the BpData slice.
 func Test_Check_inode_splitWithDnode(t *testing.T) {
-
 	// Set up the total length and splitting length for B Plus Tree.
 	BpWidth = 3
 	BpHalfWidth = 2
 
-	// Set up a bottom-level index node
+	// Set up a bottom-level index node.
 	inode := &BpIndex{
 		Index: []int64{10, 20, 30},
 		DataNodes: []*BpData{
@@ -47,13 +46,13 @@ func Test_Check_inode_splitWithDnode(t *testing.T) {
 		},
 	}
 
-	// The three parts after splitting
+	// The three parts after splitting.
 
-	// Key after splitting
-	expectedKey := int64(20)
+	// Key after splitting.
+	expectedKeyAfterSplitting := int64(20)
 
-	// Old node iNode after splitting
-	expectedInode := &BpIndex{
+	// Old node iNode after splitting.
+	expectedInodeAfterSplitting := &BpIndex{
 		Index: []int64{10},
 		DataNodes: []*BpData{
 			{
@@ -71,8 +70,8 @@ func Test_Check_inode_splitWithDnode(t *testing.T) {
 		},
 	}
 
-	// New node side after splitting
-	expectedSide := &BpIndex{
+	// New node side after splitting.
+	expectedSideAfterSplitting := &BpIndex{
 		Index: []int64{30},
 		DataNodes: []*BpData{
 			{
@@ -90,22 +89,130 @@ func Test_Check_inode_splitWithDnode(t *testing.T) {
 		},
 	}
 
-	// Call the function to be tested
+	// Call the function to be tested.
 	key, side, err := inode.splitWithDnode()
 
-	// Check for errors
+	// Check for errors.
 	assert.NoError(t, err, "Unexpected error")
 
-	// Check the returned key
-	assert.Equal(t, expectedKey, key, "Key mismatch")
+	// Check the returned key.
+	assert.Equal(t, expectedKeyAfterSplitting, key, "Key mismatch")
 
-	// Check the origin iNode
-	assert.Equal(t, expectedInode, inode, "Side mismatch")
+	// Check the origin iNode.
+	assert.True(t, reflect.DeepEqual(expectedInodeAfterSplitting, inode), "Inode mismatch")
 
-	// Check the returned side
-	assert.Equal(t, expectedSide, side, "Side mismatch")
+	// Check the returned side.
+	assert.True(t, reflect.DeepEqual(expectedSideAfterSplitting, side), "Side mismatch")
 }
 
+// Test_Check_BpIndex_Operation verifies the merging process after calling function splitWithDnode.
+// This will overwrite the receiver pointer variable, which is the original inode.
+func Test_Check_inode_mergeWithDnode(t *testing.T) {
+	// Set up the total length and splitting length for B Plus Tree.
+	BpWidth = 3
+	BpHalfWidth = 2
+
+	// Set up a bottom-level index node after splitting.
+
+	// Key after splitting.
+	key := int64(20)
+
+	// Old node iNode after splitting.
+	inode := &BpIndex{
+		Index:      []int64{10},
+		IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+		DataNodes: []*BpData{
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 5}},
+				Split:    false,
+			},
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 15}},
+				Split:    false,
+			},
+		},
+	}
+
+	// New node side after splitting.
+	side := &BpIndex{
+		Index:      []int64{30},
+		IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+		DataNodes: []*BpData{
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 25}},
+				Split:    false,
+			},
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 35}},
+				Split:    false,
+			},
+		},
+	}
+
+	// Old node iNode after merging.
+	expectedMergedInode := &BpIndex{
+		Index: []int64{20},
+		IndexNodes: []*BpIndex{
+			{
+				Index:      []int64{10},
+				IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 5}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 15}},
+						Split:    false,
+					},
+				},
+			},
+			{
+				Index:      []int64{30},
+				IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 25}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 35}},
+						Split:    false,
+					},
+				},
+			},
+		},
+		DataNodes: nil,
+	}
+
+	// Call the function to be tested.
+	err := inode.mergeWithDnode(key, side)
+
+	// Check for errors.
+	assert.NoError(t, err, "Unexpected error")
+
+	// Check the origin iNode
+	assert.True(t, reflect.DeepEqual(expectedMergedInode, inode), "Inode mismatch")
+}
+
+// Test_Check_BpIndex_Operation tests the splitting of the bottom-level index node in a B Plus tree,
+// including the splitting of the BpData slice.
 func Test_Check_BpIndex_Operation(t *testing.T) {
 	t.Run("pop and insert dNode", func(t *testing.T) {
 		// Set up Bp Parameters.

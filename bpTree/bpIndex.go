@@ -407,24 +407,35 @@ func (inode *BpIndex) splitWithDnode() (key int64, side *BpIndex, err error) {
 	return
 }
 
-// >>>>> >>>>> >>>>> compare and merge
-
-func (inode *BpIndex) prepareProtrudeDnode(podIx int, podKey int64, indexes ...*BpIndex) {
-	newTree := &BpIndex{}
-	newTree.Index = []int64{podKey}
-
-	for _, v := range indexes {
-		var tmp = &BpIndex{}
-		tmp.Index = append(tmp.Index, v.Index...)
-		tmp.IndexNodes = append(tmp.IndexNodes, v.IndexNodes...)
-		tmp.DataNodes = append(tmp.DataNodes, v.DataNodes...)
-		newTree.IndexNodes = append(newTree.IndexNodes, tmp)
+// mergeWithDnode combines the newly split index nodes created by splitWithDnode into a new node,
+// overwriting the original inode's address.
+func (inode *BpIndex) mergeWithDnode(podKey int64, side *BpIndex) error {
+	// Create a new BpIndex structure
+	originAndSide := &BpIndex{
+		Index: []int64{podKey},
 	}
 
-	*inode = *newTree
+	// Copy the current inode's Index, IndexNodes, and DataNodes to the new structure
+	copyInode := &BpIndex{
+		Index:      append([]int64{}, inode.Index...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes...),
+		DataNodes:  append([]*BpData{}, inode.DataNodes...),
+	}
 
-	return
+	// Add copyInode to originAndSide.IndexNodes
+	originAndSide.IndexNodes = append(originAndSide.IndexNodes, copyInode)
+
+	// Add side to originAndSide.IndexNodes
+	originAndSide.IndexNodes = append(originAndSide.IndexNodes, side)
+
+	// Assign the value of originAndSide to inode
+	*inode = *originAndSide
+
+	// Return nil to indicate no error
+	return nil
 }
+
+// >>>>> >>>>> >>>>> compare and merge
 
 func (inode *BpIndex) prepareProtrudeDnode2(podIx int, podKey int64, indexes ...*BpIndex) {
 	//
@@ -435,7 +446,6 @@ func (inode *BpIndex) prepareProtrudeDnode2(podIx int, podKey int64, indexes ...
 
 	for _, v := range indexes {
 		tmp.Index = append(tmp.Index, v.Index...)
-		// tmp.IndexNodes = append(tmp.IndexNodes, v.IndexNodes...)
 		tmp.DataNodes = append(tmp.DataNodes, v.DataNodes[0:podIx]...)
 		tmp.DataNodes = append(tmp.DataNodes, v.DataNodes[0:podIx]...)
 		newTree.IndexNodes = append(newTree.IndexNodes, tmp)
@@ -456,17 +466,4 @@ func (inode *BpIndex) mergePopIx(ix int, popKey int64, indexNode *BpIndex) (err 
 	inode.IndexNodes[ix] = indexNode
 
 	return
-}
-
-func insertAtFront(slice []int64, newElement int64) []int64 {
-	// 创建一个新切片，长度比原切片多1
-	newSlice := make([]int64, len(slice)+1)
-
-	// 将新元素放在新切片的第一个位置
-	newSlice[0] = newElement
-
-	// 将原切片的所有元素追加到新切片后面
-	copy(newSlice[1:], slice)
-
-	return newSlice
 }

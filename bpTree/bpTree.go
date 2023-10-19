@@ -44,7 +44,7 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	tree.mutex.Lock()
 
 	// Insert the item into the B plus tree index.
-	popIx, popKey, popNode, status, err := tree.root.insertItem(nil, item)
+	_, popKey, popNode, status, err := tree.root.insertItem(nil, item)
 
 	if err != nil {
 		panic(err)
@@ -55,7 +55,7 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	}
 
 	if status == status_protrude_dnode {
-		tree.root.prepareProtrudeDnode(popIx, popKey, tree.root, popNode)
+		tree.root.mergeWithDnode(popKey, popNode)
 	}
 
 	if len(tree.root.Index) >= BpWidth && len(tree.root.Index)%2 != 0 {
