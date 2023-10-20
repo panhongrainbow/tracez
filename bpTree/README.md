@@ -4,7 +4,11 @@
 
 ## Operations on Index Nodes
 
-### BpIndex.splitWithDnode
+### Split and merge with BpData
+
+> When splitting and merging at the **bottom-level** index node here, **BpData will be split along with it**.
+
+#### splitWithDnode
 
 Split the bottom-level Index Node
 
@@ -22,8 +26,29 @@ Similarly, the index is also cut starting from pos2, resulting in a single index
 
 (重点就是同时用 Pos 这个位置去切割 index 切片和 BpData 切片都不会有错误)
 
-![Before Execution](../assets/image-20231014214243496.png)
+<img src="../assets/image-20231014214243496.png" alt="Before Execution" style="zoom:80%;" />
 
 After the function is executed:
 
-![After Execution](../assets/image-20231014221906550.png)
+**function splitWithDnode** will divide the index node into three parts:
+
+- the old index node (named **inode**)
+- the new key (named **key**)
+- the new index node (named **side**)
+
+and then reassemble them afterward.
+
+<img src="../assets/image-20231014221906550.png" alt="After Execution" style="zoom:115%;" />
+
+###  mergeWithDnode
+
+To merge these three components
+
+- the old index node (named **inode**)
+- the new key (named **key**)
+- and the new index node (named **side**)
+
+into a new index node using **function mergeWithDnode**.
+
+<img src="../assets/image-20231020101419151.png" alt="image-20231020101419151" style="zoom:95%;" />
+
