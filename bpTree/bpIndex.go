@@ -237,7 +237,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			popIx, popKey, popNode, status, err = inode.IndexNodes[ix].insertItem(nil, item)
 			status = status_protrude_inode
 			if popKey != 0 {
-				err = inode.mergePopIx(ix, popKey, popNode)
+				err = inode.mergeUpgradedKeyNode(ix, popKey, popNode)
 				popKey = 0
 				popNode = nil
 			}
@@ -355,7 +355,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 	return
 }
 
-// >>>>> >>>>> >>>>> split and maintain
+// >>>>> >>>>> >>>>> split and merge the bottom-level index node.
 
 // splitWithDnode splits the bottom-level index node effectively and returns a new independent key and index node.
 func (inode *BpIndex) splitWithDnode() (key int64, side *BpIndex, err error) {
@@ -410,60 +410,46 @@ func (inode *BpIndex) splitWithDnode() (key int64, side *BpIndex, err error) {
 // mergeWithDnode combines the newly split index nodes created by splitWithDnode into a new node,
 // overwriting the original inode's address.
 func (inode *BpIndex) mergeWithDnode(podKey int64, side *BpIndex) error {
-	// Create a new BpIndex structure
+	// Create a new BpIndex structure.
 	originAndSide := &BpIndex{
 		Index: []int64{podKey},
 	}
 
-	// Copy the current inode's Index, IndexNodes, and DataNodes to the new structure
+	// Copy the current inode's Index, IndexNodes, and DataNodes to the new structure.
 	copyInode := &BpIndex{
 		Index:      append([]int64{}, inode.Index...),
 		IndexNodes: append([]*BpIndex{}, inode.IndexNodes...),
 		DataNodes:  append([]*BpData{}, inode.DataNodes...),
 	}
 
-	// Add copyInode to originAndSide.IndexNodes
+	// Add copyInode to originAndSide.IndexNodes.
 	originAndSide.IndexNodes = append(originAndSide.IndexNodes, copyInode)
 
-	// Add side to originAndSide.IndexNodes
+	// Add side to originAndSide.IndexNodes.
 	originAndSide.IndexNodes = append(originAndSide.IndexNodes, side)
 
-	// Assign the value of originAndSide to inode
+	// Assign the value of originAndSide to inode.
 	*inode = *originAndSide
 
-	// Return nil to indicate no error
+	// Return nil to indicate no error.
 	return nil
 }
 
-// >>>>> >>>>> >>>>> compare and merge
+// >>>>> >>>>> >>>>> merge the upgraded key and upgraded index node.
 
-func (inode *BpIndex) prepareProtrudeDnode2(podIx int, podKey int64, indexes ...*BpIndex) {
-	//
-	newTree := &BpIndex{}
-	newTree.Index = []int64{podKey}
+// mergeUpgradedKeyNode merges the to-be-upgraded Key and the to-be-upgraded Inode into the parent higher-level index node.
+func (inode *BpIndex) mergeUpgradedKeyNode(insertAfterPosition int, key int64, side *BpIndex) (err error) {
+	// The B Plus tree builds an index, and when some indexes become independent, they turn into keys.
+	// Merging these keys into other index nodes is not difficult.
+	// It's just a matter of sorting.
+	insertAfterPosition = insertAfterPosition + 1
+	err = inode.insertBpIX(key)
 
-	var tmp = &BpIndex{}
-
-	for _, v := range indexes {
-		tmp.Index = append(tmp.Index, v.Index...)
-		tmp.DataNodes = append(tmp.DataNodes, v.DataNodes[0:podIx]...)
-		tmp.DataNodes = append(tmp.DataNodes, v.DataNodes[0:podIx]...)
-		newTree.IndexNodes = append(newTree.IndexNodes, tmp)
-	}
-
-	*inode = *newTree
-
-	return
-}
-
-func (inode *BpIndex) mergePopIx(ix int, popKey int64, indexNode *BpIndex) (err error) {
-	ix = ix + 1
-
-	err = inode.insertBpIX(popKey)
-
+	// Store the upgraded index node named side at the appropriate position in the IndexNodes slice.
 	inode.IndexNodes = append(inode.IndexNodes, &BpIndex{})
-	copy(inode.IndexNodes[ix+1:], inode.IndexNodes[ix:])
-	inode.IndexNodes[ix] = indexNode
+	copy(inode.IndexNodes[insertAfterPosition+1:], inode.IndexNodes[insertAfterPosition:])
+	inode.IndexNodes[insertAfterPosition] = side
 
-	return
+	// Return the error, regardless of whether there is an error or not.
+	return err
 }

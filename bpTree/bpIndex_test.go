@@ -211,6 +211,154 @@ func Test_Check_inode_mergeWithDnode(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(expectedMergedInode, inode), "Inode mismatch")
 }
 
+// Test_Check_inode_mergeUpgradedKeyNode primarily tests
+// the upgrade and subsequent merging of intermediate index values (named keys) and independent index nodes
+// when the number of slices in the Index Node exceeds a certain threshold.
+// (主要测试索引 key 和 width)
+func Test_Check_inode_mergeUpgradedKeyNode(t *testing.T) {
+	// Set up the total length and splitting length for B Plus Tree.
+	BpWidth = 3
+	BpHalfWidth = 2
+
+	// Set up a bottom-level index node after splitting.
+	inode := &BpIndex{
+		Index: []int64{40},
+		IndexNodes: []*BpIndex{
+			{
+				Index:      []int64{10},
+				IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 4}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 10}},
+						Split:    false,
+					},
+				},
+			},
+			{
+				Index:      []int64{81},
+				IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 81}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 98}},
+						Split:    false,
+					},
+				},
+			},
+		},
+		DataNodes: nil,
+	}
+
+	// Merge the upgraded index (named toBeUpgradedKey) and the index node (named toBeUpgradedInode) later.
+	toBeUpgradedKey := int64(30)
+
+	toBeUpgradeInode := &BpIndex{
+		Index:      []int64{38},
+		IndexNodes: []*BpIndex{},
+		DataNodes: []*BpData{
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 30}, {Key: 35}},
+				Split:    false,
+			},
+			{
+				Previous: nil,
+				Next:     nil,
+				Items:    []BpItem{{Key: 38}},
+				Split:    false,
+			},
+		},
+	}
+
+	// Expect inode after merging.
+	expectMergedInode := &BpIndex{
+		Index: []int64{30, 40},
+		IndexNodes: []*BpIndex{
+			{
+				Index:      []int64{10},
+				IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 4}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 10}},
+						Split:    false,
+					},
+				},
+			},
+			{
+				Index:      []int64{38},
+				IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 30}, {Key: 35}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 38}},
+						Split:    false,
+					},
+				},
+			},
+			{
+				Index:      []int64{81},
+				IndexNodes: []*BpIndex{}, // []*BpIndex{} or nil does not match, DeepEqual will fail.
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 81}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 98}},
+						Split:    false,
+					},
+				},
+			},
+		},
+		DataNodes: nil,
+	}
+
+	// Call the function to be tested.
+	// insertAfterPosition is at pos0(0), insert the upgraded node after pos0(0), which is at pos1(1).
+	err := inode.mergeUpgradedKeyNode(0, toBeUpgradedKey, toBeUpgradeInode)
+
+	// Check for errors.
+	assert.NoError(t, err, "Unexpected error")
+
+	// Check the original iNode after merging.
+	assert.True(t, reflect.DeepEqual(expectMergedInode.IndexNodes, inode.IndexNodes), "Inode mismatch")
+}
+
 // Test_Check_BpIndex_Operation tests the splitting of the bottom-level index node in a B Plus tree,
 // including the splitting of the BpData slice.
 func Test_Check_BpIndex_Operation(t *testing.T) {

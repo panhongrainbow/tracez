@@ -40,7 +40,14 @@ and then reassemble them afterward.
 
 <img src="../assets/image-20231014221906550.png" alt="After Execution" style="zoom:115%;" />
 
-###  mergeWithDnode
+####  mergeWithDnode
+
+Combines split index nodes into a new node, overwriting the original inode's address.
+
+```go
+func (inode *BpIndex) mergeWithDnode(podKey int64, side *BpIndex) error
+func Test_Check_inode_mergeWithDnode(t *testing.T)
+```
 
 To merge these three components
 
@@ -51,4 +58,39 @@ To merge these three components
 into a new index node using **function mergeWithDnode**.
 
 <img src="../assets/image-20231020101419151.png" alt="image-20231020101419151" style="zoom:95%;" />
+
+### Split and merge with upgraded key and node
+
+#### mergeUpgradedKeyNode
+
+Merges the to-be-upgraded Key and the to-be-upgraded Inode into the parent index node.
+
+```go
+func (inode *BpIndex) mergeUpgradedKeyNode(insertAfterPosition int, key int64, side *BpIndex) (err error)
+// insertAfterPosition indicates where it should be inserted after.
+
+func Test_Check_inode_mergeUpgradedKeyNode(t *testing.T)
+```
+
+Currently, three parts are going to be merged:
+
+- index node 1 (the original index node)
+- key 1 (the part of the index to be upgraded)
+- and index node 2 (the index node to be upgraded)
+
+<img src="../assets/image-20231022224138744.png" alt="image-20231022224138744" style="zoom:80%;" />
+
+The merged result is as follows.
+
+<img src="/home/panhong/go/src/github.com/panhongrainbow/note/typora-user-images/image-20231023012429846.png" alt="image-20231023012429846" style="zoom:80%;" />
+
+#### insertAfterPosition parameter
+
+insertAfterPosition indicates where it should be inserted after. (插在什么位置之后)
+
+For example, if insertAfterPosition is at pos0(0), insert the upgraded node after pos0(0), which is at pos1(1). (传入0，在位置0之后，就是1)
+
+<img src="../assets/image-20231023021615643.png" alt="image-20231023021615643" style="zoom:80%;" />
+
+
 
