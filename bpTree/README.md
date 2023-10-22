@@ -82,7 +82,7 @@ Currently, three parts are going to be merged:
 
 The merged result is as follows.
 
-<img src="/home/panhong/go/src/github.com/panhongrainbow/note/typora-user-images/image-20231023012429846.png" alt="image-20231023012429846" style="zoom:80%;" />
+<img src="../assets/image-20231023012429846.png" alt="image-20231023012429846" style="zoom:80%;" />
 
 #### insertAfterPosition parameter
 
