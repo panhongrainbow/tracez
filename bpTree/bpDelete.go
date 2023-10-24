@@ -48,7 +48,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 				node.DataNodes = append(node.DataNodes, inode.IndexNodes[ix+1].DataNodes...)
 
 				if len(node.Index) >= BpWidth {
-					popNode, _ = node.protrude()
+					popNode, _ = node.protrudeInOddBpWidth()
 					status = status_delete_protrude
 					return
 				} else {
@@ -135,7 +135,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 				}
 
 				if len(inode.Index) >= BpWidth && len(inode.Index)%2 != 0 { // 进行 pop 和奇数
-					popNode, err = inode.protrude()
+					popNode, err = inode.protrudeInOddBpWidth()
 					return
 				}
 			*/
@@ -276,7 +276,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 			if len(inode.Index) >= BpWidth && len(inode.Index)%2 != 0 { // 进行 pop 和奇数 (可能没在使用)
 				var node *BpIndex
-				node, err = inode.protrude()
+				node, err = inode.protrudeInOddBpWidth()
 				*inode = *node
 				return
 			}

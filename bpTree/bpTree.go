@@ -55,11 +55,14 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	}
 
 	if status == status_protrude_dnode {
-		tree.root.mergeWithDnode(popKey, popNode)
+		err = tree.root.mergeWithDnode(popKey, popNode)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(tree.root.Index) >= BpWidth && len(tree.root.Index)%2 != 0 {
-		popNode, _ = tree.root.protrude()
+		popNode, _ = tree.root.protrudeInOddBpWidth()
 		tree.root = popNode
 	} else if len(tree.root.Index) >= BpWidth && len(tree.root.Index)%2 == 0 {
 		popNode, _ = tree.root.protrude2()

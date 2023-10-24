@@ -8,6 +8,187 @@ import (
 	"testing"
 )
 
+// Test_Check_inode_protrudeInOddBpWidth tests the protruding of the top-level index node in a B Plus tree,
+// including the splitting of the BpIndex slice.
+func Test_Check_inode_protrudeInOddBpWidth(t *testing.T) {
+	// Set up the total length and splitting length for B Plus Tree.
+	BpWidth = 3
+	BpHalfWidth = 2
+
+	// Set up a top-level index node.
+	inode := &BpIndex{
+		Index: []int64{30, 40, 89},
+		IndexNodes: []*BpIndex{
+			{
+				Index: []int64{10},
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 4}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 10}},
+						Split:    false,
+					},
+				},
+			},
+			{
+				Index: []int64{38},
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 30}, {Key: 35}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 38}},
+						Split:    false,
+					},
+				},
+			},
+			{
+				Index: []int64{81},
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 40}, {Key: 67}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 81}},
+						Split:    false,
+					},
+				},
+			},
+			{
+				Index: []int64{96},
+				DataNodes: []*BpData{
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 89}},
+						Split:    false,
+					},
+					{
+						Previous: nil,
+						Next:     nil,
+						Items:    []BpItem{{Key: 96}, {Key: 98}},
+						Split:    false,
+					},
+				},
+			},
+		},
+		DataNodes: []*BpData{},
+	}
+
+	// Expect a new node named middle after protruding.
+	expectedMiddleAfterProtruding := &BpIndex{
+		Index: []int64{40},
+		IndexNodes: []*BpIndex{
+			{
+				Index: []int64{30},
+				IndexNodes: []*BpIndex{
+					{
+						Index: []int64{10},
+						DataNodes: []*BpData{
+							{
+								Previous: nil,
+								Next:     nil,
+								Items:    []BpItem{{Key: 4}},
+								Split:    false,
+							},
+							{
+								Previous: nil,
+								Next:     nil,
+								Items:    []BpItem{{Key: 10}},
+								Split:    false,
+							},
+						},
+					},
+					{
+						Index: []int64{38},
+						DataNodes: []*BpData{
+							{
+								Previous: nil,
+								Next:     nil,
+								Items:    []BpItem{{Key: 30}, {Key: 35}},
+								Split:    false,
+							},
+							{
+								Previous: nil,
+								Next:     nil,
+								Items:    []BpItem{{Key: 38}},
+								Split:    false,
+							},
+						},
+					},
+				},
+			},
+			{
+				Index: []int64{89},
+				IndexNodes: []*BpIndex{
+					{
+						Index: []int64{81},
+						DataNodes: []*BpData{
+							{
+								Previous: nil,
+								Next:     nil,
+								Items:    []BpItem{{Key: 40}, {Key: 67}},
+								Split:    false,
+							},
+							{
+								Previous: nil,
+								Next:     nil,
+								Items:    []BpItem{{Key: 81}},
+								Split:    false,
+							},
+						},
+					},
+					{
+						Index: []int64{96},
+						DataNodes: []*BpData{
+							{
+								Previous: nil,
+								Next:     nil,
+								Items:    []BpItem{{Key: 89}},
+								Split:    false,
+							},
+							{
+								Previous: nil,
+								Next:     nil,
+								Items:    []BpItem{{Key: 96}, {Key: 98}},
+								Split:    false,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		DataNodes: nil,
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
+
+	// Call the function to be tested.
+	middle, err := inode.protrudeInOddBpWidth()
+
+	// Check for errors.
+	assert.NoError(t, err, "Unexpected error")
+
+	// Check the node named middle.
+	assert.True(t, reflect.DeepEqual(expectedMiddleAfterProtruding, middle), "middle mismatch")
+}
+
 // Test_Check_inode_splitWithDnode tests the splitting of the bottom-level index node in a B Plus tree,
 // including the splitting of the BpData slice.
 func Test_Check_inode_splitWithDnode(t *testing.T) {
@@ -70,7 +251,7 @@ func Test_Check_inode_splitWithDnode(t *testing.T) {
 		},
 	}
 
-	// New node side after splitting.
+	// Expect a new node named side after splitting.
 	expectedSideAfterSplitting := &BpIndex{
 		Index: []int64{30},
 		DataNodes: []*BpData{
@@ -157,7 +338,7 @@ func Test_Check_inode_mergeWithDnode(t *testing.T) {
 		},
 	}
 
-	// Old node iNode after merging.
+	// Expect the old node named iNode after merging.
 	expectedMergedInode := &BpIndex{
 		Index: []int64{20},
 		IndexNodes: []*BpIndex{
@@ -447,7 +628,7 @@ func Test_Check_BpIndex_Operation(t *testing.T) {
 		// >>>>> Protrude an iNode.
 
 		// Protrude the index node and retrieve the side (iSide).
-		_, err = root.IndexNodes[0].IndexNodes[0].protrude()
+		_, err = root.IndexNodes[0].IndexNodes[0].protrudeInOddBpWidth()
 		require.NoError(t, err, "protrude should not return an error")
 
 		// Remove the first index node from the parent's index nodes.
@@ -509,7 +690,7 @@ func Test_Check_BpIndex_Operation(t *testing.T) {
 		// >>>>> Protrude an iNode.
 
 		// Protrude the index node and retrieve the side (iSide).
-		_, err = root.IndexNodes[0].protrude()
+		_, err = root.IndexNodes[0].protrudeInOddBpWidth()
 		require.NoError(t, err, "protrude should not return an error")
 
 		// Remove the first index node from the parent's index nodes.

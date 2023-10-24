@@ -12,7 +12,6 @@ type BpIndex struct {
 	Index      []int64    // The maximum values of each group of BpData
 	IndexNodes []*BpIndex // Index nodes
 	DataNodes  []*BpData  // Data nodes
-	Split      bool       // After splitting the nodes, mark it.
 }
 
 // >>>>> >>>>> >>>>> get method
@@ -56,39 +55,45 @@ func (inode *BpIndex) insertBpIX(newIx int64) (err error) {
 	return
 }
 
-// protrude performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
-// (进行索引升级，当索引切片的中间值会弹出升级成上层的 Index)
-func (inode *BpIndex) protrude() (popMiddleNode *BpIndex, err error) {
+// protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+// (进行索引升级，当索引切片的中间值会弹出升级成上层的索引)
+func (inode *BpIndex) protrudeInOddBpWidth() (middle *BpIndex, err error) {
+	// At the beginning, a check is performed.
+	// This function is designed to handle cases where the BpWidth is an odd number,
+	// meaning the length of the Index slice is odd,
+	// and the length of the IndexNodes slice is even,
+	// with a difference of 1 in the lengths.(Index 切片 和 IndexNodes 切片长度 差 1)
+	if len(inode.Index)%2 != 1 || len(inode.IndexNodes)%2 != 0 {
+		err = fmt.Errorf("in the case of an odd width, protruding oversized index nodes results in an error")
+		return
+	}
+
 	// Calculate the current index lengths for splitting.
 	indexLen := (len(inode.Index) - 1) / 2
 	indexNodeLen := len(inode.IndexNodes) / 2
-	dataNodeLen := len(inode.DataNodes) / 2
-
-	// Pop operation
 
 	// Create a new left node.
-	leftNode := &BpIndex{}
-	leftNode.Index = append(leftNode.Index, inode.Index[:indexLen]...)
-	leftNode.IndexNodes = append(leftNode.IndexNodes, inode.IndexNodes[:indexNodeLen]...)
-	leftNode.DataNodes = append(leftNode.DataNodes, inode.DataNodes[:dataNodeLen]...)
-
-	// Create a new right node.
-	rightNode := &BpIndex{}
-	rightNode.Index = append(rightNode.Index, inode.Index[indexLen+1:]...)
-	rightNode.IndexNodes = append(rightNode.IndexNodes, inode.IndexNodes[indexNodeLen:]...)
-	rightNode.DataNodes = append(rightNode.DataNodes, inode.DataNodes[dataNodeLen:]...)
-
-	// Create a new middle node.
-	middleValue := inode.Index[indexLen : indexLen+1]
-	popMiddleNode = &BpIndex{
-		Index:      middleValue,
-		IndexNodes: []*BpIndex{leftNode, rightNode},
-		DataNodes:  []*BpData{},
+	leftNode := &BpIndex{
+		Index:      append([]int64{}, inode.Index[:indexLen]...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[:indexNodeLen]...),
+		// DataNode slice is set to nil directly. It should not be used later.
 	}
 
-	// Make a mark, already split.
-	// inode.Split = true // 不需要
+	// Create a new right node.
+	rightNode := &BpIndex{
+		Index:      append([]int64{}, inode.Index[indexLen+1:]...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[indexNodeLen:]...),
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
 
+	// Create a new middle node.
+	middle = &BpIndex{
+		Index:      inode.Index[indexLen : indexLen+1],
+		IndexNodes: []*BpIndex{leftNode, rightNode},
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
+
+	// Return the error, regardless of whether there is an error or not.
 	return
 }
 
@@ -125,9 +130,6 @@ func (inode *BpIndex) protrude2() (popMiddleNode *BpIndex, err error) {
 		IndexNodes: []*BpIndex{leftNode, rightNode},
 		DataNodes:  []*BpData{},
 	}
-
-	// Make a mark, already split.
-	// inode.Split = true // 不需要
 
 	return
 }
@@ -258,7 +260,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			}
 
 			if len(inode.Index) >= BpWidth && len(inode.Index)%2 != 0 { // 进行 pop 和奇数
-				popNode, err = inode.protrude()
+				popNode, err = inode.protrudeInOddBpWidth()
 				return
 			} else if len(inode.Index) >= BpWidth && len(inode.Index)%2 == 0 { // 进行 pop 和奇数
 				popNode, err = inode.protrude2()
@@ -339,7 +341,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 		if len(inode.Index) >= BpWidth && len(inode.Index)%2 != 0 { // 进行 pop 和奇数 (可能没在使用)
 			var node *BpIndex
-			node, err = inode.protrude()
+			node, err = inode.protrudeInOddBpWidth()
 			*inode = *node
 			return
 		} else if len(inode.Index) >= BpWidth && len(inode.Index)%2 == 0 { // 进行 pop 和奇数 (可能没在使用)
