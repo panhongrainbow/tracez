@@ -59,6 +59,23 @@ into a new index node using **function mergeWithDnode**.
 
 <img src="../assets/image-20231020101419151.png" alt="image-20231020101419151" style="zoom:95%;" />
 
+### Protrude index node
+
+protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+
+```go
+func (inode *BpIndex) protrudeInOddBpWidth() (middle *BpIndex, err error)
+Test_Check_inode_protrudeInOddBpWidth(t *testing.T)
+```
+
+The initial index node was too large, and now a portion of the index node needs to be upgraded.
+
+<img src="../assets/image-20231027114351856.png" alt="image-20231027114351856" style="zoom:150%;" />
+
+The upgraded result is as follows: index 40 has been upgraded to the upper-level node.
+
+<img src="../assets/image-20231027114009154.png" alt="image-20231027114009154" style="zoom:150%;" />
+
 ### Split and merge with upgraded key and node
 
 #### mergeUpgradedKeyNode
