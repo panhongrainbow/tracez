@@ -65,7 +65,7 @@ func (tree *BpTree) InsertValue(item BpItem) {
 		popNode, _ = tree.root.protrudeInOddBpWidth()
 		tree.root = popNode
 	} else if len(tree.root.Index) >= BpWidth && len(tree.root.Index)%2 == 0 {
-		popNode, _ = tree.root.protrude2()
+		popNode, _ = tree.root.protrudeInEvenBpWidth()
 		tree.root = popNode
 	}
 

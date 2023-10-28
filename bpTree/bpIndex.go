@@ -56,6 +56,7 @@ func (inode *BpIndex) insertBpIX(newIx int64) (err error) {
 }
 
 // protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+// This is used when the width of BpWidth is odd.
 // (进行索引升级，当索引切片的中间值会弹出升级成上层的索引)
 func (inode *BpIndex) protrudeInOddBpWidth() (middle *BpIndex, err error) {
 	// At the beginning, a check is performed.
@@ -97,40 +98,46 @@ func (inode *BpIndex) protrudeInOddBpWidth() (middle *BpIndex, err error) {
 	return
 }
 
-func (inode *BpIndex) protrude2() (popMiddleNode *BpIndex, err error) {
+// protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+// This is used when the width of BpWidth is even.
+// (进行索引升级，当索引切片的中间值会弹出升级成上层的索引)
+func (inode *BpIndex) protrudeInEvenBpWidth() (popMiddleNode *BpIndex, err error) {
+	// At the beginning, a check is performed.
+	// This function is designed to handle cases where the BpWidth is an odd number,
+	// meaning the length of the Index slice is even,
+	// and the length of the IndexNodes slice is odd,
+	// with a difference of 1 in the lengths.(Index 切片 和 IndexNodes 切片长度 差 1)
+	if len(inode.Index)%2 != 0 || len(inode.IndexNodes)%2 != 1 {
+		err = fmt.Errorf("in the case of an odd width, protruding oversized index nodes results in an error")
+		return
+	}
+
 	// Calculate the current index lengths for splitting.
 	indexLen := (len(inode.Index)) / 2
 	indexNodeLen := (len(inode.IndexNodes) - 1) / 2
-	dataNodeLen := (len(inode.DataNodes) - 1) / 2
 
 	// Create a new left node.
-	leftNode := &BpIndex{}
-	leftNode.Index = append(leftNode.Index, inode.Index[:indexLen]...)
-	if indexNodeLen > 0 {
-		leftNode.IndexNodes = append(leftNode.IndexNodes, inode.IndexNodes[:indexNodeLen+1]...)
-	}
-	if dataNodeLen > 0 {
-		leftNode.DataNodes = append(leftNode.DataNodes, inode.DataNodes[:dataNodeLen+1]...)
+	leftNode := &BpIndex{
+		Index:      append([]int64{}, inode.Index[:indexLen]...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[:indexNodeLen+1]...),
+		// DataNode slice is set to nil directly. It should not be used later.
 	}
 
 	// Create a new right node.
-	rightNode := &BpIndex{}
-	rightNode.Index = append(rightNode.Index, inode.Index[indexLen+1:]...)
-	if indexNodeLen > 0 {
-		rightNode.IndexNodes = append(rightNode.IndexNodes, inode.IndexNodes[indexNodeLen+1:]...)
-	}
-	if dataNodeLen > 0 {
-		rightNode.DataNodes = append(rightNode.DataNodes, inode.DataNodes[dataNodeLen+1:]...)
+	rightNode := &BpIndex{
+		Index:      append([]int64{}, inode.Index[indexLen+1:]...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[indexNodeLen+1:]...),
+		// DataNode slice is set to nil directly. It should not be used later.
 	}
 
 	// Create a new middle node.
-	middleValue := inode.Index[indexLen : indexLen+1]
 	popMiddleNode = &BpIndex{
-		Index:      middleValue,
+		Index:      inode.Index[indexLen : indexLen+1],
 		IndexNodes: []*BpIndex{leftNode, rightNode},
-		DataNodes:  []*BpData{},
+		// DataNode slice is set to nil directly. It should not be used later.
 	}
 
+	// Return the error, regardless of whether there is an error or not.
 	return
 }
 
@@ -263,7 +270,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 				popNode, err = inode.protrudeInOddBpWidth()
 				return
 			} else if len(inode.Index) >= BpWidth && len(inode.Index)%2 == 0 { // 进行 pop 和奇数
-				popNode, err = inode.protrude2()
+				popNode, err = inode.protrudeInEvenBpWidth()
 				return
 			}
 
@@ -346,7 +353,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			return
 		} else if len(inode.Index) >= BpWidth && len(inode.Index)%2 == 0 { // 进行 pop 和奇数 (可能没在使用)
 			var node *BpIndex
-			node, err = inode.protrude2()
+			node, err = inode.protrudeInEvenBpWidth()
 			*inode = *node
 			return
 		}
