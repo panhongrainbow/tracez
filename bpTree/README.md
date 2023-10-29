@@ -61,20 +61,47 @@ into a new index node using **function mergeWithDnode**.
 
 ### Protrude index node
 
+#### protrudeInOddBpWidth
+
 protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+
+Applicable to an **odd** number of top-level indexes.
 
 ```go
 func (inode *BpIndex) protrudeInOddBpWidth() (middle *BpIndex, err error)
 Test_Check_inode_protrudeInOddBpWidth(t *testing.T)
 ```
 
-The initial index node was too large, and now a portion of the index node needs to be upgraded.
+The initial index node was too large, and now some sub-index nodes need to be upgraded.
 
 <img src="../assets/image-20231027114351856.png" alt="image-20231027114351856" style="zoom:150%;" />
 
 The upgraded result is as follows: index 40 has been upgraded to the upper-level node.
 
 <img src="../assets/image-20231027114009154.png" alt="image-20231027114009154" style="zoom:150%;" />
+
+#### protrudeInEvenBpWidth
+
+protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+
+Applicable to an **even** number of top-level indexes.
+
+```go
+func (inode *BpIndex) protrudeInEvenBpWidth() (popMiddleNode *BpIndex, err error)
+func Test_Check_inode_protrudeInEvenBpWidth(t *testing.T)
+```
+
+The initial index node was too large, and now some sub-index nodes need to be upgraded.
+
+<img src="../assets/image-20231030023003143.png" alt="image-20231030023003143" style="zoom:100%;" />
+
+The upgraded result is as follows: index 72 has been upgraded to the upper-level node.
+
+<img src="../assets/image-20231030025022988.png" alt="image-20231030025022988" style="zoom:100%;" />
+
+Condensed the previous two charts as follows: (上两张图精简如下)
+
+<img src="../assets/image-20231030031635639.png" alt="image-20231030031635639" style="zoom:150%;" />
 
 ### Split and merge with upgraded key and node
 
