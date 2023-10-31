@@ -5,203 +5,7 @@ import (
 	"sort"
 )
 
-// >>>>> >>>>> >>>>> basic structure
-
-// BpIndex is the index of the B plus tree.
-type BpIndex struct {
-	Index      []int64    // The maximum values of each group of BpData
-	IndexNodes []*BpIndex // Index nodes
-	DataNodes  []*BpData  // Data nodes
-}
-
-// >>>>> >>>>> >>>>> get method
-
-// indexLength returns the length of index slice. (求索引结点的长度)
-func (inode *BpIndex) indexLength() (length int) {
-	length = len(inode.Index)
-	return
-}
-
-// iNodesLength returns the length of BpIndex Node slice. (求索引结点的长度)
-func (inode *BpIndex) iNodesLength() (length int) {
-	length = len(inode.IndexNodes)
-	return
-}
-
-// dNodesLength returns the length of BpData Node slice. (求资料结点的长度)
-func (inode *BpIndex) dNodesLength() (length int) {
-	length = len(inode.DataNodes)
-	return
-}
-
-// >>>>> >>>>> >>>>> insert method
-
-// insertBpIX inserts a new index at the correct position using binary search.
-func (inode *BpIndex) insertBpIX(newIx int64) (err error) {
-	// Use binary search to find the position where the index should be inserted.
-	ix := sort.Search(len(inode.Index), func(i int) bool {
-		return inode.Index[i] >= newIx
-	})
-
-	// Expand the slice to accommodate the new item.
-	inode.Index = append(inode.Index, 0)
-
-	// Shift the elements to the right to make space for the new item.
-	copy(inode.Index[ix+1:], inode.Index[ix:])
-
-	// Insert the new item at the correct position.
-	inode.Index[ix] = newIx
-
-	return
-}
-
-// protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
-// This is used when the width of BpWidth is odd.
-// (进行索引升级，当索引切片的中间值会弹出升级成上层的索引)
-func (inode *BpIndex) protrudeInOddBpWidth() (middle *BpIndex, err error) {
-	// At the beginning, a check is performed.
-	// This function is designed to handle cases where the BpWidth is an odd number,
-	// meaning the length of the Index slice is odd,
-	// and the length of the IndexNodes slice is even,
-	// with a difference of 1 in the lengths.(Index 切片 和 IndexNodes 切片长度 差 1)
-	if len(inode.Index)%2 != 1 || len(inode.IndexNodes)%2 != 0 {
-		err = fmt.Errorf("in the case of an odd width, protruding oversized index nodes results in an error")
-		return
-	}
-
-	// Calculate the current index lengths for splitting.
-	indexLen := (len(inode.Index) - 1) / 2
-	indexNodeLen := len(inode.IndexNodes) / 2
-
-	// Create a new left node.
-	leftNode := &BpIndex{
-		Index:      append([]int64{}, inode.Index[:indexLen]...),
-		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[:indexNodeLen]...),
-		// DataNode slice is set to nil directly. It should not be used later.
-	}
-
-	// Create a new right node.
-	rightNode := &BpIndex{
-		Index:      append([]int64{}, inode.Index[indexLen+1:]...),
-		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[indexNodeLen:]...),
-		// DataNode slice is set to nil directly. It should not be used later.
-	}
-
-	// Create a new middle node.
-	middle = &BpIndex{
-		Index:      inode.Index[indexLen : indexLen+1],
-		IndexNodes: []*BpIndex{leftNode, rightNode},
-		// DataNode slice is set to nil directly. It should not be used later.
-	}
-
-	// Return the error, regardless of whether there is an error or not.
-	return
-}
-
-// protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
-// This is used when the width of BpWidth is even.
-// (进行索引升级，当索引切片的中间值会弹出升级成上层的索引)
-func (inode *BpIndex) protrudeInEvenBpWidth() (popMiddleNode *BpIndex, err error) {
-	// At the beginning, a check is performed.
-	// This function is designed to handle cases where the BpWidth is an odd number,
-	// meaning the length of the Index slice is even,
-	// and the length of the IndexNodes slice is odd,
-	// with a difference of 1 in the lengths.(Index 切片 和 IndexNodes 切片长度 差 1)
-	if len(inode.Index)%2 != 0 || len(inode.IndexNodes)%2 != 1 {
-		err = fmt.Errorf("in the case of an odd width, protruding oversized index nodes results in an error")
-		return
-	}
-
-	// Calculate the current index lengths for splitting.
-	indexLen := (len(inode.Index)) / 2
-	indexNodeLen := (len(inode.IndexNodes) - 1) / 2
-
-	// Create a new left node.
-	leftNode := &BpIndex{
-		Index:      append([]int64{}, inode.Index[:indexLen]...),
-		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[:indexNodeLen+1]...),
-		// DataNode slice is set to nil directly. It should not be used later.
-	}
-
-	// Create a new right node.
-	rightNode := &BpIndex{
-		Index:      append([]int64{}, inode.Index[indexLen+1:]...),
-		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[indexNodeLen+1:]...),
-		// DataNode slice is set to nil directly. It should not be used later.
-	}
-
-	// Create a new middle node.
-	popMiddleNode = &BpIndex{
-		Index:      inode.Index[indexLen : indexLen+1],
-		IndexNodes: []*BpIndex{leftNode, rightNode},
-		// DataNode slice is set to nil directly. It should not be used later.
-	}
-
-	// Return the error, regardless of whether there is an error or not.
-	return
-}
-
-func (inode *BpIndex) digDigKey() (key int64) {
-	node := inode
-	for {
-		if len(node.DataNodes) == 0 {
-			node = node.IndexNodes[0]
-		} else {
-			key = node.DataNodes[0].Items[0].Key
-			break
-		}
-	}
-	return
-}
-
-func (inode *BpIndex) mergePopDnode(side *BpData) (err error) {
-	var newIx int64
-
-	if len(inode.IndexNodes) > 0 {
-		// Cannot directly insert a pure index node.
-		// When it is popped up, it is merged directly by the parent node.
-		// (POP上来直接被父节点合拼)
-		return fmt.Errorf("data cannot be inserted directly into wrong index nodes")
-	}
-
-	if len(inode.DataNodes) > 0 {
-		// Use binary search to find the position where the index should be inserted.
-		ix := sort.Search(len(inode.DataNodes), func(i int) bool {
-			return inode.DataNodes[i].Items[0].Key >= side.Items[0].Key
-		})
-
-		for i := ix; i < len(inode.DataNodes); i++ {
-			if inode.DataNodes[ix].Split == true {
-				ix = ix + 1
-				break
-			}
-		}
-
-		inode.DataNodes[ix].Split = false
-
-		// >>>>> 失处理节点
-
-		// Expand the slice to accommodate the new item.
-		inode.DataNodes = append(inode.DataNodes, &BpData{})
-
-		// Shift the elements to the right to make space for the new item.
-		copy(inode.DataNodes[ix+1:], inode.DataNodes[ix:])
-
-		// Insert the new item at the correct position.
-		inode.DataNodes[ix] = side
-
-		// >>>>> 再处理索引
-
-		newIx, err = side.index()
-		err = inode.insertBpIX(newIx)
-	}
-
-	if len(inode.DataNodes) == 0 {
-		inode.DataNodes = append(inode.DataNodes, side)
-	}
-
-	return
-}
+// >>>>> >>>>> >>>>> main structure
 
 const (
 	status_protrude_inode = iota + 1
@@ -212,9 +16,20 @@ const (
 	status_delete_protrude
 )
 
+// BpIndex is the index of the B plus tree.
+type BpIndex struct {
+	Index      []int64    // The maximum values of each group of BpData
+	IndexNodes []*BpIndex // Index nodes
+	DataNodes  []*BpData  // Data nodes
+}
+
 // insertBpDataValue inserts a new index into the BpIndex.
 // 经由 BpIndex 直接在新增
 func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popKey int64, popNode *BpIndex, status int, err error) {
+
+	if newNode != nil {
+		fmt.Println()
+	}
 
 	var newIndex int64
 	var sideDataNode *BpData
@@ -231,9 +46,6 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 		})
 
 		// >>>>> >>>>> >>>>> 进入递归
-
-		// Verify if the index for IndexNodes is correct?
-		// (先检查索吊数量是否正确)
 
 		if len(inode.IndexNodes) > 0 {
 			if len(inode.IndexNodes) != (len(inode.Index) + 1) {
@@ -361,6 +173,113 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 		return // Break here to avoid inserting elsewhere. (立刻中断)
 	}
 
+	return
+}
+
+// >>>>> >>>>> >>>>> insert method
+
+// insertBpIX inserts a new index at the correct position using binary search.
+func (inode *BpIndex) insertBpIX(newIx int64) (err error) {
+	// Use binary search to find the position where the index should be inserted.
+	ix := sort.Search(len(inode.Index), func(i int) bool {
+		return inode.Index[i] >= newIx
+	})
+
+	// Expand the slice to accommodate the new item.
+	inode.Index = append(inode.Index, 0)
+
+	// Shift the elements to the right to make space for the new item.
+	copy(inode.Index[ix+1:], inode.Index[ix:])
+
+	// Insert the new item at the correct position.
+	inode.Index[ix] = newIx
+
+	return
+}
+
+// protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+// This is used when the width of BpWidth is odd.
+// (进行索引升级，当索引切片的中间值会弹出升级成上层的索引)
+func (inode *BpIndex) protrudeInOddBpWidth() (middle *BpIndex, err error) {
+	// At the beginning, a check is performed.
+	// This function is designed to handle cases where the BpWidth is an odd number,
+	// meaning the length of the Index slice is odd,
+	// and the length of the IndexNodes slice is even,
+	// with a difference of 1 in the lengths.(Index 切片 和 IndexNodes 切片长度 差 1)
+	if len(inode.Index)%2 != 1 || len(inode.IndexNodes)%2 != 0 {
+		err = fmt.Errorf("in the case of an odd width, protruding oversized index nodes results in an error")
+		return
+	}
+
+	// Calculate the current index lengths for splitting.
+	indexLen := (len(inode.Index) - 1) / 2
+	indexNodeLen := len(inode.IndexNodes) / 2
+
+	// Create a new left node.
+	leftNode := &BpIndex{
+		Index:      append([]int64{}, inode.Index[:indexLen]...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[:indexNodeLen]...),
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
+
+	// Create a new right node.
+	rightNode := &BpIndex{
+		Index:      append([]int64{}, inode.Index[indexLen+1:]...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[indexNodeLen:]...),
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
+
+	// Create a new middle node.
+	middle = &BpIndex{
+		Index:      inode.Index[indexLen : indexLen+1],
+		IndexNodes: []*BpIndex{leftNode, rightNode},
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
+
+	// Return the error, regardless of whether there is an error or not.
+	return
+}
+
+// protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
+// This is used when the width of BpWidth is even.
+// (进行索引升级，当索引切片的中间值会弹出升级成上层的索引)
+func (inode *BpIndex) protrudeInEvenBpWidth() (popMiddleNode *BpIndex, err error) {
+	// At the beginning, a check is performed.
+	// This function is designed to handle cases where the BpWidth is an odd number,
+	// meaning the length of the Index slice is even,
+	// and the length of the IndexNodes slice is odd,
+	// with a difference of 1 in the lengths.(Index 切片 和 IndexNodes 切片长度 差 1)
+	if len(inode.Index)%2 != 0 || len(inode.IndexNodes)%2 != 1 {
+		err = fmt.Errorf("in the case of an odd width, protruding oversized index nodes results in an error")
+		return
+	}
+
+	// Calculate the current index lengths for splitting.
+	indexLen := (len(inode.Index)) / 2
+	indexNodeLen := (len(inode.IndexNodes) - 1) / 2
+
+	// Create a new left node.
+	leftNode := &BpIndex{
+		Index:      append([]int64{}, inode.Index[:indexLen]...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[:indexNodeLen+1]...),
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
+
+	// Create a new right node.
+	rightNode := &BpIndex{
+		Index:      append([]int64{}, inode.Index[indexLen+1:]...),
+		IndexNodes: append([]*BpIndex{}, inode.IndexNodes[indexNodeLen+1:]...),
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
+
+	// Create a new middle node.
+	popMiddleNode = &BpIndex{
+		Index:      inode.Index[indexLen : indexLen+1],
+		IndexNodes: []*BpIndex{leftNode, rightNode},
+		// DataNode slice is set to nil directly. It should not be used later.
+	}
+
+	// Return the error, regardless of whether there is an error or not.
 	return
 }
 
