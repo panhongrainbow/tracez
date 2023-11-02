@@ -80,6 +80,14 @@ The upgraded result is as follows: index 40 has been upgraded to the upper-level
 
 <img src="../assets/image-20231027114009154.png" alt="image-20231027114009154" style="zoom:150%;" />
 
+The subsequent encounters will be handled in two ways:
+
+1. If this node itself is the root node, the entire tree will become a new root.
+
+2. If this node is not the root node, it will merge the upgraded node. (refer to **ackUpgradeIndexNode**)
+
+(是根就是新根，不是就升级合拼)
+
 #### protrudeInEvenBpWidth
 
 protrudeInOddBpWidth performs index upgrade; when the middle value of the index slice pops out, it gets upgraded to the upper-level index.
@@ -102,6 +110,22 @@ The upgraded result is as follows: index 72 has been upgraded to the upper-level
 Condensed the previous two charts as follows: (上两张图精简如下)
 
 <img src="../assets/image-20231030031635639.png" alt="image-20231030031635639" style="zoom:150%;" />
+
+The subsequent encounters will be handled in two ways:
+
+1. If this node itself is the root node, the entire tree will become a new root.
+
+2. If this node is not the root node, it will merge the upgraded node. (refer to **ackUpgradeIndexNode**)
+
+(是根就是新根，不是就升级合拼)
+
+#### ackUpgradeIndexNode
+
+
+
+
+
+
 
 ### Split and merge with upgraded key and node
 

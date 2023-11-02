@@ -51,6 +51,7 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	}
 
 	if status == status_protrude_inode && popNode != nil {
+		// Here, it will increase the entire tree's depth. (层数增加)
 		tree.root = popNode
 	}
 

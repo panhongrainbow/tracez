@@ -64,17 +64,8 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			}
 
 			if popNode != nil && popKey == 0 {
-				// >>>>> >>>>> >>>>> index 分裂
-
-				inode.insertBpIX(popNode.Index[0])
-				left := inode.IndexNodes[:ix]
-				right := inode.IndexNodes[ix+1:]
-				node := &BpIndex{}
-				node.IndexNodes = append(node.IndexNodes, left...)
-				node.IndexNodes = append(node.IndexNodes, popNode.IndexNodes...)
-				node.IndexNodes = append(node.IndexNodes, right...)
-				inode.IndexNodes = node.IndexNodes
-
+				// New index nodes have been created independently and are going to be upgraded and merged.
+				inode.ackUpgradeIndexNode(ix, popNode)
 				popNode = nil
 			}
 
@@ -110,10 +101,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 				copy(inode.DataNodes[(ix+1)+1:], inode.DataNodes[(ix+1):])
 				inode.DataNodes[ix+1] = sideDataNode
 
-				err = inode.insertBpIX(sideDataNode.Items[0].Key)
-				if err != nil {
-					return
-				}
+				inode.insertBpIX(sideDataNode.Items[0].Key)
 			}
 
 			if len(inode.Index) >= BpWidth {
@@ -153,10 +141,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 	}
 
 	if sideDataNode != nil {
-		err = inode.insertBpIX(newIndex)
-		if err != nil {
-			return
-		}
+		inode.insertBpIX(newIndex)
 
 		if len(inode.Index) >= BpWidth && len(inode.Index)%2 != 0 { // 进行 pop 和奇数 (可能没在使用)
 			var node *BpIndex
@@ -176,10 +161,44 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 	return
 }
 
+// ackUpgradeIndexNode is used by the current layer's index node
+// to acknowledge a new independently upgraded index node.
+// this function is extracted from insertItem function for testing purposes.
+// (承认新独立的索引结点)
+//
+//go:inline
+func (inode *BpIndex) ackUpgradeIndexNode(ix int, popNode *BpIndex) {
+	// 这个函式不能在 root 节点上使用，
+
+	// Insert popNode.Index[0]
+	inode.insertBpIX(popNode.Index[0])
+
+	// Create a new BpIndex
+	node := &BpIndex{}
+
+	// Split inode.IndexNodes into three parts and then merge them into the new node.IndexNodes
+	node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[:ix]...)   // positions are from 0 to ix.
+	node.IndexNodes = append(node.IndexNodes, popNode.IndexNodes...)      // position ix is overtired.
+	node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[ix+1:]...) // positions are from (ix+1) to the last one.
+	// In the above operations, the "ix" position has been overwritten
+	//
+	// because during the splitting process,
+	// the original node is preserved in its entirety, and it is only during the merging that there will be no positional confusion.
+	//
+	// For example, in this case, the "ix" position is being overwritten, and the original inode has not been modified,
+	// so there won't be any confusion.
+
+	// 切割时，会保留原节点的完整，合拼时才不会发生位置错
+
+	// Update inode.IndexNodes
+	inode.IndexNodes = node.IndexNodes
+}
+
 // >>>>> >>>>> >>>>> insert method
 
 // insertBpIX inserts a new index at the correct position using binary search.
-func (inode *BpIndex) insertBpIX(newIx int64) (err error) {
+// Just inserting an index slice won't result in any errors, so it doesn't return an error.
+func (inode *BpIndex) insertBpIX(newIx int64) {
 	// Use binary search to find the position where the index should be inserted.
 	ix := sort.Search(len(inode.Index), func(i int) bool {
 		return inode.Index[i] >= newIx
@@ -371,7 +390,7 @@ func (inode *BpIndex) mergeUpgradedKeyNode(insertAfterPosition int, key int64, s
 	// Merging these keys into other index nodes is not difficult.
 	// It's just a matter of sorting.
 	insertAfterPosition = insertAfterPosition + 1
-	err = inode.insertBpIX(key)
+	inode.insertBpIX(key)
 
 	// Store the upgraded index node named side at the appropriate position in the IndexNodes slice.
 	inode.IndexNodes = append(inode.IndexNodes, &BpIndex{})
