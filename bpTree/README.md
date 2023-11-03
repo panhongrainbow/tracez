@@ -121,11 +121,43 @@ The subsequent encounters will be handled in two ways:
 
 #### ackUpgradeIndexNode
 
+**ackUpgradeIndexNode** is used by the current layer's index node to acknowledge a new independently upgraded index node.
+This function is extracted from insertItem function for testing purposes, and it overwrites the original location in the inode.
 
+(承认新独立的索引结点)
 
+```go
+func (inode *BpIndex) ackUpgradeIndexNode(ix int, popNode *BpIndex)
+Test_Check_inode_ackUpgradeIndexNode(t *testing.T)
+```
 
+This is with a width of 3.
 
+Before the execution of the **ackUpgradeIndexNode** function, as shown in the diagram, when the index slice []int64{67, 77, 89} is too large, it needs to be split.
 
+After splitting, it is then overwrites back to the original position.
+
+For example, if the parameter ix = 1 is passed, it means it should be overwrited at position 1, which is also the second index node []int64{67, 77, 89} under the root node. 
+
+To avoid position confusion, the original node (named inode) is not deleted; instead, it is overwrited at the ix position.
+
+(为避免位置混淆，不会删除，而是在 ix 上进行覆盖)
+
+<img src="../assets/image-20231103135403218.png" alt="image-20231103135403218" style="zoom:100%;" />
+
+The results after overwriting are as follows:
+
+<img src="../assets/image-20231103140154185.png" alt="image-20231103140154185" style="zoom:100%;" />
+
+The above process can be simplified as shown in the following diagram.
+
+Before the execution of the ackUpgradeIndexNode function
+
+<img src="../assets/image-20231103135710211.png" alt="image-20231103135710211" style="zoom:100%;" />
+
+After the execution of the ackUpgradeIndexNode function
+
+![image-20231103141032488](../assets/image-20231103141032488.png)
 
 ### Split and merge with upgraded key and node
 

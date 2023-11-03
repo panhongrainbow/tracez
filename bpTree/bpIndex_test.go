@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+// Test_Check_inode_ackUpgradeIndexNode is to test the functionality of ackUpgradeIndexNode.
+// When the second index node under the inode's node needs an upgrade,
+// the content under the second index node is upgraded and then overwritten in the location of the inode's second index node.
+// (不删除，用覆盖的方式)
 func Test_Check_inode_ackUpgradeIndexNode(t *testing.T) {
 	// Set up the total length and splitting length for B Plus Tree.
 	BpWidth = 3
@@ -167,7 +171,8 @@ func Test_Check_inode_ackUpgradeIndexNode(t *testing.T) {
 		DataNodes: []*BpData{},
 	}
 
-	side := &BpIndex{
+	// sideToOverwrite is prepared to overwrite the content at the ix position in indoe.
+	sideToOverwrite := &BpIndex{
 		Index: []int64{77},
 		IndexNodes: []*BpIndex{
 			{
@@ -264,7 +269,7 @@ func Test_Check_inode_ackUpgradeIndexNode(t *testing.T) {
 		DataNodes: []*BpData{},
 	}
 
-	// Expect a new node named middle after protruding.
+	// Expect inode after being overwritten.
 	expectedMiddleAfterProtruding := &BpIndex{
 		Index: []int64{40, 77},
 		IndexNodes: []*BpIndex{
@@ -425,9 +430,9 @@ func Test_Check_inode_ackUpgradeIndexNode(t *testing.T) {
 	}
 
 	// Call the function to be tested.
-	inode.ackUpgradeIndexNode(1, side)
+	inode.ackUpgradeIndexNode(1, sideToOverwrite)
 
-	// Check the node named middle.
+	// Check the inode.
 	assert.True(t, reflect.DeepEqual(expectedMiddleAfterProtruding, inode), "inode mismatch")
 }
 

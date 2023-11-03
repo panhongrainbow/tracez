@@ -163,7 +163,8 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 // ackUpgradeIndexNode is used by the current layer's index node
 // to acknowledge a new independently upgraded index node.
-// this function is extracted from insertItem function for testing purposes.
+// this function is extracted from insertItem function for testing purposes,
+// and it overwrites the original location in the inode.
 // (承认新独立的索引结点)
 //
 //go:inline
