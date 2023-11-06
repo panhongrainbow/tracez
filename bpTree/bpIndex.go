@@ -8,12 +8,13 @@ import (
 // >>>>> >>>>> >>>>> main structure
 
 const (
-	status_protrude_inode = iota + 1
-	status_protrude_dnode
-	status_delete_item
-	status_delete_Non
-	status_de_protrude
-	status_delete_protrude
+	statusNormal = iota + 1
+	statusProtrudeInode
+	statusProtrudeDnode
+	statusDeleteItem
+	statusDeleteNon
+	statusDeProtrude
+	statusDeleteProtrude
 )
 
 // BpIndex is the index of the B plus tree.
@@ -26,13 +27,10 @@ type BpIndex struct {
 // insertBpDataValue inserts a new index into the BpIndex.
 // 经由 BpIndex 直接在新增
 func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popKey int64, popNode *BpIndex, status int, err error) {
-
-	if newNode != nil {
-		fmt.Println()
-	}
-
 	var newIndex int64
 	var sideDataNode *BpData
+	status = statusNormal // status is used to inform the root node that it is not the root node here, so the state becomes Normal !.
+	// 状态是用来告知 root 节点，在这里不是 root 节点，所以状态变为 Normal !
 
 	// >>>>> 进入索引结点
 
@@ -56,7 +54,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			// If there are index nodes, recursively insert the item into the appropriate node.
 			// (这里有递回去找到接近资料切片的地方)
 			popIx, popKey, popNode, status, err = inode.IndexNodes[ix].insertItem(nil, item)
-			status = status_protrude_inode
+			status = statusProtrudeInode
 			if popKey != 0 {
 				err = inode.mergeUpgradedKeyNode(ix, popKey, popNode)
 				popKey = 0
@@ -64,8 +62,8 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			}
 
 			if popNode != nil && popKey == 0 {
-				// New index nodes have been created independently and are going to be upgraded and merged.
-				inode.ackUpgradeIndexNode(ix, popNode)
+				// New index node has been created independently and are going to be upgraded and overwrite inode.
+				inode.ackUpgradeIndexNode(ix, popNode) // 在这里同意并覆写 inode
 				popNode = nil
 			}
 
@@ -106,7 +104,7 @@ func (inode *BpIndex) insertItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 			if len(inode.Index) >= BpWidth {
 				popKey, popNode, err = inode.splitWithDnode()
-				status = status_protrude_dnode
+				status = statusProtrudeDnode
 				popIx = ix
 				if err != nil {
 					return

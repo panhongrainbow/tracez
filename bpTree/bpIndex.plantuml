@@ -1,0 +1,48 @@
+@startuml
+!theme bluegray
+title bpIndex Flowchart
+
+start
+
+if (newNode is nil and len(inode.Index) > 0) then (yes)
+  :Use binary search to find the insertion index;
+  if (len(inode.IndexNodes) > 0) then (yes)
+    :Recursively insert the item into the appropriate index node;
+    if (len(inode.Index) != (len(inode.IndexNodes) + 1)) then (no)
+      :Error: Incorrect number of indexes;
+      stop
+    else (yes)
+      :Merge upgraded key node if necessary;
+      :Upgrade and overwrite inode if required;
+      :Perform pop operation based on index size;
+    endif
+  else (no)
+    if (len(inode.DataNodes) > 0) then (yes)
+      :Insert the new item at the determined index in data nodes;
+      if (len(inode.DataNodes) != (len(inode.Index) + 1)) then (no)
+        :Error: Incorrect number of indexes;
+        stop
+      else (yes)
+        :Insert the item in data node;
+        if (len(inode.DataNodes[ix].Items) >= BpWidth) then (yes)
+          :Split the data node if it exceeds the limit;
+          :Insert the sideDataNode and update the index;
+          :Perform split with Dnode if required;
+        endif
+      endif
+    else (no)
+      :Insert item to DataNodes if needed;
+      :Split DataNode and update newIndex if necessary;
+    endif
+  endif
+else (no)
+  :Handle the scenario with no existing items;
+endif
+
+if (sideDataNode is not nil) then (yes)
+  :Insert newIndex into inode;
+  :Perform pop operation based on index size;
+endif
+
+stop
+@enduml

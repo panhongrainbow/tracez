@@ -50,13 +50,15 @@ func (tree *BpTree) InsertValue(item BpItem) {
 		panic(err)
 	}
 
-	if status == status_protrude_inode && popNode != nil {
+	if status == statusProtrudeInode && popNode != nil {
 		// Here, it will increase the entire tree's depth. (层数增加)
 		tree.root = popNode
+		status = statusNormal
 	}
 
-	if status == status_protrude_dnode {
+	if status == statusProtrudeDnode {
 		err = tree.root.mergeWithDnode(popKey, popNode)
+		status = statusNormal
 		if err != nil {
 			return
 		}

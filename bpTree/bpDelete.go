@@ -33,7 +33,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			// (这里有递回去找到接近资料切片的地方)
 			popIx, popKey, popNode, status, err = inode.IndexNodes[ix].deleteItem(nil, item)
 
-			if status == status_de_protrude && ix == 0 {
+			if status == statusDeProtrude && ix == 0 {
 				node := &BpIndex{}
 				node.Index = append(node.Index, inode.Index[0])
 				inode.Index = removeElement(inode.Index, inode.Index[0])
@@ -49,7 +49,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 				if len(node.Index) >= BpWidth {
 					popNode, _ = node.protrudeInOddBpWidth()
-					status = status_delete_protrude
+					status = statusDeleteProtrude
 					return
 				} else {
 					inode.IndexNodes[ix+1] = node
@@ -60,13 +60,13 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 				status = 0
 			}
 
-			if status == status_delete_protrude {
+			if status == statusDeleteProtrude {
 				inode.IndexNodes[ix] = popNode
 				status = 0
 				return
 			}
 
-			if status == status_de_protrude && (ix-1) >= 0 {
+			if status == statusDeProtrude && (ix-1) >= 0 {
 				//
 				inode.IndexNodes[ix].Index = []int64{inode.Index[ix-1]}
 
@@ -155,25 +155,25 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			deleted := inode.DataNodes[ix].delete(item) // Insert item at index ix.
 
 			if deleted == true {
-				status = status_delete_item
+				status = statusDeleteItem
 			}
 
 			if deleted == false && len(inode.DataNodes) >= ix+1+1 {
 				deleted = inode.DataNodes[ix+1].delete(item)
 				if deleted == true {
-					status = status_delete_item
+					status = statusDeleteItem
 					// return
 				}
 			}
 
 			if deleted == false {
 				deleted = inode.DataNodes[ix].Next.delete(item)
-				status = status_delete_item
+				status = statusDeleteItem
 				// return
 			}
 
 			if deleted == false {
-				status = status_delete_Non
+				status = statusDeleteNon
 				// return // 检查一下好了
 			}
 
@@ -204,7 +204,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			}
 
 			if len(inode.Index) == 0 {
-				status = status_de_protrude
+				status = statusDeProtrude
 				return
 			}
 
