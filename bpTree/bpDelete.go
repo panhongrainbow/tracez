@@ -152,14 +152,14 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 			// >>>>> 进入第 1 个资料结点入口
 
-			deleted := inode.DataNodes[ix].delete(item) // Insert item at index ix.
+			deleted, _ := inode.DataNodes[ix]._delete(item) // Insert item at index ix.
 
 			if deleted == true {
 				status = statusDeleteItem
 			}
 
 			if deleted == false && len(inode.DataNodes) >= ix+1+1 {
-				deleted = inode.DataNodes[ix+1].delete(item)
+				deleted, _ = inode.DataNodes[ix+1]._delete(item)
 				if deleted == true {
 					status = statusDeleteItem
 					// return
@@ -167,7 +167,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			}
 
 			if deleted == false {
-				deleted = inode.DataNodes[ix].Next.delete(item)
+				deleted, _ = inode.DataNodes[ix].Next._delete(item)
 				status = statusDeleteItem
 				// return
 			}
@@ -250,7 +250,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 			err = fmt.Errorf("the number of indexes is incorrect initially")
 			return
 		}
-		inode.DataNodes[0].delete(item) // >>>>> (add to DataNodes)
+		inode.DataNodes[0]._delete(item) // >>>>> (add to DataNodes)
 
 		/*
 			// 先注解 ... ... ... ... ... ... ...
@@ -289,7 +289,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 }
 
 func removeElement(nums []int64, val int64) []int64 {
-	result := []int64{}
+	var result []int64
 
 	for _, num := range nums {
 		if num != val {

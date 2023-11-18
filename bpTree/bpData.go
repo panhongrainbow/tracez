@@ -5,6 +5,8 @@ import (
 	"sort"
 )
 
+// ➡️ basic struct
+
 // BpData represents the data structure for a B+ tree node.
 type BpData struct {
 	Previous *BpData  // Pointer to the previous BpData node.
@@ -40,7 +42,7 @@ func (data *BpData) index() (key int64, err error) {
 	return
 }
 
-// >>>>> >>>>> >>>>> insert
+// ➡️ insert operation
 
 // insertBpDataValue inserts a BpItem into the BpData.
 func (data *BpData) insert(item BpItem) {
@@ -107,19 +109,53 @@ func (data *BpData) split() (side *BpData, err error) {
 	return
 }
 
-// >>>>> >>>>> >>>>> delete
+// ➡️ delete operation
 
+// delete is a method of the BpData type that attempts to delete a BpItem from the BpData.
+// It first checks the current node and then navigates to the appropriate neighbor node if needed.
 func (data *BpData) delete(item BpItem) (deleted bool) {
+	// Initialize variables to track deletion status and index.
+	var ix int
+	deleted, ix = data._delete(item)
+
+	// If the item is successfully deleted in the current node, return.
+	if deleted == true {
+		return
+	}
+
+	// If the item is not found in the current node and has a non-zero index,
+	// attempt deletion in the next (right) neighbor node.
+	if ix > 0 && deleted == false {
+		deleted, _ = data.Next._delete(item)
+		return
+	}
+
+	// If the item is not found in the current node and has an index of zero,
+	// attempt deletion in the previous (left) neighbor node.
+	if ix == 0 && deleted == false {
+		deleted, _ = data.Previous._delete(item)
+		return
+	}
+
+	return
+}
+
+// _delete is a helper method of the BpData type that performs the actual deletion of a BpItem.
+// It uses binary search to find the index where the item should be deleted.
+func (data *BpData) _delete(item BpItem) (deleted bool, ix int) {
 	// Use binary search to find the index where the item should be deleted.
-	ix := sort.Search(len(data.Items), func(i int) bool {
+	ix = sort.Search(len(data.Items), func(i int) bool {
 		return data.Items[i].Key >= item.Key
 	})
 
+	// If the item is found in the current node, perform deletion and update the slice.
 	if ix < len(data.Items) && data.Items[ix].Key == item.Key {
 		copy(data.Items[ix:], data.Items[ix+1:])
 		data.Items = data.Items[:len(data.Items)-1]
 		deleted = true
+		return
 	}
 
+	// If the item is not found, return without performing deletion.
 	return
 }

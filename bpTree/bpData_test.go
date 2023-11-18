@@ -2,6 +2,7 @@ package bpTree
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -43,25 +44,6 @@ func Test_Check_BpData_insert(t *testing.T) {
 	assert.Equal(t, 2, data.dataLength(), "Expected two items in the slice")
 }
 
-func Test_Check_BpData_delete(t *testing.T) {
-	data := &BpData{
-		Items: []BpItem{
-			{Key: 1, Val: "Value1"},
-			{Key: 2, Val: "Value2"},
-			{Key: 3, Val: "Value3"},
-			{Key: 4, Val: "Value4"},
-			{Key: 5, Val: "Value5"},
-		},
-	}
-
-	assert.Equal(t, 5, data.dataLength(), "Expected five items in the slice")
-
-	item := BpItem{Key: 3, Val: "Value3"}
-
-	data.delete(item)
-
-}
-
 // Test_Check_BpData_split checks the split method, which divides a BpData node into two nodes if it contains more items than the specified width.
 func Test_Check_BpData_split(t *testing.T) {
 	// Set parameters.
@@ -93,4 +75,70 @@ func Test_Check_BpData_split(t *testing.T) {
 
 	// Check the state of the original node.
 	assert.Len(t, data.Items, 3, "Expected the original slice to have 3 items after split")
+}
+
+// Test_Check_BpData_delete is a test function for the delete method of the BpData type.
+func Test_Check_BpData_delete(t *testing.T) {
+	// Run the first subtest: Consider the same key in a single node.
+	t.Run("Consider the same key in a single node", func(t *testing.T) {
+		// Set up a BpData instance with a slice of BpItems.
+		data := &BpData{
+			Items: []BpItem{
+				{Key: 1, Val: "Value1"},
+				{Key: 2, Val: "Value2"},
+				{Key: 3, Val: "Value3"},
+				{Key: 4, Val: "Value4"},
+				{Key: 5, Val: "Value5"},
+			},
+		}
+
+		// Check if the data length is as expected before deletion.
+		require.Equal(t, 5, data.dataLength(), "Expected five items in the slice")
+
+		// Create a BpItem to be deleted and perform the deletion.
+		item := BpItem{Key: 3, Val: "Value3"}
+		deleted := data.delete(item)
+
+		// Check if the deletion was successful and if the data length is as expected after deletion.
+		require.True(t, deleted)
+		require.Equal(t, 4, data.dataLength(), "Expected four items in the slice")
+	})
+
+	// Run the second subtest: Consider the same key in two nodes.
+	t.Run("Consider the same key in two nodes", func(t *testing.T) {
+		// Set up the total width and half-width for the B Plus Tree.
+		BpWidth = 3
+		BpHalfWidth = 2
+
+		// Create two BpData instances representing nodes with overlapping keys.
+		bpData1 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 1}, {Key: 2}},
+			Split:    false,
+		}
+
+		bpData2 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 2}, {Key: 3}},
+			Split:    false,
+		}
+
+		// Establish the link between the two nodes.
+		bpData1.Next = &bpData2
+		bpData2.Previous = &bpData1
+
+		// Perform the deletion of a key in the first node.
+		deleted := bpData1.delete(BpItem{Key: 2})
+		require.True(t, deleted)
+		require.Len(t, bpData1.Items, 1)
+		require.Len(t, bpData2.Items, 2)
+
+		// Perform the deletion of the same key in the first node again.
+		deleted = bpData1.delete(BpItem{Key: 2})
+		require.True(t, deleted)
+		require.Len(t, bpData1.Items, 1)
+		require.Len(t, bpData2.Items, 1) // Go to the neighbor BpData node and perform the deletion.
+	})
 }
