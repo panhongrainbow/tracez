@@ -111,32 +111,38 @@ func (data *BpData) split() (side *BpData, err error) {
 
 // ➡️ delete operation
 
+const (
+	deleteNoThing = iota + 1
+	deleteMiddleOne
+	deleteLeftOne
+	deleteRightOne
+)
+
 // delete is a method of the BpData type that attempts to delete a BpItem from the BpData.
 // It first checks the current node and then navigates to the appropriate neighbor node if needed.
-func (data *BpData) delete(item BpItem) (deleted bool) {
+func (data *BpData) delete(item BpItem) (deleted bool, direction int) {
 	// Initialize variables to track deletion status and index.
 	var ix int
 	deleted, ix = data._delete(item)
+	direction = deleteNoThing // Set initial value.
 
-	// If the item is successfully deleted in the current node, return.
-	if deleted == true {
-		return
+	// Simultaneously search for and delete.
+	if deleted == true { // If the item is successfully deleted in the current node, return.
+		direction = deleteMiddleOne
+	} else if deleted == false {
+		if ix > 0 { // If the item is not found in the current node and has a non-zero index
+			// attempt deletion in the next (right) neighbor node.
+			deleted, _ = data.Next._delete(item)
+			direction = deleteRightOne
+		} else if ix == 0 {
+			// If the item is not found in the current node and has an index of zero,
+			// attempt deletion in the previous (left) neighbor node.
+			deleted, _ = data.Previous._delete(item)
+			direction = deleteLeftOne
+		}
 	}
 
-	// If the item is not found in the current node and has a non-zero index,
-	// attempt deletion in the next (right) neighbor node.
-	if ix > 0 && deleted == false {
-		deleted, _ = data.Next._delete(item)
-		return
-	}
-
-	// If the item is not found in the current node and has an index of zero,
-	// attempt deletion in the previous (left) neighbor node.
-	if ix == 0 && deleted == false {
-		deleted, _ = data.Previous._delete(item)
-		return
-	}
-
+	// After going through the above process, proceed with the return
 	return
 }
 

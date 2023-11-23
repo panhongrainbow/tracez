@@ -80,7 +80,7 @@ func Test_Check_BpData_split(t *testing.T) {
 // Test_Check_BpData_delete is a test function for the delete method of the BpData type.
 func Test_Check_BpData_delete(t *testing.T) {
 	// Run the first subtest: Consider the same key in a single node.
-	t.Run("Consider the same key in a single node", func(t *testing.T) {
+	t.Run("Consider the same key in a single node.", func(t *testing.T) {
 		// Set up a BpData instance with a slice of BpItems.
 		data := &BpData{
 			Items: []BpItem{
@@ -97,20 +97,21 @@ func Test_Check_BpData_delete(t *testing.T) {
 
 		// Create a BpItem to be deleted and perform the deletion.
 		item := BpItem{Key: 3, Val: "Value3"}
-		deleted := data.delete(item)
+		deleted, direction := data.delete(item)
 
 		// Check if the deletion was successful and if the data length is as expected after deletion.
 		require.True(t, deleted)
 		require.Equal(t, 4, data.dataLength(), "Expected four items in the slice")
+		require.Equal(t, deleteMiddleOne, direction)
 	})
 
 	// Run the second subtest: Consider the same key in two nodes.
-	t.Run("Consider the same key in two nodes", func(t *testing.T) {
+	t.Run("Consider the same key in two nodes.", func(t *testing.T) {
 		// Set up the total width and half-width for the B Plus Tree.
 		BpWidth = 3
 		BpHalfWidth = 2
 
-		// Create two BpData instances representing nodes with overlapping keys.
+		// Create two BpData nodes representing nodes with overlapping keys.
 		bpData1 := BpData{
 			Previous: nil,
 			Next:     nil,
@@ -130,15 +131,17 @@ func Test_Check_BpData_delete(t *testing.T) {
 		bpData2.Previous = &bpData1
 
 		// Perform the deletion of a key in the first node.
-		deleted := bpData1.delete(BpItem{Key: 2})
+		deleted, direction := bpData1.delete(BpItem{Key: 2})
 		require.True(t, deleted)
 		require.Len(t, bpData1.Items, 1)
 		require.Len(t, bpData2.Items, 2)
+		require.Equal(t, deleteMiddleOne, direction) // hit middle one
 
 		// Perform the deletion of the same key in the first node again.
-		deleted = bpData1.delete(BpItem{Key: 2})
+		deleted, direction = bpData1.delete(BpItem{Key: 2})
 		require.True(t, deleted)
 		require.Len(t, bpData1.Items, 1)
-		require.Len(t, bpData2.Items, 1) // Go to the neighbor BpData node and perform the deletion.
+		require.Len(t, bpData2.Items, 1)            // Go to the neighbor BpData node and perform the deletion.
+		require.Equal(t, deleteRightOne, direction) // hit middle one
 	})
 }

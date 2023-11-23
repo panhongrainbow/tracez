@@ -7,7 +7,7 @@ import (
 )
 
 func Test_Check_Btree_In_Real_World(t *testing.T) {
-	t.Run("tests inserting B-tree with a width of 3.", func(t *testing.T) {
+	t.Run("Tests inserting B-tree with a width of 3.", func(t *testing.T) {
 		// Initialize B-tree.
 		root := NewBpTree(3)
 		// Insert 50 data entries continuously.
@@ -232,7 +232,7 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
 	// For B-tree with a width of 4, perform tests inserting.
-	t.Run("tests inserting B-tree with a width of 4.", func(t *testing.T) {
+	t.Run("Tests inserting B-tree with a width of 4.", func(t *testing.T) {
 		// Initialize B-tree.
 		root := NewBpTree(4)
 		// Insert 50 data entries continuously.
@@ -410,7 +410,7 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 		// head.PrintAscent() // Print continuous data in the forward direction.
 		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
-	t.Run("tests inserting B-tree with a width of 5.", func(t *testing.T) {
+	t.Run("Tests inserting B-tree with a width of 5.", func(t *testing.T) {
 		// Initialize B-tree.
 		root := NewBpTree(5)
 		// Insert 50 data entries continuously.
@@ -563,7 +563,7 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 		// head.PrintAscent() // Print continuous data in the forward direction.
 		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
-	t.Run("tests inserting B-tree with a width of 6.", func(t *testing.T) {
+	t.Run("Tests inserting B-tree with a width of 6.", func(t *testing.T) {
 		// Initialize B-tree.
 		root := NewBpTree(6)
 		// Insert 50 data entries continuously.
@@ -699,7 +699,7 @@ func Test_Check_Btree_In_Real_World(t *testing.T) {
 		// head.PrintAscent() // Print continuous data in the forward direction.
 		// tail.PrintDescent() // Print continuous data in the reverse direction.
 	})
-	t.Run("tests inserting B-tree with a width of 7.", func(t *testing.T) {
+	t.Run("Tests inserting B-tree with a width of 7.", func(t *testing.T) {
 		// Initialize B-tree.
 		root := NewBpTree(7)
 		// Insert 50 data entries continuously.

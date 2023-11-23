@@ -5,7 +5,28 @@ import (
 	"sort"
 )
 
-func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popKey int64, popNode *BpIndex, status int, err error) {
+func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted bool, direction int, ix int) {
+	// Use binary search to find the index(i) where the key should be inserted.
+	ix = sort.Search(len(inode.Index), func(i int) bool {
+		return inode.Index[i] >= item.Key
+	})
+
+	deleted, direction = inode.DataNodes[ix].delete(item)
+
+	if deleted == true {
+		if direction == deleteRightOne {
+			ix = ix + 1
+		}
+
+		if direction == deleteLeftOne {
+			ix = ix - 1
+		}
+	}
+
+	return
+}
+
+func (inode *BpIndex) deleteItem2(newNode *BpIndex, item BpItem) (popIx int, popKey int64, popNode *BpIndex, status int, err error) {
 
 	// var newIndex int64
 	// var sideDataNode *BpData
@@ -31,7 +52,7 @@ func (inode *BpIndex) deleteItem(newNode *BpIndex, item BpItem) (popIx int, popK
 
 			// If there are index nodes, recursively insert the item into the appropriate node.
 			// (这里有递回去找到接近资料切片的地方)
-			popIx, popKey, popNode, status, err = inode.IndexNodes[ix].deleteItem(nil, item)
+			popIx, popKey, popNode, status, err = inode.IndexNodes[ix].deleteItem2(nil, item)
 
 			if status == statusDeProtrude && ix == 0 {
 				node := &BpIndex{}

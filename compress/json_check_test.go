@@ -14,7 +14,7 @@ convert and combine into single string.
 */
 func Test_Check_OneLine(t *testing.T) {
 	// Run test case for safe one line separation
-	t.Run("safe one line", func(t *testing.T) {
+	t.Run("Safe one line", func(t *testing.T) {
 		// Raw string input with tabs and newlines
 		raw := []byte{
 			'\t', '\n', 'A', '\t', '\n',
@@ -41,7 +41,7 @@ func Test_Check_OneLine(t *testing.T) {
 		require.Equal(t, str, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	})
 	// Run test case for unsafe one line separation
-	t.Run("unsafe one line", func(t *testing.T) {
+	t.Run("Unsafe one line", func(t *testing.T) {
 		// Raw JSON string input
 		raw := []byte{
 			'\t', '\n', 'A', '\t', '\n',
@@ -72,7 +72,7 @@ validate JSON separated, checking output.
 */
 func Test_Check_Separate(t *testing.T) {
 	// Run test case for safe separation
-	t.Run("safe separate", func(t *testing.T) {
+	t.Run("Safe separate", func(t *testing.T) {
 		// Raw JSON string input
 		raw := []byte{
 			'{', 'A', 'B', 'C', '}',
@@ -103,7 +103,7 @@ func Test_Check_Separate(t *testing.T) {
 		require.Equal(t, arr[8], "{YZ}")
 	})
 	// Run test case for unsafe separation
-	t.Run("unsafe one line", func(t *testing.T) {
+	t.Run("Unsafe one line", func(t *testing.T) {
 		// Raw JSON string input
 		raw := []byte{
 			'{', 'A', 'B', 'C', '}',
