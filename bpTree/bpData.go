@@ -155,7 +155,7 @@ func (data *BpData) _delete(item BpItem) (deleted bool, ix int) {
 	})
 
 	// If the item is found in the current node, perform deletion and update the slice.
-	if ix < len(data.Items) && data.Items[ix].Key == item.Key {
+	if ix <= len(data.Items)-1 && ix < len(data.Items) && data.Items[ix].Key == item.Key {
 		copy(data.Items[ix:], data.Items[ix+1:])
 		data.Items = data.Items[:len(data.Items)-1]
 		deleted = true
