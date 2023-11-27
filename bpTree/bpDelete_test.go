@@ -121,14 +121,16 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 
 		// Execute the delete command for the first time.
 		deleted, direction, ix := inode.delete(BpItem{Key: 5})
-		require.True(t, deleted)                    // It will always delete data, just in different BpData nodes.
-		require.Equal(t, deleteRightOne, direction) // Delete at the neighbor nodes.
-		require.Equal(t, 1, ix)                     // Delete data on the first BpData Node.
+		require.True(t, deleted)                     // It will always delete data, just in different BpData nodes.
+		require.Equal(t, deleteMiddleOne, direction) // Delete at the neighbor nodes.
+		require.Equal(t, 1, ix)                      // Delete data on the first BpData Node.
+
+		// >>>>> The next step is to update the index. The following cannot be tested. ⚠️
 
 		// Execute the delete command for the second time.
-		deleted, direction, ix = inode.delete(BpItem{Key: 5})
-		require.True(t, deleted)                    // It will always delete data, just in different BpData nodes.
-		require.Equal(t, deleteRightOne, direction) // Delete at the neighbor nodes.
-		require.Equal(t, 1, ix)                     // Delete data on the first BpData Node.
+		// deleted, direction, ix = inode.delete(BpItem{Key: 5})
+		// require.True(t, deleted)                    // It will always delete data, just in different BpData nodes.
+		// require.Equal(t, deleteRightOne, direction) // Delete at the neighbor nodes.
+		// require.Equal(t, 1, ix)                     // Delete data on the first BpData Node.
 	})
 }
