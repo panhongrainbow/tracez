@@ -97,7 +97,7 @@ func Test_Check_BpData_delete(t *testing.T) {
 
 		// Create a BpItem to be deleted and perform the deletion.
 		item := BpItem{Key: 3, Val: "Value3"}
-		deleted, direction := data.delete(item)
+		deleted, direction := data.delete(item, false)
 
 		// Check if the deletion was successful and if the data length is as expected after deletion.
 		require.True(t, deleted)
@@ -116,14 +116,12 @@ func Test_Check_BpData_delete(t *testing.T) {
 			Previous: nil,
 			Next:     nil,
 			Items:    []BpItem{{Key: 1}, {Key: 2}},
-			Split:    false,
 		}
 
 		bpData2 := BpData{
 			Previous: nil,
 			Next:     nil,
 			Items:    []BpItem{{Key: 2}, {Key: 3}},
-			Split:    false,
 		}
 
 		// Establish the link between the two nodes.
@@ -131,14 +129,14 @@ func Test_Check_BpData_delete(t *testing.T) {
 		bpData2.Previous = &bpData1
 
 		// Perform the deletion of a key in the first node.
-		deleted, direction := bpData1.delete(BpItem{Key: 2})
+		deleted, direction := bpData1.delete(BpItem{Key: 2}, false)
 		require.True(t, deleted)
 		require.Len(t, bpData1.Items, 1)
 		require.Len(t, bpData2.Items, 2)
 		require.Equal(t, deleteMiddleOne, direction) // hit middle one
 
 		// Perform the deletion of the same key in the first node again.
-		deleted, direction = bpData1.delete(BpItem{Key: 2})
+		deleted, direction = bpData1.delete(BpItem{Key: 2}, false)
 		require.True(t, deleted)
 		require.Len(t, bpData1.Items, 1)
 		require.Len(t, bpData2.Items, 1)            // Go to the neighbor BpData node and perform the deletion.

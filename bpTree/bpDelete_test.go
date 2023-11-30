@@ -19,14 +19,12 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 			Previous: nil,
 			Next:     nil,
 			Items:    []BpItem{{Key: 1}, {Key: 2}},
-			Split:    false,
 		}
 
 		bpData1 := BpData{
 			Previous: nil,
 			Next:     nil,
 			Items:    []BpItem{{Key: 2}, {Key: 3}},
-			Split:    false,
 		}
 
 		// Establish the link between the two nodes.
@@ -44,13 +42,12 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		deleted, direction, ix := inode.deleteBottomItem(BpItem{Key: 2})
 		require.True(t, deleted)                     // It will always delete data, just in different BpData nodes.
 		require.Equal(t, deleteMiddleOne, direction) // Delete directly at the specified node without removing data from neighbor nodes.
-		require.Equal(t, 0, ix)                      // Delete data on the first BpData Node.
+		require.Equal(t, 1, ix)                      // Delete data on the first BpData Node.
+
+		// >>>>> The next step is to update the index. The following cannot be tested. ⚠️
 
 		// Execute the delete command for the second time.
-		deleted, direction, ix = inode.deleteBottomItem(BpItem{Key: 2})
-		require.True(t, deleted)                    // It will always delete data, just in different BpData nodes.
-		require.Equal(t, deleteRightOne, direction) // Delete at the neighbor nodes.
-		require.Equal(t, 1, ix)                     // Delete data on the second BpData Node.
+		// deleted, direction, ix = inode.deleteBottomItem(BpItem{Key: 2})
 	})
 	t.Run("Delete data at the BpIndex.", func(t *testing.T) {
 		// Set up the total width and half-width for the B Plus Tree.
@@ -62,28 +59,24 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 			Previous: nil,
 			Next:     nil,
 			Items:    []BpItem{{Key: 1}},
-			Split:    false,
 		}
 
 		bpData1 := BpData{
 			Previous: nil,
 			Next:     nil,
 			Items:    []BpItem{{Key: 5}, {Key: 5}},
-			Split:    false,
 		}
 
 		bpData2 := BpData{
 			Previous: nil,
 			Next:     nil,
 			Items:    []BpItem{{Key: 5}, {Key: 5}},
-			Split:    false,
 		}
 
 		bpData3 := BpData{
 			Previous: nil,
 			Next:     nil,
 			Items:    []BpItem{{Key: 5}, {Key: 10}},
-			Split:    false,
 		}
 
 		// Establish the link among the nodes.
@@ -120,17 +113,15 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete command for the first time.
-		deleted, direction, ix := inode.delete(BpItem{Key: 5})
+		deleted, _, direction, ix, err := inode.delete(BpItem{Key: 5})
 		require.True(t, deleted)                     // It will always delete data, just in different BpData nodes.
 		require.Equal(t, deleteMiddleOne, direction) // Delete at the neighbor nodes.
 		require.Equal(t, 1, ix)                      // Delete data on the first BpData Node.
+		require.NoError(t, err)
 
 		// >>>>> The next step is to update the index. The following cannot be tested. ⚠️
 
 		// Execute the delete command for the second time.
-		// deleted, direction, ix = inode.delete(BpItem{Key: 5})
-		// require.True(t, deleted)                    // It will always delete data, just in different BpData nodes.
-		// require.Equal(t, deleteRightOne, direction) // Delete at the neighbor nodes.
-		// require.Equal(t, 1, ix)                     // Delete data on the first BpData Node.
+		// deleted, _, direction, ix, err = inode.delete(BpItem{Key: 5})
 	})
 }

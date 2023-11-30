@@ -9,16 +9,17 @@ import (
 
 // BpData represents the data structure for a B+ tree node.
 type BpData struct {
-	Previous *BpData  // Pointer to the previous BpData node.
-	Next     *BpData  // Pointer to the next BpData node.
-	Items    []BpItem // Slice to store BpItem elements.
-	Split    bool     // After splitting the nodes, mark it.
+	Previous         *BpData  // Pointer to the previous BpData node.
+	Next             *BpData  // Pointer to the next BpData node.
+	Items            []BpItem // Slice to store BpItem elements.
+	ShouldRenewIndex bool     // Flag indicating whether index renewal is needed.
 }
 
 // BpItem is used to record key-value pairs.
 type BpItem struct {
-	Key int64       `json:"key"` // The key used for indexing.
-	Val interface{} `json:"val"` // The associated value.
+	Key  int64       // The key used for indexing.
+	Val  interface{} // The associated value.
+	Mask bool        // Deleted, but unable to update the index on time.
 }
 
 // dataLength returns the length of BpData's items slice.
@@ -102,9 +103,6 @@ func (data *BpData) split() (side *BpData, err error) {
 		data.Next.Next.Previous = side // Update the previous node of the second-old node to the new node.第2旧节点 的上一个节点为 新节点
 	}
 
-	// Mark the split as completed
-	data.Split = true
-
 	// No error
 	return
 }
@@ -120,29 +118,52 @@ const (
 
 // delete is a method of the BpData type that attempts to delete a BpItem from the BpData.
 // It first checks the current node and then navigates to the appropriate neighbor node if needed.
-func (data *BpData) delete(item BpItem) (deleted bool, direction int) {
+func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direction int) {
 	// Initialize variables to track deletion status and index.
 	var ix int
 	deleted, ix = data._delete(item)
 	direction = deleteNoThing // Set initial value.
 
 	// Simultaneously search for and delete.
-	if deleted == true { // If the item is successfully deleted in the current node, return.
+	if deleted {
+		// If the item is successfully deleted in the current node, return.
 		direction = deleteMiddleOne
-	} else if deleted == false {
-		if ix > 0 { // If the item is not found in the current node and has a non-zero index
+	} else if !deleted {
+		// When the quantity is 1, search for data in the left and right nodes.
+		// 当数量为1，就左右邻居都找资料 ‼️
+		if ix > 0 || len(data.Items) == 1 {
+			// If the item is not found in the current node and has a non-zero index,
 			// attempt deletion in the next (right) neighbor node.
-			deleted, _ = data.Next._delete(item)
-			direction = deleteRightOne
-		} else if ix == 0 {
+			if data.Next != nil {
+				if considerMark {
+					deleted, _ = data.Next._mask(item)
+				} else {
+					deleted, _ = data.Next._delete(item)
+				}
+				if deleted {
+					direction = deleteRightOne
+					return
+				}
+			}
+		}
+		if ix == 0 || len(data.Items) == 1 {
 			// If the item is not found in the current node and has an index of zero,
 			// attempt deletion in the previous (left) neighbor node.
-			deleted, _ = data.Previous._delete(item)
-			direction = deleteLeftOne
+			if data.Previous != nil {
+				if considerMark {
+					deleted, _ = data.Previous._mask(item)
+				} else {
+					deleted, _ = data.Previous._delete(item)
+				}
+				if deleted {
+					direction = deleteLeftOne
+					return
+				}
+			}
 		}
 	}
 
-	// After going through the above process, proceed with the return
+	// After going through the above process, proceed with the return.
 	return
 }
 
@@ -158,6 +179,23 @@ func (data *BpData) _delete(item BpItem) (deleted bool, ix int) {
 	if ix <= len(data.Items)-1 && ix < len(data.Items) && data.Items[ix].Key == item.Key {
 		copy(data.Items[ix:], data.Items[ix+1:])
 		data.Items = data.Items[:len(data.Items)-1]
+		deleted = true
+		return
+	}
+
+	// If the item is not found, return without performing deletion.
+	return
+}
+
+func (data *BpData) _mask(item BpItem) (deleted bool, ix int) {
+	// Use binary search to find the index where the item should be deleted.
+	ix = sort.Search(len(data.Items), func(i int) bool {
+		return data.Items[i].Key >= item.Key
+	})
+
+	// If the item is found in the current node, perform deletion and update the slice.
+	if ix <= len(data.Items)-1 && data.Items[ix].Key == item.Key {
+		data.Items[ix].Mask = true
 		deleted = true
 		return
 	}
