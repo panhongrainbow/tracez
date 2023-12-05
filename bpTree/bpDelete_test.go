@@ -1,6 +1,7 @@
 package bpTree
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -39,15 +40,26 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete command for the first time.
-		deleted, direction, ix := inode.deleteBottomItem(BpItem{Key: 2})
-		require.True(t, deleted)                     // It will always delete data, just in different BpData nodes.
-		require.Equal(t, deleteMiddleOne, direction) // Delete directly at the specified node without removing data from neighbor nodes.
-		require.Equal(t, 1, ix)                      // Delete data on the first BpData Node.
+		deleted, updated, direction, ix, err := inode.deleteBottomItem(BpItem{Key: 2})
+		require.True(t, deleted)
+		require.True(t, updated)                  // Updated the index ‼️
+		require.Equal(t, []int64{3}, inode.Index) // The index has been updated (2->3) ‼️
+		require.Equal(t, deleteMiddleOne, direction)
+		require.Equal(t, 1, ix) // Perform deletion in the 2nd node
+		require.NoError(t, err)
 
-		// >>>>> The next step is to update the index. The following cannot be tested. ⚠️
+		// Here is a key point: when data is deleted in the 2nd bpData node, the index is immediately updated.
+		// The index changes from []int64{2} to []int64{3}, and the new index, in the next deletion, guides the operation to the 1st node.
+		// (删除第2个bpData节点后，立即更新索引为[]int64{3}，下次删除操作将指向第1个节点)
 
 		// Execute the delete command for the second time.
-		// deleted, direction, ix = inode.deleteBottomItem(BpItem{Key: 2})
+		deleted, updated, direction, ix, err = inode.deleteBottomItem(BpItem{Key: 2})
+		require.True(t, deleted)
+		require.False(t, updated)                 // Not updated to the index ‼️
+		require.Equal(t, []int64{3}, inode.Index) // No update to the index  (3->3) ‼️
+		require.Equal(t, deleteMiddleOne, direction)
+		require.Equal(t, 0, ix) // Guide the deletion operation to the 1st node. (引到第一节点)
+		require.NoError(t, err)
 	})
 	t.Run("Delete data at the BpIndex.", func(t *testing.T) {
 		// Set up the total width and half-width for the B Plus Tree.
@@ -113,15 +125,23 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete command for the first time.
-		deleted, _, direction, ix, err := inode.delete(BpItem{Key: 5})
-		require.True(t, deleted)                     // It will always delete data, just in different BpData nodes.
+		deleted, updated, direction, ix, err := inode.delete(BpItem{Key: 5})
+		require.True(t, deleted)
+		require.True(t, updated)                     // Updated the index ‼️
+		require.Equal(t, []int64{10}, inode.Index)   // The index has been updated (5->10) ‼️
 		require.Equal(t, deleteMiddleOne, direction) // Delete at the neighbor nodes.
-		require.Equal(t, 1, ix)                      // Delete data on the first BpData Node.
+		require.Equal(t, 1, ix)                      // Delete data on the second BpIndex Node. (删除第二个分支里的资料) ‼️
 		require.NoError(t, err)
 
-		// >>>>> The next step is to update the index. The following cannot be tested. ⚠️
+		fmt.Println("-------------------")
 
 		// Execute the delete command for the second time.
-		// deleted, _, direction, ix, err = inode.delete(BpItem{Key: 5})
+		deleted, updated, direction, ix, err = inode.delete(BpItem{Key: 5})
+		require.True(t, deleted)
+		require.False(t, updated)                    // Not updated to the index ‼️
+		require.Equal(t, []int64{10}, inode.Index)   // No update to the index  (10->10) ‼️
+		require.Equal(t, deleteMiddleOne, direction) // Delete at the neighbor nodes.
+		require.Equal(t, 0, ix)                      // Delete data on the first BpIndex Node. (删除第一个分支里的资料) ‼️
+		require.NoError(t, err)
 	})
 }

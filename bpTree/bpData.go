@@ -114,6 +114,8 @@ const (
 	deleteMiddleOne
 	deleteLeftOne
 	deleteRightOne
+	maskLeftOne
+	maskRightOne
 )
 
 // delete is a method of the BpData type that attempts to delete a BpItem from the BpData.
@@ -123,6 +125,9 @@ func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direct
 	var ix int
 	deleted, ix = data._delete(item)
 	direction = deleteNoThing // Set initial value.
+
+	// Here, testing is being conducted (测试用).
+	fmt.Println("in Data", ix)
 
 	// Simultaneously search for and delete.
 	if deleted {
@@ -136,13 +141,15 @@ func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direct
 			// attempt deletion in the next (right) neighbor node.
 			if data.Next != nil {
 				if considerMark {
-					deleted, _ = data.Next._mask(item)
+					if deleted, _ = data.Next._mask(item); deleted {
+						direction = maskRightOne
+						return
+					}
 				} else {
-					deleted, _ = data.Next._delete(item)
-				}
-				if deleted {
-					direction = deleteRightOne
-					return
+					if deleted, _ = data.Next._delete(item); deleted {
+						direction = deleteRightOne
+						return
+					}
 				}
 			}
 		}
@@ -151,13 +158,15 @@ func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direct
 			// attempt deletion in the previous (left) neighbor node.
 			if data.Previous != nil {
 				if considerMark {
-					deleted, _ = data.Previous._mask(item)
+					if deleted, _ = data.Previous._mask(item); deleted {
+						direction = maskLeftOne
+						return
+					}
 				} else {
-					deleted, _ = data.Previous._delete(item)
-				}
-				if deleted {
-					direction = deleteLeftOne
-					return
+					if deleted, _ = data.Previous._delete(item); deleted {
+						direction = deleteLeftOne
+						return
+					}
 				}
 			}
 		}
