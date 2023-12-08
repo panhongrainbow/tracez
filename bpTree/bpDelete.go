@@ -6,6 +6,46 @@ import (
 	"sort"
 )
 
+// 由左邊刪除 👈
+
+// delete is a method of the BpIndex type that deletes the specified BpItem.
+func (inode *BpIndex) delete2(item BpItem) (deleted, updated bool, ix int, err error) {
+	// Use binary search to find the index (ix) where the key should be deleted.
+	ix = sort.Search(len(inode.Index), func(i int) bool {
+		return inode.Index[i] >= item.Key // equal sign ‼️
+	})
+
+	// Check if there are any index nodes.
+	if len(inode.IndexNodes) > 0 {
+		// Recursive call to delete method on the corresponding IndexNode.
+		deleted, updated, _, err = inode.IndexNodes[ix].delete(item)
+
+		if updated {
+			updated, err = inode.updateIndex(ix)
+		}
+
+		// Here, testing is being conducted (测试用).
+		fmt.Println("not in Bottom", ix)
+	}
+
+	// Check if there are any data nodes.
+	if len(inode.DataNodes) > 0 {
+		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
+		// This signifies the beginning of deleting data.
+
+		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
+		deleted, updated, ix, err = inode.deleteBottomItem(item) // Possible index update ‼️
+
+		// Here, testing is being conducted (测试用).
+		fmt.Println("in Bottom", ix)
+	}
+
+	// Return the results of the deletion.
+	return
+}
+
+// 由右邊刪除 👉
+
 // delete is a method of the BpIndex type that deletes the specified BpItem.
 func (inode *BpIndex) delete(item BpItem) (deleted, updated bool, ix int, err error) {
 	// Use binary search to find the index (ix) where the key should be deleted.
