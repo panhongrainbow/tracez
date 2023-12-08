@@ -7,7 +7,7 @@ import (
 )
 
 // delete is a method of the BpIndex type that deletes the specified BpItem.
-func (inode *BpIndex) delete(item BpItem) (deleted, updated bool, direction int, ix int, err error) {
+func (inode *BpIndex) delete(item BpItem) (deleted, updated bool, ix int, err error) {
 	// Use binary search to find the index (ix) where the key should be deleted.
 	ix = sort.Search(len(inode.Index), func(i int) bool {
 		return inode.Index[i] > item.Key // No equal sign ‼️
@@ -16,7 +16,7 @@ func (inode *BpIndex) delete(item BpItem) (deleted, updated bool, direction int,
 	// Check if there are any index nodes.
 	if len(inode.IndexNodes) > 0 {
 		// Recursive call to delete method on the corresponding IndexNode.
-		deleted, updated, direction, _, err = inode.IndexNodes[ix].delete(item)
+		deleted, updated, _, err = inode.IndexNodes[ix].delete(item)
 
 		if updated {
 			updated, err = inode.updateIndex(ix)
@@ -32,7 +32,7 @@ func (inode *BpIndex) delete(item BpItem) (deleted, updated bool, direction int,
 		// This signifies the beginning of deleting data.
 
 		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
-		deleted, updated, direction, ix, err = inode.deleteBottomItem(item) // Possible index update ‼️
+		deleted, updated, ix, err = inode.deleteBottomItem(item) // Possible index update ‼️
 
 		// Here, testing is being conducted (测试用).
 		fmt.Println("in Bottom", ix)
@@ -42,8 +42,64 @@ func (inode *BpIndex) delete(item BpItem) (deleted, updated bool, direction int,
 	return
 }
 
+// delete is a method of the BpIndex type that deletes the specified BpItem.
+func (inode *BpIndex) deleteDeprecated(item BpItem) (deleted, updated bool, direction int, ix int, err error) {
+	// Use binary search to find the index (ix) where the key should be deleted.
+	ix = sort.Search(len(inode.Index), func(i int) bool {
+		return inode.Index[i] > item.Key // No equal sign ‼️
+	})
+
+	// Check if there are any index nodes.
+	if len(inode.IndexNodes) > 0 {
+		// Recursive call to delete method on the corresponding IndexNode.
+		deleted, updated, direction, _, err = inode.IndexNodes[ix].deleteDeprecated(item)
+
+		if updated {
+			updated, err = inode.updateIndex(ix)
+		}
+
+		// Here, testing is being conducted (测试用).
+		fmt.Println("not in Bottom", ix)
+	}
+
+	// Check if there are any data nodes.
+	if len(inode.DataNodes) > 0 {
+		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
+		// This signifies the beginning of deleting data.
+
+		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
+		deleted, updated, direction, ix, err = inode.deleteBottomItemDeprecated(item) // Possible index update ‼️
+
+		// Here, testing is being conducted (测试用).
+		fmt.Println("in Bottom", ix)
+	}
+
+	// Return the results of the deletion.
+	return
+}
+
+func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int, err error) {
+	// Use binary search to find the index (ix) where the key should be inserted.
+	ix = sort.Search(len(inode.Index), func(i int) bool {
+		return inode.Index[i] > item.Key // No equal sign ‼️
+	})
+
+	// Call the delete method on the corresponding DataNode to delete the item.
+	deleted, _ = inode.DataNodes[ix]._delete(item)
+
+	// The following are operations for updating the index (更新索引) ‼️
+	if deleted == true && len(inode.DataNodes[ix].Items) > 0 {
+		updated, err = inode.updateBottomIndex(ix)
+	}
+
+	// Return the results of the deletion.
+	return
+}
+
+// 准备考虑废除 mark 功能 🔥
+
 // deleteBottomItem deletes the specified BpItem from the DataNodes near the bottom layer of the BpIndex.
-func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, direction int, ix int, err error) {
+func (inode *BpIndex) deleteBottomItemDeprecated(item BpItem) (deleted, updated bool, direction int, ix int, err error) {
 	// ➡️ Executing the process of data deletion to remove item.
 
 	// Use binary search to find the index (ix) where the key should be inserted.

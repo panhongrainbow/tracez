@@ -40,7 +40,7 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete command for the first time.
-		deleted, updated, direction, ix, err := inode.deleteBottomItem(BpItem{Key: 2})
+		deleted, updated, direction, ix, err := inode.deleteBottomItemDeprecated(BpItem{Key: 2})
 		require.True(t, deleted)
 		require.True(t, updated)                  // Updated the index ‼️
 		require.Equal(t, []int64{3}, inode.Index) // The index has been updated (2->3) ‼️
@@ -53,7 +53,7 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		// (删除第2个bpData节点后，立即更新索引为[]int64{3}，下次删除操作将指向第1个节点)
 
 		// Execute the delete command for the second time.
-		deleted, updated, direction, ix, err = inode.deleteBottomItem(BpItem{Key: 2})
+		deleted, updated, direction, ix, err = inode.deleteBottomItemDeprecated(BpItem{Key: 2})
 		require.True(t, deleted)
 		require.False(t, updated)                 // Not updated to the index ‼️
 		require.Equal(t, []int64{3}, inode.Index) // No update to the index  (3->3) ‼️
@@ -125,23 +125,26 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete command for the first time.
-		deleted, updated, direction, ix, err := inode.delete(BpItem{Key: 5})
+		deleted, updated, ix, err := inode.delete(BpItem{Key: 5})
 		require.True(t, deleted)
-		require.True(t, updated)                     // Updated the index ‼️
-		require.Equal(t, []int64{10}, inode.Index)   // The index has been updated (5->10) ‼️
-		require.Equal(t, deleteMiddleOne, direction) // Delete at the neighbor nodes.
-		require.Equal(t, 1, ix)                      // Delete data on the second BpIndex Node. (删除第二个分支里的资料) ‼️
+		require.True(t, updated)                   // Updated the index ‼️
+		require.Equal(t, []int64{10}, inode.Index) // The index has been updated (5->10) ‼️
+		require.Equal(t, 1, ix)                    // Delete data on the second BpIndex Node. (删除第二个分支里的资料) ‼️
 		require.NoError(t, err)
 
 		fmt.Println("-------------------")
 
 		// Execute the delete command for the second time.
-		deleted, updated, direction, ix, err = inode.delete(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delete(BpItem{Key: 5})
 		require.True(t, deleted)
-		require.False(t, updated)                    // Not updated to the index ‼️
-		require.Equal(t, []int64{10}, inode.Index)   // No update to the index  (10->10) ‼️
-		require.Equal(t, deleteMiddleOne, direction) // Delete at the neighbor nodes.
-		require.Equal(t, 0, ix)                      // Delete data on the first BpIndex Node. (删除第一个分支里的资料) ‼️
+		require.False(t, updated)                  // Not updated to the index ‼️
+		require.Equal(t, []int64{10}, inode.Index) // No update to the index  (10->10) ‼️
+		require.Equal(t, 0, ix)                    // Delete data on the first BpIndex Node. (删除第一个分支里的资料) ‼️
 		require.NoError(t, err)
+
+		fmt.Println("-------------------")
+
+		// Execute the delete command for the third time.
+		deleted, updated, ix, err = inode.delete(BpItem{Key: 5})
 	})
 }
