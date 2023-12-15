@@ -8,6 +8,109 @@ import (
 
 // Test_Check_BpData_delete is a test function for the delete method of the BpIndex type.
 func Test_Check_BpIndex_delete(t *testing.T) {
+	// Data deletion will take place in different directions depending on the context.
+	// If it is continuous, deletion will occur from the left, whereas for non-continuous data, it will occur from the right.
+	// 连续往左边，不连续往右边
+	t.Run("The continuous data deletion will occur from the leftmost side.", func(t *testing.T) {
+		// Set up the total width and half-width for the B Plus Tree.
+		BpWidth = 3
+		BpHalfWidth = 2
+
+		// Create seven BpData nodes.
+		bpData0 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 1}, {Key: 2}},
+		}
+
+		bpData1 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 5}, {Key: 5}},
+		}
+
+		bpData2 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 5}, {Key: 5}},
+		}
+
+		bpData3 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 5}},
+		}
+
+		bpData4 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 10}},
+		}
+
+		bpData5 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 11}},
+		}
+
+		bpData6 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 12}, {Key: 13}},
+		}
+
+		// Establish the link between the two nodes. (Next Direction)
+		bpData0.Next = &bpData1
+		bpData1.Next = &bpData2
+		bpData2.Next = &bpData3
+		bpData3.Next = &bpData4
+		bpData4.Next = &bpData5
+		bpData5.Next = &bpData6
+		bpData6.Next = nil
+
+		// Establish the link between the two nodes. (Previous Direction)
+		bpData6.Previous = &bpData5
+		bpData5.Previous = &bpData4
+		bpData4.Previous = &bpData3
+		bpData3.Previous = &bpData2
+		bpData2.Previous = &bpData1
+		bpData1.Previous = nil
+
+		// Set up a top-level index node. (整个树建立好)
+		inode := &BpIndex{
+			Index: []int64{5, 10},
+			IndexNodes: []*BpIndex{
+				{
+					Index: []int64{5},
+					DataNodes: []*BpData{ // IndexNode ▶️
+						&bpData0, // DataNode 🗂️
+						&bpData1, // DataNode 🗂️
+					},
+				},
+				{
+					Index: []int64{5},
+					DataNodes: []*BpData{ // IndexNode ▶️
+						&bpData2, // DataNode 🗂️
+						&bpData3, // DataNode 🗂️
+					},
+				},
+				{
+					Index: []int64{11, 12},
+					DataNodes: []*BpData{ // IndexNode ▶️
+						&bpData4, // DataNode 🗂️
+						&bpData5, // DataNode 🗂️
+						&bpData6, // DataNode 🗂️
+					},
+				},
+			},
+			DataNodes: []*BpData{},
+		}
+
+		// Execute the delete command for the first time.
+		deleted, updated, ix, err := inode.delAndDir(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
+		fmt.Println(deleted, updated, ix, err)
+	})
 	// Delete data at the closest bottom BpIndex. When entering the BpData node,
 	// it may also be possible to search the surrounding.
 	t.Run("Delete data at the closest bottom BpIndex.", func(t *testing.T) {
@@ -125,7 +228,7 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete command for the first time.
-		deleted, updated, ix, err := inode.delete2(BpItem{Key: 5})
+		deleted, updated, ix, err := inode.delAndDir(BpItem{Key: 5})
 		fmt.Println(deleted, updated, ix, err)
 		// require.True(t, deleted)
 		// require.True(t, updated)                   // Updated the index ‼️
@@ -136,7 +239,7 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		fmt.Println("-------------------")
 
 		// Execute the delete command for the second time.
-		deleted, updated, ix, err = inode.delete2(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
 		fmt.Println(deleted, updated, ix, err)
 		// require.True(t, deleted)
 		// require.False(t, updated)                  // Not updated to the index ‼️
