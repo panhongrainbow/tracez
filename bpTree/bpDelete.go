@@ -2,11 +2,10 @@ package bpTree
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 )
 
-// ➡️ The function regarding direction
+// ➡️ The functions related to direction.
 
 // delAndDir performs data deletion based on automatic direction detection.
 // 自动判断资料删除方向，其實會由不同方向進行刪除
@@ -75,7 +74,8 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
 		deleted, updated, ix = inode.deleteBottomItem(item)
 
-		// The individual data node is now empty, and it is necessary to start borrowing data from neighboring nodes.
+		// The individual data node is now empty, and
+		// it is necessary to start borrowing data from neighboring nodes.
 		if len(inode.DataNodes[ix].Items) == 0 {
 			var borrowed bool
 			borrowed, err = inode.borrowFromBothSide(ix)
@@ -104,14 +104,11 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 	if len(inode.IndexNodes) > 0 {
 		// Use binary search to find the index (ix) where the key should be deleted.
 		ix = sort.Search(len(inode.Index), func(i int) bool {
-			return inode.Index[i] > item.Key // No equal sign ‼️ on the most right side ‼️ (no equal sign means delete to the right‼️)
+			return inode.Index[i] > item.Key // no equal sign ‼️ no equal sign means delete to the right ‼️
 		})
 
-		// Recursive call to delete method on the corresponding IndexNode. 递归一直向右砍 ➡️
+		// Recursion keeps deletion in the right direction. 递归一直向右砍 ⬅️
 		deleted, updated, _, err = inode.IndexNodes[ix].deleteToRight(item)
-
-		// Here, testing is being conducted (测试用).
-		// fmt.Println("not in Bottom", ix)
 
 		// Immediately update the index of index node.
 		if updated {
@@ -122,7 +119,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 				}
 			}
 			if len(inode.IndexNodes[ix].Index) == 0 {
-				err = inode.borrowNodeSide(ix)
+				err = inode.borrowNodeSide(ix) // Will borrow part of the node (借结点).
 			}
 		}
 
@@ -135,21 +132,36 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
 		// This signifies the beginning of deleting data. (接近资料层)
 
-		// Here, testing is being conducted (测试用).
-		// fmt.Println("in Bottom", ix)
+		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
+		deleted, updated, ix = inode.deleteBottomItem(item)
 
-		// Directly delete the bottom data.
-		deleted, updated, ix, err = inode.deleteBottomItem(item)
+		// The individual data node is now empty, and
+		// it is necessary to start borrowing data from neighboring nodes.
+		if len(inode.DataNodes[ix].Items) == 0 {
+			var borrowed bool
+			borrowed, err = inode.borrowFromBothSide(ix) // If you can borrow, you can maintain the integrity of the node."
+			if err != nil {
+				return
+			}
+			if borrowed == true {
+				updated = true // At the same time, it also needs to be updated.
+			}
+			// if borrowed == false {} // If borrowing here is not possible, partial nodes will be borrowed later.
+		}
 
-		// Data node is potentially empty, delete data index.
-		inode.dropIndexIfdataNodeEmpty(ix)
+		// If the data node becomes smaller, the index will be removed.
+		if len(inode.DataNodes) <= 2 && len(inode.DataNodes[ix].Items) == 0 {
+			inode.Index = []int64{}
+		}
 	}
 
 	// Return the results of the deletion.
 	return
 }
 
-func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int, err error) {
+// deleteBottomItem will remove data from the bottom layer.
+// If the node is too small, it will clear the entire index.
+func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int) {
 	// Use binary search to find the index (ix) where the key should be inserted.
 	ix = sort.Search(len(inode.Index), func(i int) bool {
 		return inode.Index[i] > item.Key // No equal sign ‼️
@@ -158,17 +170,166 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 	// Call the delete method on the corresponding DataNode to delete the item.
 	deleted, _ = inode.DataNodes[ix]._delete(item)
 
-	// The following are operations for updating the index (更新索引) ‼️
-	if deleted == true && len(inode.DataNodes[ix].Items) > 0 {
-		updated, err = inode.updateBottomIndex(ix)
+	// The Bpdatdataode is too small to form an index.
+	if deleted == true && len(inode.DataNodes) < 2 {
+		inode.Index = []int64{} // Wipe out the whole index.
 	}
 
 	// Return the results of the deletion.
 	return
 }
 
+// ➡️ The functions related to updated indexes.
+
+// updateIndexBetweenIndexes is for updating non-bottom-level indices. (更新非底层的索引)
+func (inode *BpIndex) updateIndexBetweenIndexes(ix int) (updated bool, err error) {
+	if ix > 0 && // 條件1 ix 要大於 0
+		len(inode.IndexNodes[ix].IndexNodes) >= 2 && // 條件2 下層索引節點數量要大於等於 2
+		(inode.Index[ix-1] != inode.IndexNodes[ix].Index[0]) { // 條件3 和原索引不同
+
+		// 進行更新
+		inode.Index[ix-1] = inode.IndexNodes[ix].Index[0]
+		updated = true
+	}
+
+	// Finally, perform the return.
+	return
+}
+
+// ➡️ The functions related to borrowed data.
+
+// borrowFromBothSide only borrows a portion of data from the neighboring nodes.
+func (inode *BpIndex) borrowFromBothSide(ix int) (borrowed bool, err error) {
+	// Not an empty node, no need to borrow
+	if len(inode.DataNodes[ix].Items) != 0 {
+		err = fmt.Errorf("not an empty node, do not need to borrow")
+	}
+
+	// Borrow from the left side first
+	if (ix - 1) >= 0 { // Left neighbor
+		length := len(inode.DataNodes[ix-1].Items)
+		if length >= 2 { // Neighbor has enough data to borrow
+			firstItems := inode.DataNodes[ix-1].Items[:(length - 1)]    // First part contains the first element
+			borrowedItems := inode.DataNodes[ix-1].Items[(length - 1):] // Second part contains the remaining elements
+
+			inode.DataNodes[ix-1].Items = firstItems
+			inode.DataNodes[ix].Items = borrowedItems
+
+			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+
+			borrowed = true
+		}
+	}
+
+	// Borrow from the right side next
+	/*if (ix + 1) <= len(inode.DataNodes[ix].Items) { // Right neighbor
+		length := len(inode.DataNodes[ix+1].Items)
+		if length >= 2 { // Neighbor has enough data to borrow
+			borrowedItems := inode.DataNodes[ix+1].Items[:1] // First part contains the first element
+			secondItems := inode.DataNodes[ix+1].Items[1:]   // Second part contains the remaining elements
+
+			inode.DataNodes[ix].Items = borrowedItems
+			inode.DataNodes[ix+1].Items = secondItems
+
+			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+			inode.Index[ix] = inode.DataNodes[ix+1].Items[0].Key
+
+			borrowed = true
+		}
+	}*/
+
+	// Finally, return the result
+	return
+}
+
+// borrowNodeSide will borrow more data from neighboring nodes, including indexes.
+func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
+	// Anyway, as the index nodes keep shrinking, eventually leaving only two DataNodes,
+	// one of which may have no data. So here, we check whether the number of DataNodes is 2.
+	if len(inode.IndexNodes[ix].DataNodes) != 2 {
+		err = fmt.Errorf("the index is still there; there is no need to borrow nodes")
+		return
+	}
+
+	// When the index of inode is 1
+	if len(inode.Index) == 1 {
+		// Additional code to be written here
+	}
+	// When the index of inode is 2
+	if len(inode.Index) == 2 {
+		smaller := []int64{inode.Index[0]}
+		bigger := []int64{inode.Index[1]}
+
+		if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {
+			// Borrowing a portion of nodes to the right, including some data and index.
+
+			// Adjusting indexes
+			inode.Index = smaller
+			inode.IndexNodes[ix].Index = bigger
+			inode.Index = append(inode.Index, inode.IndexNodes[ix+1].Index[0])
+
+			// loading out data
+			inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]
+
+			// Receiving data
+			inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix].DataNodes[1].Next.Items[0])
+			inode.IndexNodes[ix].DataNodes[1].Next.Items = inode.IndexNodes[ix].DataNodes[1].Next.Items[1:]
+		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 {
+			// Borrowing a portion of nodes to the left, including some data and index.
+
+			// Adjusting indexes
+			inode.Index = bigger
+			inode.IndexNodes[ix].Index = smaller
+			indexLength := len(inode.IndexNodes[ix-1].Index)
+			inode.Index = append([]int64{inode.IndexNodes[ix-1].Index[indexLength-1]}, inode.Index...)
+
+			// loading out data
+			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index[:indexLength])
+
+			// Receiving data
+			nodeLength := len(inode.IndexNodes[ix].DataNodes[0].Previous.Items)
+			inode.IndexNodes[ix].DataNodes[0].Items = append([]BpItem{inode.IndexNodes[ix].DataNodes[0].Previous.Items[nodeLength-1]}, inode.IndexNodes[ix].DataNodes[0].Items...)
+			inode.IndexNodes[ix].DataNodes[0].Previous.Items = inode.IndexNodes[ix].DataNodes[0].Previous.Items[:nodeLength]
+		}
+	}
+
+	// Finally, return
+	return
+}
+
+/*func (inode *BpIndex) mergeWithEmptyIndex(ix int) {
+	//
+	for i := 0; i < len(inode.IndexNodes); i++ {
+		if len(inode.IndexNodes[i].Index) == 0 {
+			if len(inode.IndexNodes[i].DataNodes) > 0 {
+
+				// 如果 inode.IndexNodes[i].Index 長度為 0，不是索引節點為空，那就是資料節點為空
+
+				if len(inode.IndexNodes[i].IndexNodes) > 0 {
+					// 這裡是 IndexNode 有資料
+					// (不可以向別的節點借資料)
+					// 以後再處理
+				} else if len(inode.IndexNodes[i].DataNodes) > 0 {
+
+					if i == 0 {
+						//
+						fmt.Println()
+					}
+
+					// 看條件是否符合能向自己借
+					if len(inode.IndexNodes[i].Index) == 0 && len(inode.IndexNodes[i].DataNodes[0].Items) > 1 {
+						if err := inode.IndexNodes[i].splitAndDeleteSelf(); err != nil {
+							return
+						}
+					}
+				}
+			}
+		}
+	}
+}*/
+
 // 當 Items 為空，刪除 DpData 的部份索引
-func (inode *BpIndex) dropIndexIfdataNodeEmpty(ix int) {
+/*func (inode *BpIndex) dropIndexIfdataNodeEmpty(ix int) {
 	// 如果第一個和第二個 DataNode 為空，那第一個索引就刪除
 	if (ix == 0 || ix == 1) && len(inode.DataNodes[ix].Items) == 0 {
 		// 删除索引
@@ -198,9 +359,9 @@ func (inode *BpIndex) dropIndexIfdataNodeEmpty(ix int) {
 	}
 
 	return
-}
+}*/
 
-func (inode *BpIndex) mergeWithEmptyIndex() {
+/*func (inode *BpIndex) mergeWithEmptyIndex2() {
 	//
 	for i := 0; i < len(inode.IndexNodes); i++ {
 		if len(inode.IndexNodes[i].Index) == 0 {
@@ -229,9 +390,9 @@ func (inode *BpIndex) mergeWithEmptyIndex() {
 			}
 		}
 	}
-}
+}*/
 
-func (inode *BpIndex) splitAndDeleteSelf() (err error) {
+/*func (inode *BpIndex) splitAndDeleteSelf() (err error) {
 	//
 	firstItems := inode.DataNodes[0].Items[:1] // 第一份包含第一个元素
 	otherItems := inode.DataNodes[0].Items[1:] // 第二份包含剩余的元素
@@ -251,7 +412,7 @@ func (inode *BpIndex) splitAndDeleteSelf() (err error) {
 	inode.DataNodes = []*BpData{&firstBpData, &secondBpData}
 
 	return
-}
+}*/
 
 // delete is a method of the BpIndex type that deletes the specified BpItem.
 /*func (inode *BpIndex) deleteDeprecated(item BpItem) (deleted, updated bool, direction int, ix int, err error) {
@@ -327,20 +488,7 @@ func (inode *BpIndex) splitAndDeleteSelf() (err error) {
 	return
 }*/
 
-// This function is for updating non-bottom-level indices. (更新非底层的索引)
-func (inode *BpIndex) updateIndex(ix int) (updated bool, err error) {
-	if len(inode.IndexNodes[ix].IndexNodes) > 0 ||
-		(inode.Index[ix-1] != inode.IndexNodes[ix].Index[0]) {
-
-		// 進行更新
-		inode.Index[ix-1] = inode.IndexNodes[ix].Index[0]
-		updated = true
-	}
-	return
-}
-
-// updateBottomIndex cleans the data at the bottom level and updates the index. (清理底层资料并更新索引)
-func (inode *BpIndex) updateBottomIndex(ix int) (updated bool, err error) {
+/*func (inode *BpIndex) updateBottomIndex(ix int) (updated bool, err error) {
 	// Create a new index.
 	newIndex := make([]int64, 0)
 
@@ -369,10 +517,10 @@ func (inode *BpIndex) updateBottomIndex(ix int) (updated bool, err error) {
 
 	// Finally, perform the return.
 	return
-}
+}*/
 
 // CleanMark is used to maintain the BpIndex node to an appropriate size.
-func (inode *BpIndex) CleanMark(ix int) (err error) {
+/*func (inode *BpIndex) CleanMark(ix int) (err error) {
 	// ➡️ Here, addition and deletion will have different impacts.
 	// Updating the index to ensure the latest and most accurate representation of the BpData.
 	// When len(BpData) > 0, the quantity of BpData will be one more than the index.
@@ -419,4 +567,4 @@ LOOP:
 
 	// Cleanup complete, returning.
 	return
-}
+}*/
