@@ -152,6 +152,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		// If the data node becomes smaller, the index will be removed.
 		if len(inode.DataNodes) <= 2 && len(inode.DataNodes[ix].Items) == 0 {
 			inode.Index = []int64{}
+			updated = true
 		}
 	}
 
@@ -272,8 +273,10 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 			inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]
 
 			// Receiving data
-			inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix].DataNodes[1].Next.Items[0])
-			inode.IndexNodes[ix].DataNodes[1].Next.Items = inode.IndexNodes[ix].DataNodes[1].Next.Items[1:]
+			inode.IndexNodes[ix].DataNodes[1] = inode.IndexNodes[ix+1].DataNodes[0]
+			inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:]
+			/*inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix].DataNodes[1].Next.Items[0])
+			inode.IndexNodes[ix].DataNodes[1].Next.Items = inode.IndexNodes[ix].DataNodes[1].Next.Items[1:]*/
 		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 {
 			// Borrowing a portion of nodes to the left, including some data and index.
 
@@ -287,9 +290,11 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index[:indexLength])
 
 			// Receiving data
-			nodeLength := len(inode.IndexNodes[ix].DataNodes[0].Previous.Items)
-			inode.IndexNodes[ix].DataNodes[0].Items = append([]BpItem{inode.IndexNodes[ix].DataNodes[0].Previous.Items[nodeLength-1]}, inode.IndexNodes[ix].DataNodes[0].Items...)
-			inode.IndexNodes[ix].DataNodes[0].Previous.Items = inode.IndexNodes[ix].DataNodes[0].Previous.Items[:nodeLength]
+			nodeLength := len(inode.IndexNodes[ix].DataNodes)
+			inode.IndexNodes[ix].DataNodes[0] = inode.IndexNodes[ix-1].DataNodes[nodeLength-1]
+			inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:nodeLength-1]
+			/*inode.IndexNodes[ix].DataNodes[0].Items = append([]BpItem{inode.IndexNodes[ix].DataNodes[0].Previous.Items[nodeLength-1]}, inode.IndexNodes[ix].DataNodes[0].Items...)
+			inode.IndexNodes[ix].DataNodes[0].Previous.Items = inode.IndexNodes[ix].DataNodes[0].Previous.Items[:nodeLength]*/
 		}
 	}
 

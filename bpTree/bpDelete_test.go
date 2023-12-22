@@ -110,6 +110,7 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
 		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
 		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
 		fmt.Println(deleted, updated, ix, err)
 	})
 	// Delete data at the closest bottom BpIndex. When entering the BpData node,
