@@ -7,6 +7,48 @@ import (
 
 // ➡️ The functions related to direction.
 
+// The function delRoot is responsible for deleting an item from the root of the B+ tree.
+func (inode *BpIndex) delRoot(item BpItem) (deleted, updated bool, ix int, err error) {
+	// Check if the root node is empty and has only one data node with a matching key.
+	if len(inode.Index) == 0 &&
+		len(inode.DataNodes) == 1 {
+		if inode.DataNodes[0].Items[0].Key == item.Key {
+			// If the root node has only one data node and its key matches the target key, remove the root node.
+			node := &BpIndex{
+				DataNodes: make([]*BpData, 0, BpWidth+1), // The addition of 1 is because data chunks may temporarily exceed the width.
+			}
+			*inode = *node
+			return
+		}
+	}
+
+	// Call the delAndDir method to handle deletion and direction.
+	_, _, _, err = inode.delAndDir(item)
+	if err != nil {
+		return
+	}
+
+	// If there's not much data in the root node and it has two data nodes, handle the cases.
+	if len(inode.Index) == 0 &&
+		len(inode.DataNodes) == 2 {
+		// If the first data node is empty, replace the root node with the second data node.
+		if len(inode.DataNodes[0].Items) == 0 {
+			inode.Index = nil
+			inode.DataNodes = []*BpData{inode.DataNodes[1]}
+			return
+		}
+		// If the second data node is empty, replace the root node with the first data node.
+		if len(inode.DataNodes[1].Items) == 0 {
+			inode.Index = nil
+			inode.DataNodes = []*BpData{inode.DataNodes[0]}
+			return
+		}
+	}
+
+	// Return the results
+	return
+}
+
 // delAndDir performs data deletion based on automatic direction detection.
 // 自动判断资料删除方向，其實會由不同方向進行刪除
 func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err error) {
@@ -16,7 +58,8 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 	})
 
 	// Check if deletion should be performed by the leftmost node first.
-	if ix >= 1 { // After the second index node, it's possible to borrow data from the left ⬅️ node
+	if (ix-1) >= 0 &&
+		len(inode.IndexNodes)-1 >= (ix-1) { // After the second index node, it's possible to borrow data from the left ⬅️ node
 		// Length of the left node
 		length := len(inode.IndexNodes[ix-1].Index)
 
@@ -92,6 +135,17 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 		if len(inode.DataNodes) <= 2 && len(inode.DataNodes[ix].Items) == 0 {
 			inode.Index = []int64{}
 		}
+
+		// Integrate the scattered nodes. (这段还没测试)
+		if len(inode.DataNodes[ix].Items) == 0 && len(inode.Index) != 0 {
+			// Rebuild connections.
+			inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
+			inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
+
+			// Reorganize nodes.
+			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+			inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...)
+		}
 	}
 
 	// Return the results of the deletion.
@@ -139,7 +193,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		// it is necessary to start borrowing data from neighboring nodes.
 		if len(inode.DataNodes[ix].Items) == 0 {
 			var borrowed bool
-			borrowed, err = inode.borrowFromBothSide(ix) // If you can borrow, you can maintain the integrity of the node."
+			borrowed, err = inode.borrowFromBothSide(ix) // If you can borrow, you can maintain the integrity of the node.
 			if err != nil {
 				return
 			}
@@ -153,6 +207,17 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		if len(inode.DataNodes) <= 2 && len(inode.DataNodes[ix].Items) == 0 {
 			inode.Index = []int64{}
 			updated = true
+		}
+
+		// Integrate the scattered nodes.
+		if len(inode.DataNodes[ix].Items) == 0 && len(inode.Index) != 0 {
+			// Rebuild connections.
+			inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
+			inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
+
+			// Reorganize nodes.
+			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+			inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...)
 		}
 	}
 
@@ -222,7 +287,8 @@ func (inode *BpIndex) borrowFromBothSide(ix int) (borrowed bool, err error) {
 		}
 	}
 
-	// Borrow from the right side next
+	// 以下先注解，因为无法对邻近节点的索引进行修改
+	// Borrow from the right side next.
 	/*if (ix + 1) <= len(inode.DataNodes[ix].Items) { // Right neighbor
 		length := len(inode.DataNodes[ix+1].Items)
 		if length >= 2 { // Neighbor has enough data to borrow
@@ -252,16 +318,16 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 		return
 	}
 
-	// When the index of inode is 1
-	if len(inode.Index) == 1 {
-		// Additional code to be written here
-	}
-	// When the index of inode is 2
+	// 在这里索引之间会移动
 	if len(inode.Index) == 2 {
+		// When the length of the neighbor node's index is 2, we perform operations related to borrowing nodes.
 		smaller := []int64{inode.Index[0]}
 		bigger := []int64{inode.Index[1]}
 
-		if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {
+		if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 &&
+			ix+1 <= len(inode.IndexNodes)-1 &&
+			ix+1 >= 0 &&
+			len(inode.IndexNodes[ix+1].Index) >= 2 {
 			// Borrowing a portion of nodes to the right, including some data and index.
 
 			// Adjusting indexes
@@ -275,9 +341,10 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 			// Receiving data
 			inode.IndexNodes[ix].DataNodes[1] = inode.IndexNodes[ix+1].DataNodes[0]
 			inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:]
-			/*inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix].DataNodes[1].Next.Items[0])
-			inode.IndexNodes[ix].DataNodes[1].Next.Items = inode.IndexNodes[ix].DataNodes[1].Next.Items[1:]*/
-		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 {
+		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 &&
+			ix-1 <= len(inode.IndexNodes)-1 &&
+			ix-1 >= 0 &&
+			len(inode.IndexNodes[ix-1].Index) >= 2 {
 			// Borrowing a portion of nodes to the left, including some data and index.
 
 			// Adjusting indexes
@@ -293,9 +360,42 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 			nodeLength := len(inode.IndexNodes[ix].DataNodes)
 			inode.IndexNodes[ix].DataNodes[0] = inode.IndexNodes[ix-1].DataNodes[nodeLength-1]
 			inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:nodeLength-1]
-			/*inode.IndexNodes[ix].DataNodes[0].Items = append([]BpItem{inode.IndexNodes[ix].DataNodes[0].Previous.Items[nodeLength-1]}, inode.IndexNodes[ix].DataNodes[0].Items...)
-			inode.IndexNodes[ix].DataNodes[0].Previous.Items = inode.IndexNodes[ix].DataNodes[0].Previous.Items[:nodeLength]*/
 		}
+
+		// When the length of the neighbor node's index is 1, we perform operations related to merging nodes.
+		if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 &&
+			ix+1 <= len(inode.IndexNodes)-1 &&
+			ix+1 >= 0 &&
+			len(inode.IndexNodes[ix+1].Index) >= 1 {
+			//
+		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 &&
+			ix-1 <= len(inode.IndexNodes)-1 &&
+			ix-1 >= 0 &&
+			len(inode.IndexNodes[ix-1].Index) >= 1 {
+			// 重建連結
+			length := len(inode.IndexNodes[ix-1].DataNodes)
+			inode.IndexNodes[ix-1].DataNodes[length-1].Next = inode.IndexNodes[ix].DataNodes[1]
+			inode.IndexNodes[ix].DataNodes[1].Previous = inode.IndexNodes[ix-1].DataNodes[length-1]
+			// 資料移動
+			inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[1])
+			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].DataNodes[1].Items[0].Key) // 更新索引
+			//
+			inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+			//
+			inode.Index = inode.Index[1:]
+		}
+	}
+
+	// 这里只是简单的进行简单的节点合拼
+	if len(inode.Index) == 1 && len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && ix+1 <= len(inode.IndexNodes)-1 && ix+1 >= 0 {
+		node := &BpIndex{
+			Index:     []int64{inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key, inode.IndexNodes[ix+1].DataNodes[1].Items[0].Key},
+			DataNodes: []*BpData{inode.IndexNodes[ix].DataNodes[0], inode.IndexNodes[ix+1].DataNodes[0], inode.IndexNodes[ix+1].DataNodes[1]},
+		}
+		node.DataNodes[0].Next = node.DataNodes[1]
+		node.DataNodes[1].Previous = node.DataNodes[0]
+
+		*inode = *node
 	}
 
 	// Finally, return

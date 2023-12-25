@@ -106,11 +106,17 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete command for the first time.
-		deleted, updated, ix, err := inode.delAndDir(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delAndDir(BpItem{Key: 5})
+		deleted, updated, ix, err := inode.delRoot(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 5})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 10})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 2})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 13})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 11})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 1})
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 12})
 		fmt.Println(deleted, updated, ix, err)
 	})
 	// Delete data at the closest bottom BpIndex. When entering the BpData node,
