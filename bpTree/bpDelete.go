@@ -98,7 +98,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 				}
 			}
 			if len(inode.IndexNodes[ix].Index) == 0 {
-				err = inode.borrowNodeSide(ix) // Will borrow part of the node (借结点).
+				updated, err = inode.borrowNodeSide(ix) // Will borrow part of the node (借结点).
 				if err != nil {
 					return
 				}
@@ -164,6 +164,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		// Recursion keeps deletion in the right direction. 递归一直向右砍 ⬅️
 		deleted, updated, _, err = inode.IndexNodes[ix].deleteToRight(item)
 
+		// >>>>>>>>>> add
+
 		// Immediately update the index of index node.
 		if updated {
 			if len(inode.IndexNodes[ix].Index) != 0 {
@@ -173,7 +175,10 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 				}
 			}
 			if len(inode.IndexNodes[ix].Index) == 0 {
-				err = inode.borrowNodeSide(ix) // Will borrow part of the node (借结点).
+				updated, err = inode.borrowNodeSide(ix) // Will borrow part of the node (借结点).
+				if err != nil {
+					return
+				}
 			}
 		}
 
@@ -310,7 +315,7 @@ func (inode *BpIndex) borrowFromBothSide(ix int) (borrowed bool, err error) {
 }
 
 // borrowNodeSide will borrow more data from neighboring nodes, including indexes.
-func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
+func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 	// Anyway, as the index nodes keep shrinking, eventually leaving only two DataNodes,
 	// one of which may have no data. So here, we check whether the number of DataNodes is 2.
 	if len(inode.IndexNodes[ix].DataNodes) != 2 {
@@ -341,6 +346,8 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 			// Receiving data
 			inode.IndexNodes[ix].DataNodes[1] = inode.IndexNodes[ix+1].DataNodes[0]
 			inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:]
+
+			updated = true
 		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 &&
 			ix-1 <= len(inode.IndexNodes)-1 &&
 			ix-1 >= 0 &&
@@ -360,6 +367,8 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 			nodeLength := len(inode.IndexNodes[ix].DataNodes)
 			inode.IndexNodes[ix].DataNodes[0] = inode.IndexNodes[ix-1].DataNodes[nodeLength-1]
 			inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:nodeLength-1]
+
+			updated = true
 		}
 
 		// When the length of the neighbor node's index is 1, we perform operations related to merging nodes.
@@ -367,7 +376,7 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 			ix+1 <= len(inode.IndexNodes)-1 &&
 			ix+1 >= 0 &&
 			len(inode.IndexNodes[ix+1].Index) >= 1 {
-			//
+			// 这里先不处理，因其他索引节点会变动 !
 		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 &&
 			ix-1 <= len(inode.IndexNodes)-1 &&
 			ix-1 >= 0 &&
@@ -383,10 +392,12 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 			inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 			//
 			inode.Index = inode.Index[1:]
+			//
+			updated = true
 		}
 	}
 
-	// 这里只是简单的进行简单的节点合拼
+	// 这里只是简单的进行简单的节点合拼，这里是在索引节点的内部
 	if len(inode.Index) == 1 && len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && ix+1 <= len(inode.IndexNodes)-1 && ix+1 >= 0 {
 		node := &BpIndex{
 			Index:     []int64{inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key, inode.IndexNodes[ix+1].DataNodes[1].Items[0].Key},
@@ -396,6 +407,59 @@ func (inode *BpIndex) borrowNodeSide(ix int) (err error) {
 		node.DataNodes[1].Previous = node.DataNodes[0]
 
 		*inode = *node
+
+		updated = true
+	}
+
+	// 开始进行层数缩
+	if len(inode.IndexNodes[ix].Index) == 0 { // 索引失效
+		// 下放索引
+		// 在 ix 位罝上，IX 位置上的节点失效
+		if ix == 0 { // 在第 1 个位置就直接抹除
+			inode.Index = inode.Index[1:]
+			inode.IndexNodes = inode.IndexNodes[1:]
+
+			updated = true
+		} else if ix != 0 {
+			if len(inode.Index) == 1 { // 上层直接下放唯一的索引，上层索引直接为空
+				inode.IndexNodes[ix].Index = []int64{inode.Index[0]}
+				inode.Index = []int64{}
+
+				updated = true
+			} else if len(inode.Index) > 1 { // 上层直接下放其中一个索引，其他不变
+				inode.IndexNodes[ix].Index = []int64{inode.Index[ix-1]}
+				inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+
+				updated = true
+			}
+		}
+		if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 &&
+			len(inode.IndexNodes[ix].DataNodes[1].Items) != 0 {
+			if ix+1 >= 0 && len(inode.IndexNodes)-1 >= ix+1 {
+				// 重建连结，在 ix 位置上的索引节点会有其中一个资料节点为空
+				// 只有在 2 个资料节点，其中一个为空，就会索引失效
+				inode.IndexNodes[ix].DataNodes[0].Previous.Next = inode.IndexNodes[ix].DataNodes[0].Next
+				inode.IndexNodes[ix].DataNodes[0].Next.Previous = inode.IndexNodes[ix].DataNodes[0].Previous
+				// 合拼到右节点
+				inode.IndexNodes[ix+1].Index = append([]int64{inode.IndexNodes[ix].Index[0]}, inode.IndexNodes[ix+1].Index...) // 之前上层已经下放索引
+				inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[1]}, inode.IndexNodes[ix+1].DataNodes...)
+				// 删除整个 ix 位置上的索引节点
+				inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+			}
+		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) != 0 &&
+			len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {
+			if ix-1 >= 0 && len(inode.IndexNodes)-1 >= ix-1 {
+				// 重建连结，在 ix 位置上的索引节点会有其中一个资料节点为空
+				// 只有在 2 个资料节点，其中一个为空，就会索引失效
+				inode.IndexNodes[ix].DataNodes[1].Previous.Next = inode.IndexNodes[ix].DataNodes[1].Next
+				inode.IndexNodes[ix].DataNodes[1].Next.Previous = inode.IndexNodes[ix].DataNodes[1].Previous
+				// 合拼到左节点
+				inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index[0])
+				inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[0])
+				// 删除整个 ix 位置上的索引节点
+				inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+			}
+		}
 	}
 
 	// Finally, return
