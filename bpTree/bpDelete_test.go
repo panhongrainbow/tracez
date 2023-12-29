@@ -251,6 +251,9 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		deleted, updated, ix, err := inode.delRoot(BpItem{Key: 4})
 		fmt.Println(deleted, updated, ix, err)
 
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 1})
+		fmt.Println(deleted, updated, ix, err)
+
 		fmt.Println("must be empty", inode.Index)
 	})
 }

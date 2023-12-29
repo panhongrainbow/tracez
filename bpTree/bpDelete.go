@@ -224,12 +224,25 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		// Integrate the scattered nodes.
 		if len(inode.DataNodes[ix].Items) == 0 && len(inode.Index) != 0 {
 			// Rebuild connections.
-			inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
-			inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
+			if inode.DataNodes[ix].Previous == nil {
+				// 第 1 个资料结点
+				inode.DataNodes[ix].Next.Previous = nil
+			} else if inode.DataNodes[ix].Next == nil {
+				// 第 2 个资料结点
+				inode.DataNodes[ix].Previous.Next = nil
+			} else {
+				inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
+				inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
+			}
 
 			// Reorganize nodes.
-			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-			inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...)
+			if ix != 0 {
+				inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+				inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...)
+			} else if ix == 0 {
+				inode.Index = inode.Index[1:]
+				inode.DataNodes = inode.DataNodes[1:]
+			}
 		}
 	}
 
