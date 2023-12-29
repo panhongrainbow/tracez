@@ -1,6 +1,7 @@
 package bpTree
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 )
@@ -164,8 +165,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		// Recursion keeps deletion in the right direction. 递归一直向右砍 ⬅️
 		deleted, updated, _, err = inode.IndexNodes[ix].deleteToRight(item)
 
-		// >>>>>>>>>> add
-
 		// Immediately update the index of index node.
 		if updated {
 			if len(inode.IndexNodes[ix].Index) != 0 {
@@ -174,8 +173,16 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 					return
 				}
 			}
-			if len(inode.IndexNodes[ix].Index) == 0 {
+			if len(inode.IndexNodes[ix].Index) == 0 &&
+				len(inode.IndexNodes[ix].DataNodes) == 2 {
 				updated, err = inode.borrowNodeSide(ix) // Will borrow part of the node (借结点).
+				if err != nil && !errors.Is(err, fmt.Errorf("the index is still there; there is no need to borrow nodes")) {
+					return
+				}
+			} else if len(inode.IndexNodes[ix].Index) == 0 && // 不是在资料节点，就是在索引节点，在这里要连起来
+				len(inode.IndexNodes[ix].IndexNodes) != 0 &&
+				len(inode.IndexNodes[ix].DataNodes) == 0 {
+				updated, err = inode.indexesMove(ix)
 				if err != nil {
 					return
 				}
@@ -463,5 +470,37 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 	}
 
 	// Finally, return
+	return
+}
+
+func (inode *BpIndex) indexesMove(ix int) (updated bool, err error) {
+	// 底下有一个索引结点的索引为空，开始进行索引流动
+	if len(inode.IndexNodes[ix].Index) == 0 {
+		// 下放索引
+		// 在 ix 位罝上，IX 位置上的节点失效
+
+		if len(inode.Index) == 1 { // 上层直接下放唯一的索引，上层索引直接为空
+			inode.IndexNodes[ix].Index = []int64{inode.Index[0]}
+			inode.Index = []int64{}
+
+			// 顶层索引消失，直接进行合拼
+			node := &BpIndex{}
+			node.Index = append(node.Index, inode.IndexNodes[0].Index...)
+			node.Index = append(node.Index, inode.IndexNodes[1].Index...)
+
+			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[0].IndexNodes...)
+			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[1].IndexNodes...)
+
+			// 最后储存改写
+			*inode = *node
+
+			updated = true
+		} else if len(inode.Index) > 1 { // 上层直接下放其中一个索引，其他不变
+			inode.IndexNodes[ix].Index = []int64{inode.Index[ix-1]}
+			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+
+			updated = true
+		}
+	}
 	return
 }
