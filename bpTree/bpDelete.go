@@ -264,6 +264,14 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 	// The Bpdatdataode is too small to form an index.
 	if deleted == true && len(inode.DataNodes) < 2 {
 		inode.Index = []int64{} // Wipe out the whole index.
+		updated = true
+	}
+
+	if deleted == true && ix > 0 && len(inode.DataNodes[ix].Items) > 0 {
+		if inode.Index[ix-1] != inode.DataNodes[ix].Items[0].Key {
+			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+			updated = true
+		}
 	}
 
 	// Return the results of the deletion.
@@ -432,7 +440,7 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 	}
 
 	// 开始进行层数缩
-	if len(inode.IndexNodes[ix].Index) == 0 { // 索引失效
+	if len(inode.IndexNodes) > 0 && len(inode.IndexNodes[ix].Index) == 0 { // 索引失效
 		// 下放索引
 		// 在 ix 位罝上，IX 位置上的节点失效
 		if ix == 0 { // 在第 1 个位置就直接抹除
