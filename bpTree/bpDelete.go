@@ -24,7 +24,7 @@ func (inode *BpIndex) delRoot(item BpItem) (deleted, updated bool, ix int, err e
 	}
 
 	// Call the delAndDir method to handle deletion and direction.
-	_, _, _, err = inode.delAndDir(item)
+	deleted, updated, ix, err = inode.delAndDir(item)
 	if err != nil {
 		return
 	}

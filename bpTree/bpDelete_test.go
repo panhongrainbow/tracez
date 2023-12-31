@@ -277,4 +277,189 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 
 		fmt.Println("must be empty", inode.Index)
 	})
+
+	// 🧪 This example is intended to test the deletion of multi-layered B plus tree data.
+	t.Run("Test larger data nodes.", func(t *testing.T) {
+		// Set up the total width and half-width for the B Plus Tree.
+		BpWidth = 5
+		BpHalfWidth = 3
+
+		// Create seven BpData nodes.
+		bpData0 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 1}, {Key: 2}},
+		}
+
+		bpData1 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 3}, {Key: 4}},
+		}
+
+		bpData2 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 5}, {Key: 6}},
+		}
+
+		bpData3 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 7}, {Key: 8}},
+		}
+
+		bpData4 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 9}, {Key: 10}},
+		}
+
+		bpData5 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 11}, {Key: 12}},
+		}
+
+		bpData6 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 13}, {Key: 14}},
+		}
+
+		bpData7 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 15}, {Key: 16}},
+		}
+
+		bpData8 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 17}, {Key: 18}},
+		}
+
+		bpData9 := BpData{
+			Previous: nil,
+			Next:     nil,
+			Items:    []BpItem{{Key: 19}, {Key: 20}, {Key: 21}, {Key: 22}},
+		}
+
+		// Establish the link between the two nodes. (Next Direction)
+		bpData0.Next = &bpData1
+		bpData1.Next = &bpData2
+		bpData2.Next = &bpData3
+		bpData3.Next = &bpData4
+		bpData4.Next = &bpData5
+		bpData5.Next = &bpData6
+		bpData6.Next = &bpData7
+		bpData7.Next = &bpData8
+		bpData8.Next = &bpData9
+		bpData9.Next = nil
+
+		// Establish the link between the two nodes. (Previous Direction)
+		bpData9.Previous = &bpData8
+		bpData8.Previous = &bpData7
+		bpData7.Previous = &bpData6
+		bpData6.Previous = &bpData5
+		bpData5.Previous = &bpData4
+		bpData4.Previous = &bpData3
+		bpData3.Previous = &bpData2
+		bpData2.Previous = &bpData1
+		bpData1.Previous = &bpData0
+		bpData0.Previous = nil
+
+		// Set up a top-level index node. (整个树建立好)
+		inode := &BpIndex{
+			Index: []int64{7, 13},
+			IndexNodes: []*BpIndex{ // IndexNode ▶️
+				{
+					Index:      []int64{3, 5},
+					IndexNodes: []*BpIndex{},
+					DataNodes: []*BpData{
+						&bpData0, // DataNode 🗂️
+						&bpData1, // DataNode 🗂️
+						&bpData2, // DataNode 🗂️
+					},
+				},
+				{
+					Index:      []int64{9, 11},
+					IndexNodes: []*BpIndex{},
+					DataNodes: []*BpData{
+						&bpData3, // DataNode 🗂️
+						&bpData4, // DataNode 🗂️
+						&bpData5, // DataNode 🗂️
+					},
+				},
+				{
+					Index:      []int64{15, 17, 19},
+					IndexNodes: []*BpIndex{},
+					DataNodes: []*BpData{
+						&bpData6, // DataNode 🗂️
+						&bpData7, // DataNode 🗂️
+						&bpData8, // DataNode 🗂️
+						&bpData9, // DataNode 🗂️
+					},
+				},
+			},
+			DataNodes: []*BpData{},
+		}
+
+		// Execute the delete commands.
+		deleted, updated, ix, err := inode.delRoot(BpItem{Key: 7})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 15})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 17})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 9})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 2})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 12})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 3})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 8})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 16})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 19})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 6})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 5})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 10})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 11})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 4})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 14})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 1})
+		fmt.Println(deleted, updated, ix, err)
+
+		deleted, updated, ix, err = inode.delRoot(BpItem{Key: 13})
+		fmt.Println(deleted, updated, ix, err)
+
+		fmt.Println("must be empty", inode.Index)
+	})
 }
