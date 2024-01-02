@@ -10,7 +10,7 @@ import (
 
 var (
 	// randomQuantity represents the number of elements to be generated for random testing.
-	randomQuantity = 25
+	randomQuantity = 30
 
 	// randomMax represents the maximum value for generating random numbers.
 	randomMax = 500
@@ -31,7 +31,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		numbersForAdding := make([]int64, randomQuantity)
 		for i := 0; i < randomQuantity; i++ {
 			num := int64(random.Intn(randomMax-randomMin+1) + randomMin)
-			numbersForAdding = append(numbersForAdding, num)
+			numbersForAdding[i] = num
 		}
 		fmt.Println("Random data for insertion:", numbersForAdding)
 
@@ -67,9 +67,9 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 	// Automated random testing for B+ tree.
 	t.Run("Manually Identify B+ Tree Operation Errors", func(t *testing.T) {
 		// Generate random data for insertion.
-		var randomNumbers = []int64{362, 365, 240, 432, 442, 445, 479, 250, 280, 229, 122, 127, 282, 175, 288, 224, 13, 299, 276, 238, 358, 495, 120, 405, 171}
+		var randomNumbers = []int64{287, 341, 396, 97, 94, 272, 391, 63, 417, 307, 42, 202, 241, 58, 452, 73, 486, 373, 189, 38, 274, 280, 270, 14, 229, 336, 448, 494, 252, 100}
 		// Generate random data for deletion.
-		var shuffledNumbers = []int64{229, 127, 358, 405, 445, 175, 240, 224, 365, 276, 362, 479, 299, 288, 442, 495, 282, 120, 13, 280, 122, 171, 238, 250, 432}
+		var shuffledNumbers = []int64{14, 189, 486, 97, 391, 94, 100, 307, 280, 396, 287, 202, 73, 341, 274, 241, 38, 252, 336, 452, 494, 448, 270, 229, 63, 417, 58, 42, 373, 272}
 
 		// Initialize B-tree.
 		root := NewBpTree(5)
@@ -83,7 +83,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		// Start deleting data.
 		for i := 0; i < randomQuantity; i++ {
 			// Deleting data entries continuously.
-			if shuffledNumbers[i] == 122 {
+			if shuffledNumbers[i] == 229 {
 				fmt.Println()
 			}
 			root.root.delRoot(BpItem{Key: shuffledNumbers[i]})

@@ -423,12 +423,13 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 			inode.Index = append([]int64{inode.IndexNodes[ix-1].Index[indexLength-1]}, inode.Index...)
 
 			// loading out data
-			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index[:indexLength])
+			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index[:indexLength-1]) // 不含最后一个
 
 			// Receiving data
-			nodeLength := len(inode.IndexNodes[ix].DataNodes)
-			inode.IndexNodes[ix].DataNodes[0] = inode.IndexNodes[ix-1].DataNodes[nodeLength-1]
-			inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:nodeLength-1]
+			// nodeLength := len(inode.IndexNodes[ix].DataNodes)
+			previousLength := len(inode.IndexNodes[ix-1].DataNodes)
+			inode.IndexNodes[ix].DataNodes[0] = inode.IndexNodes[ix-1].DataNodes[previousLength-1]
+			inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:previousLength-1]
 
 			updated = true
 		}
@@ -522,8 +523,12 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 			if ix-1 >= 0 && len(inode.IndexNodes)-1 >= ix-1 {
 				// 重建连结，在 ix 位置上的索引节点会有其中一个资料节点为空
 				// 只有在 2 个资料节点，其中一个为空，就会索引失效
-				inode.IndexNodes[ix].DataNodes[1].Previous.Next = inode.IndexNodes[ix].DataNodes[1].Next
-				inode.IndexNodes[ix].DataNodes[1].Next.Previous = inode.IndexNodes[ix].DataNodes[1].Previous
+				if inode.IndexNodes[ix].DataNodes[1].Previous != nil {
+					inode.IndexNodes[ix].DataNodes[1].Previous.Next = inode.IndexNodes[ix].DataNodes[1].Next
+				}
+				if inode.IndexNodes[ix].DataNodes[1].Next != nil {
+					inode.IndexNodes[ix].DataNodes[1].Next.Previous = inode.IndexNodes[ix].DataNodes[1].Previous
+				}
 				// 合拼到左节点
 				inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index[0])
 				inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[0])
