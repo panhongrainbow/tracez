@@ -189,6 +189,40 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 			}
 		}
 
+		if item.Key == 282 {
+			fmt.Println("由这里开发 ！")
+		}
+
+		if len(inode.Index) == 0 &&
+			len(inode.IndexNodes) == 2 &&
+			len(inode.IndexNodes[0].DataNodes) > 0 &&
+			len(inode.IndexNodes[1].DataNodes) > 0 {
+			if len(inode.IndexNodes[0].DataNodes) == 2 {
+				if len(inode.IndexNodes[0].DataNodes[0].Items) == 0 {
+					// 再编写
+				} else if len(inode.IndexNodes[0].DataNodes[1].Items) == 0 {
+					// 再编写
+				}
+			} else if len(inode.IndexNodes[1].DataNodes) == 2 {
+				if len(inode.IndexNodes[1].DataNodes[0].Items) == 0 {
+					inode.IndexNodes[0].Index = append(inode.IndexNodes[0].Index, inode.IndexNodes[1].Index[0])
+					inode.IndexNodes[1].DataNodes[1].Previous = inode.IndexNodes[1].DataNodes[0].Previous
+					inode.IndexNodes[0].DataNodes = append(inode.IndexNodes[0].DataNodes, inode.IndexNodes[1].DataNodes[1])
+					inode.IndexNodes = []*BpIndex{inode.IndexNodes[0]}
+					length := len(inode.IndexNodes[0].Index)
+					if length >= BpWidth {
+						var key int64
+						var side *BpIndex
+						key, side, err = inode.IndexNodes[0].splitWithDnode()
+						inode.Index = []int64{key}
+						inode.IndexNodes = append(inode.IndexNodes, side)
+					}
+				} else if len(inode.IndexNodes[1].DataNodes[1].Items) == 0 {
+					// 再编写
+				}
+			}
+		}
+
 		// Return the results of the deletion.
 		return
 	}
@@ -444,10 +478,10 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 		// 下放索引
 		// 在 ix 位罝上，IX 位置上的节点失效
 		if ix == 0 { // 在第 1 个位置就直接抹除
-			inode.Index = inode.Index[1:]
+			/*inode.Index = inode.Index[1:]
 			inode.IndexNodes = inode.IndexNodes[1:]
 
-			updated = true
+			updated = true*/
 		} else if ix != 0 {
 			if len(inode.Index) == 1 { // 上层直接下放唯一的索引，上层索引直接为空
 				inode.IndexNodes[ix].Index = []int64{inode.Index[0]}
@@ -466,13 +500,22 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 			if ix+1 >= 0 && len(inode.IndexNodes)-1 >= ix+1 {
 				// 重建连结，在 ix 位置上的索引节点会有其中一个资料节点为空
 				// 只有在 2 个资料节点，其中一个为空，就会索引失效
-				inode.IndexNodes[ix].DataNodes[0].Previous.Next = inode.IndexNodes[ix].DataNodes[0].Next
-				inode.IndexNodes[ix].DataNodes[0].Next.Previous = inode.IndexNodes[ix].DataNodes[0].Previous
+				if inode.IndexNodes[ix].DataNodes[0].Previous != nil {
+					inode.IndexNodes[ix].DataNodes[0].Previous.Next = inode.IndexNodes[ix].DataNodes[0].Next
+				}
+				if inode.IndexNodes[ix].DataNodes[0].Next != nil {
+					inode.IndexNodes[ix].DataNodes[0].Next.Previous = inode.IndexNodes[ix].DataNodes[0].Previous
+				}
 				// 合拼到右节点
+				if len(inode.IndexNodes[ix].Index) == 0 {
+					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
+				}
 				inode.IndexNodes[ix+1].Index = append([]int64{inode.IndexNodes[ix].Index[0]}, inode.IndexNodes[ix+1].Index...) // 之前上层已经下放索引
 				inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[1]}, inode.IndexNodes[ix+1].DataNodes...)
 				// 删除整个 ix 位置上的索引节点
 				inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+
+				*inode = *inode.IndexNodes[0]
 			}
 		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) != 0 &&
 			len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {

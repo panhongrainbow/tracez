@@ -83,6 +83,9 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		// Start deleting data.
 		for i := 0; i < randomQuantity; i++ {
 			// Deleting data entries continuously.
+			if shuffledNumbers[i] == 122 {
+				fmt.Println()
+			}
 			root.root.delRoot(BpItem{Key: shuffledNumbers[i]})
 		}
 	})
