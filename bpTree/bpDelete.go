@@ -461,7 +461,8 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 	}
 
 	// 这里只是简单的进行简单的节点合拼，这里是在索引节点的内部
-	if len(inode.Index) == 1 && len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && ix+1 <= len(inode.IndexNodes)-1 && ix+1 >= 0 {
+	length := len(inode.IndexNodes)
+	if len(inode.Index) == 1 && ix >= 0 && ix <= length-1 && len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && ix+1 <= len(inode.IndexNodes)-1 && ix+1 >= 0 {
 		node := &BpIndex{
 			Index:     []int64{inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key, inode.IndexNodes[ix+1].DataNodes[1].Items[0].Key},
 			DataNodes: []*BpData{inode.IndexNodes[ix].DataNodes[0], inode.IndexNodes[ix+1].DataNodes[0], inode.IndexNodes[ix+1].DataNodes[1]},
@@ -475,7 +476,8 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 	}
 
 	// 开始进行层数缩
-	if len(inode.IndexNodes) > 0 && len(inode.IndexNodes[ix].Index) == 0 { // 索引失效
+	length = len(inode.IndexNodes)
+	if len(inode.IndexNodes) > 0 && ix >= 0 && ix <= length-1 && len(inode.IndexNodes[ix].Index) == 0 { // 索引失效
 		// 下放索引
 		// 在 ix 位罝上，IX 位置上的节点失效
 		if ix == 0 { // 在第 1 个位置就直接抹除

@@ -67,9 +67,9 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 	// Automated random testing for B+ tree.
 	t.Run("Manually Identify B+ Tree Operation Errors", func(t *testing.T) {
 		// Generate random data for insertion.
-		var randomNumbers = []int64{287, 341, 396, 97, 94, 272, 391, 63, 417, 307, 42, 202, 241, 58, 452, 73, 486, 373, 189, 38, 274, 280, 270, 14, 229, 336, 448, 494, 252, 100}
+		var randomNumbers = []int64{126, 202, 50, 131, 491, 206, 407, 176, 394, 392, 26, 328, 433, 307, 424, 485, 124, 399, 28, 54, 175, 448, 218, 279, 366, 367, 88, 19, 115, 128}
 		// Generate random data for deletion.
-		var shuffledNumbers = []int64{14, 189, 486, 97, 391, 94, 100, 307, 280, 396, 287, 202, 73, 341, 274, 241, 38, 252, 336, 452, 494, 448, 270, 229, 63, 417, 58, 42, 373, 272}
+		var shuffledNumbers = []int64{424, 202, 26, 124, 126, 491, 399, 366, 131, 367, 279, 433, 54, 19, 176, 115, 307, 485, 392, 218, 128, 448, 394, 206, 328, 50, 175, 407, 28, 88}
 
 		// Initialize B-tree.
 		root := NewBpTree(5)
@@ -82,8 +82,9 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 
 		// Start deleting data.
 		for i := 0; i < randomQuantity; i++ {
+			fmt.Println(i, shuffledNumbers[i])
 			// Deleting data entries continuously.
-			if shuffledNumbers[i] == 229 {
+			if shuffledNumbers[i] == 394 {
 				fmt.Println()
 			}
 			root.root.delRoot(BpItem{Key: shuffledNumbers[i]})
