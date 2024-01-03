@@ -60,12 +60,12 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 
 	// Check if deletion should be performed by the leftmost node first.
 	if (ix-1) >= 0 &&
-		len(inode.IndexNodes)-1 >= (ix-1) { // After the second index node, it's possible to borrow data from the left ⬅️ node
+		len(inode.IndexNodes)-1 >= (ix-1) && ix != 0 { // After the second index node, it's possible to borrow data from the left ⬅️ node
 		// Length of the left node
 		length := len(inode.IndexNodes[ix-1].Index)
 
 		// If it is continuous data (same value) (5❌ - 5 - 5 - 5 - 5 - 6 - 7 - 8)
-		if inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
+		if ix >= 1 && length >= 1 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
 			deleted, updated, ix, err = inode.deleteToLeft(item) // Delete to the leftmost node ‼️ (向左砍)
 			return
 		}
@@ -497,8 +497,59 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 
 				updated = true
 			}
+
+			// 如果发生下放资料后，节点和索引的数量差距超过 1
+			// 这时，只剩 2 个 DataNode
+			if inode.IndexNodes[ix].DataNodes != nil &&
+				len(inode.IndexNodes[ix].DataNodes) == 2 && (len(inode.IndexNodes)-len(inode.Index)) > 1 {
+				if len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 &&
+					inode.IndexNodes[ix].DataNodes[0].Items[0].Key > inode.IndexNodes[ix].Index[0] {
+					inode.IndexNodes[ix].Index[0] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
+				}
+				if len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 &&
+					inode.IndexNodes[ix].DataNodes[1].Items[0].Key < inode.IndexNodes[ix].Index[0] {
+					inode.IndexNodes[ix].Index[0] = inode.IndexNodes[ix].DataNodes[1].Items[0].Key
+				}
+				// 开始决定是向左，还是向右合拼
+				var combined bool
+				if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 &&
+					ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 {
+					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+					inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[1])
+					combined = true
+				} else if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 &&
+					ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
+					inode.IndexNodes[ix+1].Index = append(inode.IndexNodes[ix].Index, inode.IndexNodes[ix+1].Index...)
+					inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[0]}, inode.IndexNodes[ix+1].DataNodes...)
+					combined = true
+				}
+				// 如果还是没合拼
+				if combined == false {
+					if len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
+						inode.IndexNodes[ix].Index[0] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
+
+						inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+						inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[1])
+
+						combined = true
+					}
+					if len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 {
+						inode.IndexNodes[ix].Index[0] = inode.IndexNodes[ix].DataNodes[1].Items[0].Key
+
+						inode.IndexNodes[ix+1].Index = append(inode.IndexNodes[ix].Index, inode.IndexNodes[ix+1].Index...)
+						inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[0]}, inode.IndexNodes[ix+1].DataNodes...)
+
+						combined = true
+					}
+				}
+
+				if combined == true {
+					inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+				}
+			}
 		}
-		if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 &&
+		if ix >= 0 && ix <= len(inode.IndexNodes)-1 &&
+			len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 &&
 			len(inode.IndexNodes[ix].DataNodes[1].Items) != 0 {
 			if ix+1 >= 0 && len(inode.IndexNodes)-1 >= ix+1 {
 				// 重建连结，在 ix 位置上的索引节点会有其中一个资料节点为空
@@ -520,7 +571,7 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 
 				*inode = *inode.IndexNodes[0]
 			}
-		} else if len(inode.IndexNodes[ix].DataNodes[0].Items) != 0 &&
+		} else if ix >= 0 && ix <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix].DataNodes[0].Items) != 0 &&
 			len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {
 			if ix-1 >= 0 && len(inode.IndexNodes)-1 >= ix-1 {
 				// 重建连结，在 ix 位置上的索引节点会有其中一个资料节点为空
