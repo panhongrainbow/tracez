@@ -65,7 +65,7 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 		length := len(inode.IndexNodes[ix-1].Index)
 
 		// If it is continuous data (same value) (5❌ - 5 - 5 - 5 - 5 - 6 - 7 - 8)
-		if ix >= 1 && length >= 1 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
+		if ix >= 1 && ix <= len(inode.IndexNodes)-1 && length >= 1 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
 			deleted, updated, ix, err = inode.deleteToLeft(item) // Delete to the leftmost node ‼️ (向左砍)
 			return
 		}
@@ -257,7 +257,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 
 		// Integrate the scattered nodes.
 		if len(inode.DataNodes[ix].Items) == 0 && len(inode.Index) != 0 {
-			// Rebuild connections.
+			// Rebuild links.
 			if inode.DataNodes[ix].Previous == nil {
 				// 第 1 个资料结点
 				inode.DataNodes[ix].Next.Previous = nil
@@ -378,6 +378,29 @@ func (inode *BpIndex) borrowFromBothSide(ix int) (borrowed bool, err error) {
 
 // borrowNodeSide will borrow more data from neighboring nodes, including indexes.
 func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
+	// 如果邻近节点资料很多，先拼左，再拼右
+	if len(inode.IndexNodes[ix].Index) == 0 && inode.IndexNodes[ix].DataNodes != nil && len(inode.IndexNodes) == 2 {
+		if ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix-1].Index) >= 2 { // 可以向左借
+			// 未开发
+		} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix+1].Index) >= 2 {
+			// 未开发
+			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 {
+				// 未开发
+			} else if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {
+				inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
+				inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
+
+				inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]
+				inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:]
+
+				inode.Index = []int64{inode.IndexNodes[ix+1].Index[0]}
+
+				updated = true
+				return
+			}
+		}
+	}
+
 	// Anyway, as the index nodes keep shrinking, eventually leaving only two DataNodes,
 	// one of which may have no data. So here, we check whether the number of DataNodes is 2.
 	if len(inode.IndexNodes[ix].DataNodes) != 2 {
@@ -529,7 +552,7 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 						inode.IndexNodes[ix].Index[0] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
 
 						inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
-						inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[1])
+						inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[0])
 
 						combined = true
 					}
@@ -537,7 +560,7 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 						inode.IndexNodes[ix].Index[0] = inode.IndexNodes[ix].DataNodes[1].Items[0].Key
 
 						inode.IndexNodes[ix+1].Index = append(inode.IndexNodes[ix].Index, inode.IndexNodes[ix+1].Index...)
-						inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[0]}, inode.IndexNodes[ix+1].DataNodes...)
+						inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[1]}, inode.IndexNodes[ix+1].DataNodes...)
 
 						combined = true
 					}

@@ -67,9 +67,10 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 	// Automated random testing for B+ tree.
 	t.Run("Manually Identify B+ Tree Operation Errors", func(t *testing.T) {
 		// Generate random data for insertion.
-		var randomNumbers = []int64{416, 33, 150, 426, 42, 301, 462, 214, 300, 331, 163, 389, 170, 482, 117, 170, 127, 339, 163, 32, 132, 323, 308, 149, 486, 341, 338, 119, 92, 472, 27, 39, 108, 281, 375, 471, 206, 109, 299, 265, 112, 247, 264, 51, 118, 176, 321, 292, 158, 227}
+		var randomNumbers = []int64{276, 309, 152, 462, 477, 322, 250, 491, 208, 109, 211, 256, 413, 455, 478, 363, 423, 395, 185, 331, 404, 172, 396, 471, 305, 35, 213, 153, 20, 235, 341, 386, 323, 392, 296, 300, 82, 195, 309, 103, 211, 438, 187, 106, 474, 135, 220, 249, 349, 189}
 		// Generate random data for deletion.
-		var shuffledNumbers = []int64{482, 112, 32, 170, 108, 163, 341, 265, 117, 150, 227, 299, 158, 486, 92, 206, 339, 301, 214, 462, 375, 247, 300, 389, 281, 471, 42, 127, 149, 323, 321, 472, 119, 176, 118, 51, 426, 33, 27, 132, 163, 331, 170, 308, 292, 338, 264, 109, 416, 39}
+		var shuffledNumbers = []int64{423, 309, 395, 211, 349, 474, 20, 195, 220, 455, 396, 296, 309, 103, 185, 109, 413, 276, 211, 386, 404, 106, 341, 363, 35, 322, 208, 300, 331, 235, 256, 172, 491, 392, 323, 249, 471, 438, 213, 135, 187, 477, 82, 189, 152, 462, 478, 153, 305, 250}
+		// var shuffledNumbers = []int64{423, 309, 395, 211, 349, 474, 20, 195, 220, 455, 396, 296, 309, 103, 185, 109, 413, 276, 211, 386, 404, 106, 341, 363, 35, 322, 208, 300, 331, 235, 256, 172, 491, 392, 323, 249, 471, 438, 213, 462, 187, 477, 82, 189, 152, 135, 478, 153, 305, 250}
 
 		// Initialize B-tree.
 		root := NewBpTree(5)
@@ -84,7 +85,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		for i := 0; i < randomQuantity; i++ {
 			fmt.Println(i, shuffledNumbers[i])
 			// Deleting data entries continuously.
-			if shuffledNumbers[i] == 109 {
+			if shuffledNumbers[i] == 82 { // 135
 				fmt.Println()
 			}
 			root.root.delRoot(BpItem{Key: shuffledNumbers[i]})
