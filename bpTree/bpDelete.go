@@ -46,6 +46,34 @@ func (inode *BpIndex) delRoot(item BpItem) (deleted, updated bool, ix int, err e
 		}
 	}
 
+	if len(inode.Index) == 0 && len(inode.IndexNodes) == 1 {
+		*inode = *inode.IndexNodes[0]
+	}
+	if len(inode.Index) == 0 && len(inode.IndexNodes) > 0 {
+		node := &BpIndex{}
+		for i := 0; i < len(inode.IndexNodes); i++ {
+			node.Index = append(node.Index, inode.IndexNodes[i].Index...)
+			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[i].IndexNodes...)
+			node.DataNodes = append(node.DataNodes, inode.IndexNodes[i].DataNodes...)
+		}
+
+		*inode = *node
+	}
+
+	if len(inode.Index) == 0 && len(inode.DataNodes) > 0 {
+		node := &BpIndex{}
+		for i := 0; i < len(inode.IndexNodes); i++ {
+			node.DataNodes = append(node.DataNodes, inode.IndexNodes[i].DataNodes...)
+		}
+		for i := 0; i < len(node.DataNodes); i++ {
+			if i != 0 {
+				node.Index = append(node.Index, node.DataNodes[i].Items[0].Key)
+			}
+		}
+
+		*inode = *node
+	}
+
 	// Return the results
 	return
 }
@@ -65,7 +93,7 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 		length := len(inode.IndexNodes[ix-1].Index)
 
 		// If it is continuous data (same value) (5❌ - 5 - 5 - 5 - 5 - 6 - 7 - 8)
-		if ix >= 1 && ix <= len(inode.IndexNodes)-1 && length >= 1 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
+		if ix >= 1 && ix <= len(inode.IndexNodes)-1 && ix-1 >= 1 && ix-1 <= len(inode.IndexNodes)-1 && length >= 1 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
 			deleted, updated, ix, err = inode.deleteToLeft(item) // Delete to the leftmost node ‼️ (向左砍)
 			return
 		}
@@ -382,10 +410,13 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 	if len(inode.IndexNodes[ix].Index) == 0 && inode.IndexNodes[ix].DataNodes != nil && len(inode.IndexNodes) == 2 {
 		if ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix-1].Index) >= 2 { // 可以向左借
 			// 未开发
+			fmt.Println()
 		} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix+1].Index) >= 2 {
 			// 未开发
+			fmt.Println()
 			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 {
 				// 未开发
+				fmt.Println()
 			} else if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {
 				inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
 				inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
@@ -485,7 +516,7 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 
 	// 这里只是简单的进行简单的节点合拼，这里是在索引节点的内部
 	length := len(inode.IndexNodes)
-	if len(inode.Index) == 1 && ix >= 0 && ix <= length-1 && len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && ix+1 <= len(inode.IndexNodes)-1 && ix+1 >= 0 {
+	if len(inode.Index) == 1 && ix >= 0 && ix <= length-1 && len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && ix+1 <= len(inode.IndexNodes)-1 && ix+1 >= 0 && inode.IndexNodes[ix+1].DataNodes != nil {
 		node := &BpIndex{
 			Index:     []int64{inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key, inode.IndexNodes[ix+1].DataNodes[1].Items[0].Key},
 			DataNodes: []*BpData{inode.IndexNodes[ix].DataNodes[0], inode.IndexNodes[ix+1].DataNodes[0], inode.IndexNodes[ix+1].DataNodes[1]},
@@ -587,12 +618,14 @@ func (inode *BpIndex) borrowNodeSide(ix int) (updated bool, err error) {
 				if len(inode.IndexNodes[ix].Index) == 0 {
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 				}
-				inode.IndexNodes[ix+1].Index = append([]int64{inode.IndexNodes[ix].Index[0]}, inode.IndexNodes[ix+1].Index...) // 之前上层已经下放索引
+				inode.IndexNodes[ix+1].Index = append([]int64{inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key}, inode.IndexNodes[ix+1].Index...) // 之前上层已经下放索引
 				inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[1]}, inode.IndexNodes[ix+1].DataNodes...)
 				// 删除整个 ix 位置上的索引节点
 				inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 
-				*inode = *inode.IndexNodes[0]
+				inode.Index = []int64{}
+
+				// *inode = *inode.IndexNodes[0] // 先不要
 			}
 		} else if ix >= 0 && ix <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix].DataNodes[0].Items) != 0 &&
 			len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {

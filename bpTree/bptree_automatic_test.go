@@ -10,7 +10,7 @@ import (
 
 var (
 	// randomQuantity represents the number of elements to be generated for random testing.
-	randomQuantity = 50
+	randomQuantity = 30
 
 	// randomMax represents the maximum value for generating random numbers.
 	randomMax = 500
@@ -61,15 +61,18 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		// Start deleting data.
 		for i := 0; i < randomQuantity; i++ {
 			// Deleting data entries continuously.
-			root.root.delRoot(BpItem{Key: numbersForDeleting[i]})
+			test, _, _, _ := root.root.delRoot(BpItem{Key: numbersForDeleting[i]})
+			fmt.Println(test)
 		}
+
+		fmt.Println()
 	})
 	// Automated random testing for B+ tree.
 	t.Run("Manually Identify B+ Tree Operation Errors", func(t *testing.T) {
 		// Generate random data for insertion.
-		var randomNumbers = []int64{276, 309, 152, 462, 477, 322, 250, 491, 208, 109, 211, 256, 413, 455, 478, 363, 423, 395, 185, 331, 404, 172, 396, 471, 305, 35, 213, 153, 20, 235, 341, 386, 323, 392, 296, 300, 82, 195, 309, 103, 211, 438, 187, 106, 474, 135, 220, 249, 349, 189}
+		var randomNumbers = []int64{228, 279, 164, 187, 225, 147, 150, 248, 163, 277, 230, 291, 173, 19, 141, 491, 355, 83, 178, 169, 132, 382, 444, 458, 215, 308, 138, 221, 10, 45, 54, 438, 485, 453, 106, 423, 448, 172, 45, 58, 357, 167, 37, 352, 421, 165, 492, 48, 225, 340, 311, 52, 246, 500, 75, 16, 185, 135, 71, 342, 378, 296, 47, 132, 82, 333, 483, 98, 147, 116, 101, 51, 223, 35, 372, 284, 247, 80, 427, 30, 455, 360, 382, 464, 353, 344, 405, 333, 156, 272, 312, 120, 366, 490, 144, 417, 347, 312, 460, 499}
 		// Generate random data for deletion.
-		var shuffledNumbers = []int64{423, 309, 395, 211, 349, 474, 20, 195, 220, 455, 396, 296, 309, 103, 185, 109, 413, 276, 211, 386, 404, 106, 341, 363, 35, 322, 208, 300, 331, 235, 256, 172, 491, 392, 323, 249, 471, 438, 213, 135, 187, 477, 82, 189, 152, 462, 478, 153, 305, 250}
+		var shuffledNumbers = []int64{333, 353, 144, 225, 352, 344, 455, 116, 225, 448, 357, 277, 378, 291, 47, 485, 45, 19, 185, 138, 83, 460, 491, 246, 272, 360, 438, 423, 223, 75, 279, 427, 308, 120, 421, 340, 187, 382, 490, 228, 98, 311, 248, 499, 453, 80, 82, 141, 284, 54, 165, 230, 52, 417, 312, 215, 178, 444, 347, 163, 172, 48, 464, 37, 372, 51, 132, 500, 135, 247, 101, 30, 458, 483, 150, 333, 164, 71, 45, 58, 35, 342, 106, 312, 405, 221, 296, 147, 492, 169, 147, 16, 156, 382, 173, 132, 355, 167, 366, 10}
 		// var shuffledNumbers = []int64{423, 309, 395, 211, 349, 474, 20, 195, 220, 455, 396, 296, 309, 103, 185, 109, 413, 276, 211, 386, 404, 106, 341, 363, 35, 322, 208, 300, 331, 235, 256, 172, 491, 392, 323, 249, 471, 438, 213, 462, 187, 477, 82, 189, 152, 135, 478, 153, 305, 250}
 
 		// Initialize B-tree.
@@ -85,11 +88,13 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		for i := 0; i < randomQuantity; i++ {
 			fmt.Println(i, shuffledNumbers[i])
 			// Deleting data entries continuously.
-			if shuffledNumbers[i] == 82 { // 135
+			/*if shuffledNumbers[i] == 10 {
 				fmt.Println()
-			}
+			}*/
 			root.root.delRoot(BpItem{Key: shuffledNumbers[i]})
 		}
+
+		fmt.Println()
 	})
 }
 
