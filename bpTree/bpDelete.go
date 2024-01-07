@@ -29,6 +29,11 @@ func (inode *BpIndex) delRoot(item BpItem) (deleted, updated bool, ix int, err e
 		return
 	}
 
+	if len(inode.IndexNodes) == 1 {
+		*inode = *inode.IndexNodes[0]
+		return
+	}
+
 	// If there's not much data in the root node and it has two data nodes, handle the cases.
 	if len(inode.Index) == 0 &&
 		len(inode.DataNodes) == 2 {
@@ -87,13 +92,13 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 	})
 
 	// Check if deletion should be performed by the leftmost node first.
-	if (ix-1) >= 0 &&
-		len(inode.IndexNodes)-1 >= (ix-1) && ix != 0 { // After the second index node, it's possible to borrow data from the left ⬅️ node
+	if len(inode.Index) > 0 && len(inode.IndexNodes) > 0 &&
+		(ix-1) >= 1 && len(inode.IndexNodes)-1 >= (ix-1) { // After the second index node, it's possible to borrow data from the left ⬅️ node
 		// Length of the left node
 		length := len(inode.IndexNodes[ix-1].Index)
 
 		// If it is continuous data (same value) (5❌ - 5 - 5 - 5 - 5 - 6 - 7 - 8)
-		if ix >= 1 && ix <= len(inode.IndexNodes)-1 && ix-1 >= 1 && ix-1 <= len(inode.IndexNodes)-1 && length >= 1 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
+		if length > 0 && len(inode.IndexNodes) > 0 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
 			deleted, updated, ix, err = inode.deleteToLeft(item) // Delete to the leftmost node ‼️ (向左砍)
 			return
 		}
@@ -121,10 +126,10 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 		// Immediately update the index of index node.
 		if updated {
 			if len(inode.IndexNodes[ix].Index) != 0 {
-				updated, err = inode.updateIndexBetweenIndexes(ix) // Update the index between indexes
+				/*updated, err = inode.updateIndexBetweenIndexes(ix) // Update the index between indexes
 				if err != nil {
 					return
-				}
+				}*/
 			}
 			if len(inode.IndexNodes[ix].Index) == 0 {
 				updated, err = inode.borrowNodeSide(ix) // Will borrow part of the node (借结点).
@@ -185,21 +190,31 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int, err error) {
 	// Check if there are any index nodes.
 	if len(inode.IndexNodes) > 0 {
+
+		var retry bool
+
 		// Use binary search to find the index (ix) where the key should be deleted.
 		ix = sort.Search(len(inode.Index), func(i int) bool {
+			if inode.Index[i] == item.Key {
+				retry = true
+			}
 			return inode.Index[i] > item.Key // no equal sign ‼️ no equal sign means delete to the right ‼️
 		})
 
 		// Recursion keeps deletion in the right direction. 递归一直向右砍 ⬅️
 		deleted, updated, _, err = inode.IndexNodes[ix].deleteToRight(item)
 
+		if deleted == false && retry && ix >= 1 {
+			deleted, updated, _, err = inode.IndexNodes[ix-1].deleteToRight(item)
+		}
+
 		// Immediately update the index of index node.
 		if updated {
 			if len(inode.IndexNodes[ix].Index) != 0 {
-				updated, err = inode.updateIndexBetweenIndexes(ix) // Update the index between indexes.
+				/*updated, err = inode.updateIndexBetweenIndexes(ix) // Update the index between indexes.
 				if err != nil {
 					return
-				}
+				}*/
 			}
 			if len(inode.IndexNodes[ix].Index) == 0 &&
 				len(inode.IndexNodes[ix].DataNodes) == 2 {
@@ -215,10 +230,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 					return
 				}
 			}
-		}
-
-		if item.Key == 282 {
-			fmt.Println("由这里开发 ！")
 		}
 
 		if len(inode.Index) == 0 &&
@@ -349,12 +360,20 @@ func (inode *BpIndex) updateIndexBetweenIndexes(ix int) (updated bool, err error
 		(inode.Index[ix-1] != inode.IndexNodes[ix].Index[0]) { // 條件3 和原索引不同
 
 		// 進行更新
-		inode.Index[ix-1] = inode.IndexNodes[ix].Index[0]
-		updated = true
+		// inode.Index[ix-1] = inode.IndexNodes[ix].Index[0]
+		// updated = true
 	}
 
 	// Finally, perform the return.
 	return
+}
+
+func (inode *BpIndex) edge() (key int64) {
+	if len(inode.DataNodes) != 0 {
+		return inode.DataNodes[0].Items[0].Key
+	} else {
+		return inode.IndexNodes[0].edge()
+	}
 }
 
 // ➡️ The functions related to borrowed data.
@@ -673,7 +692,7 @@ func (inode *BpIndex) indexesMove(ix int) (updated bool, err error) {
 			*inode = *node
 
 			updated = true
-		} else if len(inode.Index) > 1 { // 上层直接下放其中一个索引，其他不变
+		} else if len(inode.Index) > 1 && ix > 0 { // 上层直接下放其中一个索引，其他不变
 			inode.IndexNodes[ix].Index = []int64{inode.Index[ix-1]}
 			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
 
