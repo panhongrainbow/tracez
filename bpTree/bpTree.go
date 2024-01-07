@@ -75,5 +75,95 @@ func (tree *BpTree) InsertValue(item BpItem) {
 	// Release the lock to allow other threads to access the tree.
 	tree.mutex.Unlock()
 
+	// Performing a return.
+	return
+}
+
+// RemoveValue ensures thread safety, remove item in B plus tree index, release lock.
+func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err error) {
+	// Acquire a lock to ensure thread safety.
+	tree.mutex.Lock()
+
+	// Release the lock to allow other threads to access the tree.
+	defer tree.mutex.Unlock()
+
+	// The deletion operation is currently managed by the root node to prevent issues with mismatched levels of child nodes.
+	// If the levels of child nodes are not correct, the B plus tree may malfunction. ‼️
+	// 删除操作由根节点管理，确保所有子节点层级相同 ‼️
+
+	// Performing deletion operation.
+	deleted, updated, ix, err = tree.root.delRoot(item)
+
+	// ⚠️ The following is the B plus tree merging operation.
+	// The merging criteria here do not rely on an empty node index. ‼️
+	// This is done to increase the chances of merging, as the index may not be cleared on time.
+	// 这里不以节点 index 为空为合拼标准，因为 index 可能没有及时清空
+
+	// ⚠️ When there is only one remaining index child node. (索引节点的升级合拼)
+	if len(tree.root.IndexNodes) == 1 && len(tree.root.DataNodes) == 0 {
+		*tree.root = *tree.root.IndexNodes[0]
+		return
+	}
+
+	// ⚠️ When there is only two remaining data child nodes. (资料节点的升级合拼)
+	if len(tree.root.DataNodes) == 2 && len(tree.root.IndexNodes) == 0 {
+		// If one of the data nodes indeed has no data.
+		if len(tree.root.DataNodes[0].Items) == 0 && len(tree.root.DataNodes[1].Items) != 0 {
+			// If the first data node is empty, replace the root node with the second data node.
+			tree.root.Index = nil
+			tree.root.DataNodes = []*BpData{tree.root.DataNodes[1]}
+			return
+		} else if len(tree.root.DataNodes[1].Items) == 0 && len(tree.root.DataNodes[0].Items) != 0 {
+			// If the second data node is empty, replace the root node with the first data node.
+			tree.root.Index = nil
+			tree.root.DataNodes = []*BpData{tree.root.DataNodes[0]}
+			return
+		}
+	}
+
+	// ⚠️ If there are only 2 index nodes, but the data is not a lot, they can be merged.
+	if len(tree.root.IndexNodes) == 2 &&
+		BpWidth > (len(tree.root.IndexNodes[0].Index)+len(tree.root.IndexNodes[1].Index)) { // Combine within the range of BpWidth.
+
+		// Begin the merger process.
+		if len(tree.root.Index) == 0 && len(tree.root.IndexNodes) > 0 {
+			// Create a new BpIndex node.
+			node := &BpIndex{}
+
+			// Merge all index nodes into a new node.
+			for i := 0; i < len(tree.root.IndexNodes); i++ {
+				node.Index = append(node.Index, tree.root.IndexNodes[i].Index...)
+				node.IndexNodes = append(node.IndexNodes, tree.root.IndexNodes[i].IndexNodes...)
+				node.DataNodes = append(node.DataNodes, tree.root.IndexNodes[i].DataNodes...)
+			}
+
+			// Replace the original root node with the new node.
+			*tree.root = *node
+		}
+	}
+
+	// ⚠️ Warning: The following code appears to perform a restructuring operation on a B+ tree.
+	if len(tree.root.DataNodes) == 2 &&
+		BpWidth > (len(tree.root.DataNodes[0].Items)+len(tree.root.DataNodes[1].Items)) {
+		// Create a new BpIndex node.
+		node := &BpIndex{}
+
+		// Copy the DataNodes from the root's IndexNodes to the new node.
+		for i := 0; i < len(tree.root.IndexNodes); i++ {
+			node.DataNodes = append(node.DataNodes, tree.root.IndexNodes[i].DataNodes...)
+		}
+
+		// Extract the keys from the DataNodes and populate the Index of the new node.
+		for i := 0; i < len(node.DataNodes); i++ {
+			if i != 0 {
+				node.Index = append(node.Index, node.DataNodes[i].Items[0].Key)
+			}
+		}
+
+		// Replace the original root node with the new node.
+		*tree.root = *node
+	}
+
+	// Performing a return.
 	return
 }

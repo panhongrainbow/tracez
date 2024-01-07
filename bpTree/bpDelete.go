@@ -29,56 +29,6 @@ func (inode *BpIndex) delRoot(item BpItem) (deleted, updated bool, ix int, err e
 		return
 	}
 
-	if len(inode.IndexNodes) == 1 {
-		*inode = *inode.IndexNodes[0]
-		return
-	}
-
-	// If there's not much data in the root node and it has two data nodes, handle the cases.
-	if len(inode.Index) == 0 &&
-		len(inode.DataNodes) == 2 {
-		// If the first data node is empty, replace the root node with the second data node.
-		if len(inode.DataNodes[0].Items) == 0 {
-			inode.Index = nil
-			inode.DataNodes = []*BpData{inode.DataNodes[1]}
-			return
-		}
-		// If the second data node is empty, replace the root node with the first data node.
-		if len(inode.DataNodes[1].Items) == 0 {
-			inode.Index = nil
-			inode.DataNodes = []*BpData{inode.DataNodes[0]}
-			return
-		}
-	}
-
-	if len(inode.Index) == 0 && len(inode.IndexNodes) == 1 {
-		*inode = *inode.IndexNodes[0]
-	}
-	if len(inode.Index) == 0 && len(inode.IndexNodes) > 0 {
-		node := &BpIndex{}
-		for i := 0; i < len(inode.IndexNodes); i++ {
-			node.Index = append(node.Index, inode.IndexNodes[i].Index...)
-			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[i].IndexNodes...)
-			node.DataNodes = append(node.DataNodes, inode.IndexNodes[i].DataNodes...)
-		}
-
-		*inode = *node
-	}
-
-	if len(inode.Index) == 0 && len(inode.DataNodes) > 0 {
-		node := &BpIndex{}
-		for i := 0; i < len(inode.IndexNodes); i++ {
-			node.DataNodes = append(node.DataNodes, inode.IndexNodes[i].DataNodes...)
-		}
-		for i := 0; i < len(node.DataNodes); i++ {
-			if i != 0 {
-				node.Index = append(node.Index, node.DataNodes[i].Items[0].Key)
-			}
-		}
-
-		*inode = *node
-	}
-
 	// Return the results
 	return
 }
