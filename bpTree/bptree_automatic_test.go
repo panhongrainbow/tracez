@@ -61,7 +61,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		// Start deleting data.
 		for i := 0; i < randomQuantity; i++ {
 			// Deleting data entries continuously.
-			deleted, _, _, err := root.root.delRoot(BpItem{Key: numbersForDeleting[i]})
+			deleted, _, _, err := root.root.delFromRoot(BpItem{Key: numbersForDeleting[i]})
 			if deleted == false {
 				fmt.Println("Breakpoint: Data deletion not successful. 💢 The number is ", numbersForDeleting[i], i)
 			}

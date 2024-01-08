@@ -32,7 +32,7 @@ func NewBpTree(width int) (tree *BpTree) {
 		},
 	}
 
-	// 先準備 1 個資料切片，1 個資料切片不會產生索引
+	// Prepare one data slice first; one data slice will not generate an index.
 	tree.root.DataNodes = append(tree.root.DataNodes, &BpData{})
 
 	return
@@ -92,7 +92,7 @@ func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err
 	// 删除操作由根节点管理，确保所有子节点层级相同 ‼️
 
 	// Performing deletion operation.
-	deleted, updated, ix, err = tree.root.delRoot(item)
+	deleted, updated, ix, err = tree.root.delFromRoot(item)
 
 	// ⚠️ The following is the B plus tree merging operation.
 	// The merging criteria here do not rely on an empty node index. ‼️
