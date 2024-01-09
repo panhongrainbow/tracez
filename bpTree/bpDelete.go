@@ -194,37 +194,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 			}
 		}
 
-		/*if len(inode.Index) == 0 &&
-			len(inode.IndexNodes) == 2 &&
-			len(inode.IndexNodes[0].DataNodes) > 0 &&
-			len(inode.IndexNodes[1].DataNodes) > 0 {
-			// 见鬼，不可能发生 💀
-			if len(inode.IndexNodes[0].DataNodes) == 2 {
-				if len(inode.IndexNodes[0].DataNodes[0].Items) == 0 {
-					// 再编写
-				} else if len(inode.IndexNodes[0].DataNodes[1].Items) == 0 {
-					// 再编写
-				}
-			} else if len(inode.IndexNodes[1].DataNodes) == 2 {
-				if len(inode.IndexNodes[1].DataNodes[0].Items) == 0 {
-					inode.IndexNodes[0].Index = append(inode.IndexNodes[0].Index, inode.IndexNodes[1].Index[0])
-					inode.IndexNodes[1].DataNodes[1].Previous = inode.IndexNodes[1].DataNodes[0].Previous
-					inode.IndexNodes[0].DataNodes = append(inode.IndexNodes[0].DataNodes, inode.IndexNodes[1].DataNodes[1])
-					inode.IndexNodes = []*BpIndex{inode.IndexNodes[0]}
-					length := len(inode.IndexNodes[0].Index)
-					if length >= BpWidth {
-						var key int64
-						var side *BpIndex
-						key, side, err = inode.IndexNodes[0].splitWithDnode()
-						inode.Index = []int64{key}
-						inode.IndexNodes = append(inode.IndexNodes, side)
-					}
-				} else if len(inode.IndexNodes[1].DataNodes[1].Items) == 0 {
-					// 再编写
-				}
-			}
-		}*/
-
 		// Return the results of the deletion.
 		return
 	}
