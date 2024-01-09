@@ -294,22 +294,6 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 	return
 }
 
-// 索引不能随意更新，会破坏整个 B 加树，所以这个函式要棄用
-// ➡️ The functions related to updated indexes.
-/*func (inode *BpIndex) updateIndexBetweenIndexes(ix int) (updated bool, err error) {
-	if ix > 0 && // 條件1 ix 要大於 0
-		len(inode.IndexNodes[ix].IndexNodes) >= 2 && // 條件2 下層索引節點數量要大於等於 2
-		(inode.Index[ix-1] != inode.IndexNodes[ix].Index[0]) { // 條件3 和原索引不同
-
-		// 進行更新
-		// inode.Index[ix-1] = inode.IndexNodes[ix].Index[0]
-		// updated = true
-	}
-
-	// Finally, perform the return.
-	return
-}*/
-
 // ➡️ The functions related to borrowed data.
 
 // borrowFromDataNode only borrows a portion of data from the neighboring nodes.
@@ -354,6 +338,38 @@ func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, err error) {
 	}*/
 
 	// Finally, return the result
+	return
+}
+
+func (inode *BpIndex) indexesMove(ix int) (updated bool, err error) {
+	// 底下有一个索引结点的索引为空，开始进行索引流动
+	if len(inode.IndexNodes[ix].Index) == 0 {
+		// 下放索引
+		// 在 ix 位罝上，IX 位置上的节点失效
+
+		if len(inode.Index) == 1 { // 上层直接下放唯一的索引，上层索引直接为空
+			inode.IndexNodes[ix].Index = []int64{inode.Index[0]}
+			inode.Index = []int64{}
+
+			// 顶层索引消失，直接进行合拼
+			node := &BpIndex{}
+			node.Index = append(node.Index, inode.IndexNodes[0].Index...)
+			node.Index = append(node.Index, inode.IndexNodes[1].Index...)
+
+			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[0].IndexNodes...)
+			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[1].IndexNodes...)
+
+			// 最后储存改写
+			*inode = *node
+
+			updated = true
+		} else if len(inode.Index) > 1 && ix > 0 { // 上层直接下放其中一个索引，其他不变
+			inode.IndexNodes[ix].Index = []int64{inode.Index[ix-1]}
+			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+
+			updated = true
+		}
+	}
 	return
 }
 
@@ -601,37 +617,5 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 	}
 
 	// Finally, return
-	return
-}
-
-func (inode *BpIndex) indexesMove(ix int) (updated bool, err error) {
-	// 底下有一个索引结点的索引为空，开始进行索引流动
-	if len(inode.IndexNodes[ix].Index) == 0 {
-		// 下放索引
-		// 在 ix 位罝上，IX 位置上的节点失效
-
-		if len(inode.Index) == 1 { // 上层直接下放唯一的索引，上层索引直接为空
-			inode.IndexNodes[ix].Index = []int64{inode.Index[0]}
-			inode.Index = []int64{}
-
-			// 顶层索引消失，直接进行合拼
-			node := &BpIndex{}
-			node.Index = append(node.Index, inode.IndexNodes[0].Index...)
-			node.Index = append(node.Index, inode.IndexNodes[1].Index...)
-
-			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[0].IndexNodes...)
-			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[1].IndexNodes...)
-
-			// 最后储存改写
-			*inode = *node
-
-			updated = true
-		} else if len(inode.Index) > 1 && ix > 0 { // 上层直接下放其中一个索引，其他不变
-			inode.IndexNodes[ix].Index = []int64{inode.Index[ix-1]}
-			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-
-			updated = true
-		}
-	}
 	return
 }
