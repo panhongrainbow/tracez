@@ -118,7 +118,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 			if len(inode.DataNodes) <= 2 {
 				inode.Index = []int64{}
 
-				// Return status.
+				// Return status
 				updated = true
 				return
 			}
@@ -133,7 +133,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 				inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
 				inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...)
 
-				// Return status.
+				// Return status
 				updated = true
 				return
 			}
@@ -188,7 +188,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 				}
 			} else if len(inode.IndexNodes[ix].IndexNodes) != 0 && // IndexNode ▶️
 				len(inode.IndexNodes[ix].DataNodes) == 0 {
-				updated, err = inode.indexesMove(ix) // Reorganize the indexing between nodes. (更新索引)
+				updated, err = inode.indexMove(ix) // Reorganize the indexing between nodes. (更新索引)
 				if err != nil {
 					return
 				}
@@ -225,7 +225,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 			if len(inode.DataNodes) <= 2 {
 				inode.Index = []int64{}
 
-				// Return status.
+				// Return status
 				updated = true
 				return
 			}
@@ -274,7 +274,7 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 	if deleted == true && len(inode.DataNodes) < 2 {
 		inode.Index = []int64{} // Wipe out the whole index. (索引在此失效) ‼️
 
-		// Return status.
+		// Return status
 		updated = true
 		return
 	}
@@ -285,7 +285,7 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 		inode.Index[ix-1] != inode.DataNodes[ix].Items[0].Key { // When values differ
 		inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key // Immediately update the index
 
-		// Return status.
+		// Return status
 		updated = true
 		return
 	}
@@ -294,79 +294,101 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 	return
 }
 
-// ➡️ The functions related to borrowed data.
+// ➡️ The following function will make detailed adjustments for the B Plus tree.
 
 // borrowFromDataNode only borrows a portion of data from the neighboring nodes.
 func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, err error) {
-	// Not an empty node, no need to borrow
+	// No data borrowing is necessary as long as the node is not empty, since all indices are still in their normal state.
 	if len(inode.DataNodes[ix].Items) != 0 {
 		err = fmt.Errorf("not an empty node, do not need to borrow")
+		return
 	}
 
 	// Borrow from the left side first
-	if (ix - 1) >= 0 { // Left neighbor
+	if (ix - 1) >= 0 { // Left neighbor exists ‼️
 		length := len(inode.DataNodes[ix-1].Items)
-		if length >= 2 { // Neighbor has enough data to borrow
+		if length >= 2 { // The left neighbor node has enough data to borrow
+			// ⬇️ The left neighbor node is split.
 			firstItems := inode.DataNodes[ix-1].Items[:(length - 1)]    // First part contains the first element
 			borrowedItems := inode.DataNodes[ix-1].Items[(length - 1):] // Second part contains the remaining elements
 
+			// ⬇️ Data reassignment
 			inode.DataNodes[ix-1].Items = firstItems
 			inode.DataNodes[ix].Items = borrowedItems
 
+			// ⬇️ Index reassignment
+
+			// This counts as a safe index update, within the internal structure of the DataNode itself. ✔️
+			// 在 DataNode 内部更新索引算安全 ✔️
 			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
 
+			// ⬇️ Return status
 			borrowed = true
+			return
 		}
 	}
 
-	// 以下先注解，因为无法对邻近节点的索引进行修改
 	// Borrow from the right side next.
-	/*if (ix + 1) <= len(inode.DataNodes[ix].Items) { // Right neighbor
+	if (ix + 1) <= len(inode.DataNodes)-1 { // Right neighbor exists ‼️
 		length := len(inode.DataNodes[ix+1].Items)
-		if length >= 2 { // Neighbor has enough data to borrow
+		if length >= 2 { // The right neighbor node has enough data to borrow
+			// ⬇️ The right neighbor node is split.
 			borrowedItems := inode.DataNodes[ix+1].Items[:1] // First part contains the first element
 			secondItems := inode.DataNodes[ix+1].Items[1:]   // Second part contains the remaining elements
 
+			// ⬇️ Data reassignment
 			inode.DataNodes[ix].Items = borrowedItems
 			inode.DataNodes[ix+1].Items = secondItems
 
-			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+			// ⬇️ Index reassignment
+			if ix != 0 {
+				// 最左边的 dataNode 不会产生索引
+				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+			}
+
+			// other conditions
 			inode.Index[ix] = inode.DataNodes[ix+1].Items[0].Key
 
+			// ⬇️ Return status
 			borrowed = true
+			return
 		}
-	}*/
+	}
 
 	// Finally, return the result
 	return
 }
 
-func (inode *BpIndex) indexesMove(ix int) (updated bool, err error) {
-	// 底下有一个索引结点的索引为空，开始进行索引流动
+// indexMove 进行索引流动操作
+func (inode *BpIndex) indexMove(ix int) (updated bool, err error) {
+	// If the index of a child node is empty, start index movement and push it down.
 	if len(inode.IndexNodes[ix].Index) == 0 {
-		// 下放索引
-		// 在 ix 位罝上，IX 位置上的节点失效
-
-		if len(inode.Index) == 1 { // 上层直接下放唯一的索引，上层索引直接为空
+		if len(inode.Index) == 1 {
+			// ⬇️ Scenario 1: Directly push down the only index from the upper level, making the upper-level index empty.
 			inode.IndexNodes[ix].Index = []int64{inode.Index[0]}
 			inode.Index = []int64{}
 
-			// 顶层索引消失，直接进行合拼
+			// The top-level index disappears, create a new node for direct merging.
 			node := &BpIndex{}
+
+			// Merge indices
 			node.Index = append(node.Index, inode.IndexNodes[0].Index...)
 			node.Index = append(node.Index, inode.IndexNodes[1].Index...)
 
+			// Merge indices
 			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[0].IndexNodes...)
 			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[1].IndexNodes...)
 
-			// 最后储存改写
+			// Save the modification at the end
 			*inode = *node
 
 			updated = true
-		} else if len(inode.Index) > 1 && ix > 0 { // 上层直接下放其中一个索引，其他不变
+		} else if len(inode.Index) > 1 && ix > 0 {
+			// ⬇️ Scenario 2: Directly push down one index from the upper level, leaving others unchanged.
 			inode.IndexNodes[ix].Index = []int64{inode.Index[ix-1]}
 			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
 
+			// Return status
 			updated = true
 		}
 	}
