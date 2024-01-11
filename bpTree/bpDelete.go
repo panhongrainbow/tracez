@@ -397,20 +397,20 @@ func (inode *BpIndex) indexMove(ix int) (updated bool, err error) {
 
 // borrowFromIndexNode will borrow more data from neighboring index nodes, including indexes.
 func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
-	// ⬇️ Check if there is an opportunity to borrow data from the index node.
-	if len(inode.IndexNodes[ix].Index) == 0 && // The underlying index is invalid; repair is required.
+	// ⬇️ Check if there is an opportunity to borrow data from the index node. Data node with invalid index has neighbors.
+	// (索引失效的资料节点 有邻居)
+	if len(inode.IndexNodes[ix].Index) == 0 && // The underlying index is invalid; repair is required. (条件1)
 		inode.IndexNodes[ix].DataNodes != nil && // This is an issue that the index node needs to address.
 		len(inode.IndexNodes) >= 2 { // There are multiple neighboring index nodes that can share data.
-
-		// 先向右边借，因右边资料比较多
+		// (先向右边借，因右边资料比较多)
 		if (ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1) &&
-			len(inode.IndexNodes[ix+1].DataNodes) >= 2 { // 向右借
+			len(inode.IndexNodes[ix+1].DataNodes) >= 2 { // 邻居资料结点资料够多，可向右借
 			// ➡️ Check if there is a chance to borrow data to the right.
 
 			// Index invalidation may occur, possibly due to only 2 remaining data below, and one of the data nodes being empty.
 			// Which side of the data node is empty ⁉️
 
-			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 {
+			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 { // 执行完后有可能变成 case 4 的状态
 				// ⬇️ The first data node is empty.
 
 				// 🔴 Case 3 Operation
@@ -423,64 +423,92 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 				inode.IndexNodes[ix].DataNodes[1].Items = inode.IndexNodes[ix].DataNodes[1].Items[1:]
 			}
 
-			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix+1].DataNodes[0].Items) >= 2 {
-				// ⬇️ The second data node is empty.
+			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 { // 狀況 4 發生
 
 				// 🔴 Case 4 Operation
 
-				// 先不让 资料 为空，再 锁引 不能为空
-				inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
-				inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
+				if len(inode.IndexNodes[ix+1].DataNodes[0].Items) >= 2 { // 如果最邻近的资料结点也有足够的资料
+					// ⬇️ The second data node is empty.
 
-				// 右方鄰居節點進行
-				if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 0 {
-					inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]
-					inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:]
-				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) != 0 {
-					// 不做任入何动件
+					// 🔴 Case 4-1 Operation
+
+					// 先不让 资料 为空，再 锁引 不能为空
+					inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
+					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
+
+					// 右方鄰居節點進行
+					if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 0 {
+						inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]
+						inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:]
+					} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) != 0 {
+						// 不做任入何动件
+					}
+
+					// ☢️ 更改上层索引危除，再考虑
+					// inode.Index = []int64{inode.IndexNodes[ix+1].Index[0]}
+
+					// 更新状态
+					updated = true
+					return
+				} else { // 如果最邻近的资料结点没有足够的资料，这一借，邻居节点将会破坏
+
+					// 🔴 Case 4-2 Operation
+
+					fmt.Println("case 4-2")
 				}
-
-				// ☢️ 更改上层索引危除，再考虑
-				// inode.Index = []int64{inode.IndexNodes[ix+1].Index[0]}
-
-				// 更新状态
-				updated = true
-				return
 			}
-
 		} else if (ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1) &&
-			len(inode.IndexNodes[ix-1].DataNodes) >= 2 {
+			len(inode.IndexNodes[ix-1].DataNodes) >= 2 { // 邻居资料结点资料够多，可向左借
 			// ⬅️ Check if there is a chance to borrow data to the left.
 
-			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 {
+			// Index invalidation may occur, possibly due to only 2 remaining data below, and one of the data nodes being empty.
+			// Which side of the data node is empty ⁉️
+
+			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 { // 执行完后有可能变成 case 1 的状态
 				// ⬇️ The first data node is empty.
 
-				// 🔴 Case 1 Operation
+				// 🔴 Case 2 Operation
 
 				// 先向同一个索引节点借资料
 				length := len(inode.IndexNodes[ix].DataNodes[0].Items)
 				inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix].DataNodes[0].Items[length-1])
-				inode.IndexNodes[ix].DataNodes[0].Items = inode.IndexNodes[ix].DataNodes[0].Items[:length-1] // 不包含最后一个
 				if len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 				}
-
+				inode.IndexNodes[ix].DataNodes[0].Items = inode.IndexNodes[ix].DataNodes[0].Items[:length-1] // 不包含最后一个
 			}
 
-			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 {
+			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 && ix != 0 { // 狀況 1 發生
 				// ⬇️ The first data node is empty.
+
+				// 🔴 Case 1-1 Operation
 
 				// 先不让 资料 为空，再 锁引 不能为空
 				dLength := len(inode.IndexNodes[ix-1].DataNodes)
 				iLeinght := len(inode.IndexNodes[ix-1].DataNodes[dLength-1].Items)
-				if len(inode.IndexNodes[ix-1].DataNodes[dLength-1].Items) >= 2 {
+
+				if dLength != 0 && iLeinght != 0 {
+					// 先不让 资料 为空，再 锁引 不能为空
 					inode.IndexNodes[ix].DataNodes[0].Items = append(inode.IndexNodes[ix].DataNodes[0].Items, inode.IndexNodes[ix-1].DataNodes[dLength-1].Items[iLeinght-1])
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
-				}
 
-				// 更新状态
-				updated = true
-				return
+					// 左方鄰居節點進行
+					if len(inode.IndexNodes[ix-1].DataNodes[dLength-1].Items) == 0 {
+						inode.IndexNodes[ix-1].Index = inode.IndexNodes[ix+1].Index[:iLeinght-1-1]
+						inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:iLeinght-1]
+					} else if len(inode.IndexNodes[ix-1].DataNodes[dLength-1].Items) != 0 {
+						// 不做任入何动件
+					}
+
+					// 更新状态
+					updated = true
+					return
+				}
+			} else { // 如果最邻近的资料结点没有足够的资料，这一借，邻居节点将会破坏
+
+				// 🔴 Case 1-2 Operation
+
+				fmt.Println("case 1-2")
 			}
 		}
 	}
