@@ -427,10 +427,21 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 
 				// 🔴 Case 4 Operation
 
-				if len(inode.IndexNodes[ix+1].DataNodes[0].Items) >= 2 { // 如果最邻近的资料结点也有足够的资料
+				if len(inode.IndexNodes[ix+1].DataNodes[0].Items) >= 2 { // 如果最邻近的资料结点也有足够的资料，这时不会破坏邻近节点
 					// ⬇️ The second data node is empty.
 
 					// 🔴 Case 4-1 Operation
+
+					// 先不让 资料 为空，再 锁引 不能为空
+					inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
+					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
+
+					// 更新状态
+					updated = true
+					return
+				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 1 { // 如果最邻近的资料结点没有足够的资料，这一借，邻居节点将会破坏
+
+					// 🔴 Case 4-2 Operation
 
 					// 先不让 资料 为空，再 锁引 不能为空
 					inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
@@ -440,21 +451,18 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 					if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 0 {
 						inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]
 						inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:]
-					} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) != 0 {
-						// 不做任入何动件
 					}
 
-					// ☢️ 更改上层索引危除，再考虑
+					// ☢️ 更改上层索引，应可以，因这里接近底层资料
 					// inode.Index = []int64{inode.IndexNodes[ix+1].Index[0]}
 
 					// 更新状态
 					updated = true
+
 					return
-				} else { // 如果最邻近的资料结点没有足够的资料，这一借，邻居节点将会破坏
-
-					// 🔴 Case 4-2 Operation
-
-					fmt.Println("case 4-2")
+				} else {
+					err = fmt.Errorf("节点未及时整理完成")
+					return
 				}
 			}
 		} else if (ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1) &&

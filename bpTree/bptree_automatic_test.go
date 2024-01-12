@@ -13,7 +13,7 @@ var (
 	randomQuantity = 100
 
 	// randomMax represents the maximum value for generating random numbers.
-	randomMax = 500
+	randomMax = 2000
 
 	// randomMin represents the minimum value for generating random numbers.
 	randomMin = 10
@@ -90,7 +90,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		// Start deleting data.
 		for i := 0; i < randomQuantity; i++ {
 			fmt.Println(i, shuffledNumbers[i])
-			if i == 92 { // 51
+			if shuffledNumbers[i] == 100 {
 				fmt.Println()
 			}
 			deleted, _, _, err := root.RemoveValue(BpItem{Key: shuffledNumbers[i]})
