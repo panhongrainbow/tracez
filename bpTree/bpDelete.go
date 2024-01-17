@@ -462,25 +462,30 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 
 					// 更新状态
 					updated = true
-					return // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+					return
 				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 1 && len(inode.IndexNodes[ix+1].DataNodes) == 2 { // 邻点太小，将会被合拼，进入 [状况4-3]
-
 					// 🔴 Case 4-3 Operation
 
-					// fmt.Println()
+					// 重建连结
+					inode.IndexNodes[ix+1].DataNodes[0].Previous = inode.IndexNodes[ix].DataNodes[0]
+					inode.IndexNodes[ix].DataNodes[0].Next = inode.IndexNodes[ix+1].DataNodes[0]
 
-					// 先不让 资料 为空，再 锁引 不能为空
-					/*inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key}, inode.IndexNodes[ix+1].Index...)
-					inode.IndexNodes[ix].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[0]}, inode.IndexNodes[ix+1].DataNodes...)
+					// 不用借了，先直接合拼
+					inode.IndexNodes[ix+1].Index = append([]int64{inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key}, inode.IndexNodes[ix+1].Index...)
+					inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[0]}, inode.IndexNodes[ix+1].DataNodes...)
 
-					// fmt.Println()
-
-					inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
-					inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
+					// 抹除 ix 位置
+					if ix > 0 {
+						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+						inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+					} else if ix == 0 {
+						inode.Index = inode.Index[1:]
+						inode.IndexNodes = inode.IndexNodes[1:]
+					}
 
 					// 更新状态
 					updated = true
-					return*/
+					return
 				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 0 {
 					err = fmt.Errorf("节点未及时整理完成1")
 					return
@@ -511,6 +516,7 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 				// 先由出尾端的位置
 				length0 := len(inode.IndexNodes[ix-1].DataNodes)
 				length1 := len(inode.IndexNodes[ix-1].DataNodes[length0-1].Items)
+				length2 := len(inode.IndexNodes[ix-1].DataNodes)
 
 				// 🔴 Case 1 Operation
 				if len(inode.IndexNodes[ix-1].DataNodes[length0-1].Items) >= 2 && length0 > 0 && length1 > 0 { // 如果最邻近的资料结点也有足够的资料，这时不会破坏邻近节点，进入 [状况4-1]，最好的状况
@@ -538,35 +544,37 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
 					// 重建连结
-					inode.IndexNodes[ix+1].DataNodes[length0-2].Next = inode.IndexNodes[ix+1].DataNodes[length0-1].Next
-					inode.IndexNodes[ix].DataNodes[0].Previous = inode.IndexNodes[ix+1].DataNodes[length0-2]
+					/*inode.IndexNodes[ix+1].DataNodes[length0-2].Next = inode.IndexNodes[ix+1].DataNodes[length0-1].Next
+					inode.IndexNodes[ix].DataNodes[0].Previous = inode.IndexNodes[ix+1].DataNodes[length0-2]*/
 
 					// 唯一值被取走，被破坏了，清空无效索引和资料节点
-					inode.IndexNodes[ix-1].Index = inode.IndexNodes[ix-1].Index[:(length1 - 1)]
-					inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:(length1 - 1)]
+					inode.IndexNodes[ix-1].Index = inode.IndexNodes[ix-1].Index[:(length2 - 2)]
+					inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:(length2 - 1)]
 
 					// ☢️ 更改上层索引，应可以，因这里接近底层资料
 					inode.Index[(ix)-1] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
 
 					// 更新状态
 					updated = true
-					return // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+					return
 				} else if len(inode.IndexNodes[ix-1].DataNodes[length0-1].Items) == 1 && len(inode.IndexNodes[ix-1].DataNodes) == 2 && length0 > 0 { // 邻点太小，将会被合拼，进入 [状况1-3]
 					// 🔴 Case 1-3 Operation
 
-					// 先不让 资料 为空，再 锁引 不能为空
-					/*inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
-					inode.IndexNodes[ix].DataNodes = append([]*BpData{inode.IndexNodes[ix-1].DataNodes[length0-1]}, inode.IndexNodes[ix].DataNodes[1])
+					// 重建连结
+					inode.IndexNodes[ix-1].DataNodes[length0-1].Next = inode.IndexNodes[ix].DataNodes[1]
+					inode.IndexNodes[ix].DataNodes[1].Previous = inode.IndexNodes[ix-1].DataNodes[length0-1]
 
-					// 清除无效节点
-					iiLength := len(inode.IndexNodes[ix-1].Index)
-					inode.IndexNodes[ix-1].Index = inode.IndexNodes[ix-1].Index[:iiLength-1]
-					idLength := len(inode.IndexNodes[ix-1].IndexNodes)
-					inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:idLength-1]
+					// 不用借了，先直接合拼
+					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix-1].DataNodes[1].Items[0].Key)
+					inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[1])
+
+					// 抹除 ix 位置
+					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+					inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 
 					// 更新状态
 					updated = true
-					return*/
+					return
 				} else if len(inode.IndexNodes[ix-1].DataNodes[length0-1].Items) == 0 {
 					err = fmt.Errorf("节点未及时整理完成2")
 					return
