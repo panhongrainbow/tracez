@@ -90,10 +90,14 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 
 		// Start deleting data.
 		for i := 0; i < randomQuantity; i++ {
-			fmt.Println(i, shuffledNumbers[i])
-			if shuffledNumbers[i] == 900 { // 检验
+
+			// 检验
+			value := shuffledNumbers[i]
+			fmt.Println(i, value)
+			if shuffledNumbers[i] == 123 {
 				fmt.Println()
 			}
+
 			deleted, _, _, err := root.RemoveValue(BpItem{Key: shuffledNumbers[i]})
 			if deleted == false {
 				fmt.Println("Breakpoint: Data deletion not successful. 💢 The number is ", shuffledNumbers[i], i)

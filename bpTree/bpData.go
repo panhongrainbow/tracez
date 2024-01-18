@@ -179,9 +179,12 @@ func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direct
 // _delete is a helper method of the BpData type that performs the actual deletion of a BpItem.
 // It uses binary search to find the index where the item should be deleted.
 func (data *BpData) _delete(item BpItem) (deleted bool, ix int) {
-	if item.Key == 900 { // 检验
+
+	// 检验
+	if item.Key == 123 {
 		fmt.Println()
 	}
+
 	// Use binary search to find the index where the item should be deleted.
 	ix = sort.Search(len(data.Items), func(i int) bool {
 		return data.Items[i].Key >= item.Key

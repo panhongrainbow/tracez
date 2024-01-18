@@ -182,7 +182,32 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		// 删除导致锁引失效 ‼️
 		if len(inode.IndexNodes[ix].Index) == 0 { // invalid ❌
 			if len(inode.IndexNodes[ix].DataNodes) >= 2 { // DataNode 🗂️
+
+				// 检验
+				if item.Key == 123 {
+					fmt.Println()
+				}
+
 				updated, err = inode.borrowFromIndexNode(ix) // Will borrow part of the node (借结点).
+
+				// 修正考虑1/3
+				if updated == true && ix >= 1 && ix <= len(inode.IndexNodes)-1 {
+					if inode.IndexNodes[ix].Index[0] < inode.Index[ix-1] {
+						inode.Index[ix-1] = inode.IndexNodes[ix].Index[0]
+					}
+				}
+
+				// 修正考虑2/3
+				if ix >= 0 && ix <= len(inode.IndexNodes)-1 && ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix].DataNodes) > 0 {
+					edgeValue := inode.IndexNodes[ix].DataNodes[0].Items[0].Key
+					inode.Index[ix-1] = edgeValue
+				}
+
+				// 检验
+				if item.Key == 123 {
+					fmt.Println()
+				}
+
 				if err != nil && !errors.Is(err, fmt.Errorf("the index is still there; there is no need to borrow nodes")) {
 					return
 				}
@@ -565,7 +590,11 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 					inode.IndexNodes[ix].DataNodes[1].Previous = inode.IndexNodes[ix-1].DataNodes[length0-1]
 
 					// 不用借了，先直接合拼
-					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix-1].DataNodes[1].Items[0].Key)
+					// inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix-1].DataNodes[1].Items[0].Key)
+					// inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix-1].DataNodes[1].Items[0].Key)
+
+					// 修正考虑3/3
+					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].DataNodes[1].Items[0].Key)
 					inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[1])
 
 					// 抹除 ix 位置
