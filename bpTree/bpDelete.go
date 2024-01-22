@@ -210,9 +210,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 					}
 					fmt.Println("这里程式还没写完1")
 				}
-			}
-
-			if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
+			} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
+				// 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
 				if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth {
 					fmt.Println("这里程式还没写完")
 					inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
