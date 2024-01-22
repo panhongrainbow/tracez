@@ -1,6 +1,7 @@
 package bpTree
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -99,6 +100,20 @@ func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err
 	// This is done to increase the chances of merging, as the index may not be cleared on time.
 	// 这里不以节点 index 为空为合拼标准，因为 index 可能没有及时清空
 
+	if len(tree.root.Index) == 1 && len(tree.root.IndexNodes) == 2 && ix >= 0 && ix < len(tree.root.IndexNodes)-1 && len(tree.root.IndexNodes[ix].IndexNodes) == 1 {
+		// 当根结点其中一个分支利一个索引值和一个索引节点，这个分支就要和其他分支进行全拼
+		tree.root.IndexNodes[ix].Index = []int64{}
+		if ix == 0 {
+			node := &BpIndex{}
+			node.Index = append([]int64{tree.root.IndexNodes[1].edgeValue()}, tree.root.IndexNodes[1].Index...)
+			node.IndexNodes = append(tree.root.IndexNodes[0].IndexNodes, tree.root.IndexNodes[1].IndexNodes...)
+			*tree.root = *node
+			return
+		} else if ix == 1 {
+			fmt.Println("这里还没写完")
+		}
+	}
+
 	// ⚠️ When there is only one remaining index child node. (索引节点的升级合拼)
 	if len(tree.root.IndexNodes) == 1 && len(tree.root.DataNodes) == 0 {
 		*tree.root = *tree.root.IndexNodes[0]
@@ -142,23 +157,16 @@ func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err
 		}
 	}
 
-	// ⚠️ Warning: The following code appears to perform a restructuring operation on a B+ tree.
+	// ⚠️ Warning: The following code appears to perform a restructuring operation on a B Plus tree.
+	// 当根节点直接连接到资料节点，而且分支数量只有 2 个的时候，这时根节点规模会过小
 	if len(tree.root.DataNodes) == 2 &&
 		BpWidth > (len(tree.root.DataNodes[0].Items)+len(tree.root.DataNodes[1].Items)) {
+
 		// Create a new BpIndex node.
 		node := &BpIndex{}
-
-		// Copy the DataNodes from the root's IndexNodes to the new node.
-		for i := 0; i < len(tree.root.IndexNodes); i++ {
-			node.DataNodes = append(node.DataNodes, tree.root.IndexNodes[i].DataNodes...)
-		}
-
-		// Extract the keys from the DataNodes and populate the Index of the new node.
-		for i := 0; i < len(node.DataNodes); i++ {
-			if i != 0 {
-				node.Index = append(node.Index, node.DataNodes[i].Items[0].Key)
-			}
-		}
+		node.DataNodes = append(node.DataNodes, &BpData{})
+		node.DataNodes[0].Items = append(node.DataNodes[0].Items, tree.root.DataNodes[0].Items...)
+		node.DataNodes[0].Items = append(node.DataNodes[0].Items, tree.root.DataNodes[1].Items...)
 
 		// Replace the original root node with the new node.
 		*tree.root = *node
@@ -166,4 +174,12 @@ func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err
 
 	// Performing a return.
 	return
+}
+
+// edgeValue 是用来计算索引节点节点的边界值
+func (inode *BpIndex) edgeValue() int64 {
+	if len(inode.IndexNodes) > 0 {
+		return inode.IndexNodes[0].edgeValue()
+	}
+	return inode.DataNodes[0].Items[0].Key
 }

@@ -11,6 +11,8 @@ const (
 	statusNormal = iota + 1
 	statusProtrudeInode
 	statusProtrudeDnode
+	statusCombineToLeftAfterDelete
+	statusIXMunus
 	statusDeleteItem
 	statusDeleteNon
 	statusDeProtrude

@@ -180,7 +180,7 @@ func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direct
 // It uses binary search to find the index where the item should be deleted.
 func (data *BpData) _delete(item BpItem) (deleted bool, ix int) {
 
-	// 检验
+	// 中断检验
 	if item.Key == 123 {
 		fmt.Println()
 	}

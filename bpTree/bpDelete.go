@@ -13,12 +13,16 @@ func (inode *BpIndex) delFromRoot(item BpItem) (deleted, updated bool, ix int, e
 	// Check if the root node is empty and has only one data node with a matching key.
 	if len(inode.Index) == 0 &&
 		len(inode.DataNodes) == 1 {
-		if inode.DataNodes[0].Items[0].Key == item.Key {
-			// If the root node has only one data node and its key matches the target key, remove the root node.
-			node := &BpIndex{
-				DataNodes: make([]*BpData, 0, BpWidth+1), // The addition of 1 is because data chunks may temporarily exceed the width.
-			}
-			*inode = *node
+
+		// 以下用 inode.DataNodes 去寻找位置，这时 根结点资料过小，只剩下资料节点了
+
+		ix = sort.Search(len(inode.Index), func(i int) bool {
+			return inode.DataNodes[0].Items[i].Key > item.Key // no equal sign ‼️ no equal sign means delete to the right ‼️
+		})
+
+		if inode.DataNodes[0].Items[ix].Key == item.Key {
+			inode.DataNodes[0].Items = append(inode.DataNodes[0].Items[0:ix], inode.DataNodes[0].Items[ix+1:]...)
+			updated = true
 			return
 		}
 	}
@@ -49,7 +53,7 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 		length := len(inode.IndexNodes[ix-1].Index)
 
 		// If it is continuous data (same value) (5❌ - 5 - 5 - 5 - 5 - 6 - 7 - 8)
-		if length > 0 && len(inode.IndexNodes) > 0 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
+		if length > 0 && len(inode.IndexNodes) > 0 && len(inode.IndexNodes[ix].Index) > 0 && len(inode.IndexNodes[ix-1].Index) > 0 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
 			deleted, updated, ix, err = inode.deleteToLeft(item) // Delete to the leftmost node ‼️ (向左砍)
 			return
 		}
@@ -57,7 +61,7 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 
 	// ➡️➡️➡️ Right 向右
 	// If it is discontinuous data (different values) (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
-	deleted, updated, ix, err = inode.deleteToRight(item) // Delete to the rightmost node ‼️ (向右砍)
+	deleted, updated, _, ix, err = inode.deleteToRight(item) // Delete to the rightmost node ‼️ (向右砍)
 
 	// Return the results
 	return
@@ -145,7 +149,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 }
 
 // delete is a method of the BpIndex type that deletes the specified BpItem. (由右边删除 👉 ‼️)
-func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int, err error) {
+func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status int, ix int, err error) {
 	// ⬇️⬇️⬇️ for index node 针对索引节点
 
 	// Check if there are any index nodes.
@@ -165,12 +169,32 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		})
 
 		// Recursion keeps deletion in the right direction. 递归一直向右砍 ⬅️
-		deleted, updated, _, err = inode.IndexNodes[ix].deleteToRight(item)
+		// if ix >= 0 && ix <= len(inode.IndexNodes)-1 {
+		deleted, updated, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
+		// }
+
+		// 中断检验
+		if item.Key == 123 {
+			fmt.Println()
+		}
+
+		if status == statusCombineToLeftAfterDelete {
+			// 当一个分支只剩一个索引值和一个索引节点，准备要向左合拼
+			if ix-1 > 0 && ix-1 <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix-1].Index)+1 < BpWidth {
+				inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+				inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
+				inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+				inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+				// 合拼后，ix 的值要减 1
+				status = statusIXMunus
+				ix = ix - 1
+			}
+		}
 
 		// Deletion failed previously, initiating a retry. (重试)
 		if ix >= 1 && deleted == false && retry == true {
 			ix = ix - 1
-			deleted, updated, _, err = inode.IndexNodes[ix].deleteToRight(item)
+			deleted, updated, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
 			if deleted == false {
 				// If the data is not deleted in two consecutive attempts, terminate the process here. ‼️
 				//(删不到，中断) ‼️
@@ -183,27 +207,43 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		if len(inode.IndexNodes[ix].Index) == 0 { // invalid ❌
 			if len(inode.IndexNodes[ix].DataNodes) >= 2 { // DataNode 🗂️
 
-				// 检验
+				// 中断检验
 				if item.Key == 123 {
 					fmt.Println()
 				}
 
 				updated, err = inode.borrowFromIndexNode(ix) // Will borrow part of the node (借结点).
 
-				// 修正考虑1/3
+				// 计算边界值 3
+				// 当向其他索引节点借完后，在执行 borrowFromIndexNode，重新计算边界值
+				var edgeValue int64 = -1
+				if updated == true && len(inode.IndexNodes) > 0 && len(inode.IndexNodes[0].DataNodes) > 0 && len(inode.IndexNodes[0].DataNodes[0].Items) > 0 {
+					edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key
+					fmt.Println("计算边界值 3", "->", edgeValue)
+
+					if edgeValue != -1 && len(inode.Index) == 0 {
+						inode.Index = []int64{edgeValue}
+						status = statusCombineToLeftAfterDelete
+						return
+					}
+				}
+
+				// 计算边界值
+
+				// 顺手更新边界值
 				if updated == true && ix >= 1 && ix <= len(inode.IndexNodes)-1 {
 					if inode.IndexNodes[ix].Index[0] < inode.Index[ix-1] {
 						inode.Index[ix-1] = inode.IndexNodes[ix].Index[0]
 					}
 				}
 
-				// 修正考虑2/3
+				// 顺手更新边界值
 				if ix >= 0 && ix <= len(inode.IndexNodes)-1 && ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix].DataNodes) > 0 {
 					edgeValue := inode.IndexNodes[ix].DataNodes[0].Items[0].Key
 					inode.Index[ix-1] = edgeValue
 				}
 
-				// 检验
+				// 中断检验
 				if item.Key == 123 {
 					fmt.Println()
 				}
@@ -231,13 +271,38 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, ix int,
 		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
 		// This signifies the beginning of deleting data. (接近资料层)
 
+		// 中断检验
+		if item.Key == 123 {
+			fmt.Println()
+		}
+
 		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
 		deleted, updated, ix = inode.deleteBottomItem(item)
+
+		// 计算边界值 1，当删除资料时，立刻更新边界值
+		if deleted == true && len(inode.DataNodes) >= 2 &&
+			ix >= 0 && ix <= len(inode.DataNodes)-1 &&
+			ix-1 >= 0 && ix-1 <= len(inode.DataNodes)-1 &&
+			len(inode.DataNodes[ix].Items) > 0 {
+			// fmt.Println("计算边界值 1", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
+			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+		}
 
 		// The individual data node is now empty, and
 		// it is necessary to start borrowing data from neighboring nodes.
 		if len(inode.DataNodes[ix].Items) == 0 {
 			updated, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
+
+			// 计算边界值 2，当删除资料时，就立刻去更新边界值
+			if updated == true && len(inode.DataNodes) >= 2 &&
+				ix >= 0 && ix <= len(inode.DataNodes)-1 &&
+				ix-1 >= 0 && ix-1 <= len(inode.DataNodes)-1 &&
+				len(inode.DataNodes[ix].Items) > 0 {
+				fmt.Println("计算边界值 2", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
+				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+				return
+			}
+
 			if updated == true || err != nil {
 				// Leave as soon as you've borrowed the information.
 				return
@@ -590,10 +655,6 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 					inode.IndexNodes[ix].DataNodes[1].Previous = inode.IndexNodes[ix-1].DataNodes[length0-1]
 
 					// 不用借了，先直接合拼
-					// inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix-1].DataNodes[1].Items[0].Key)
-					// inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix-1].DataNodes[1].Items[0].Key)
-
-					// 修正考虑3/3
 					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].DataNodes[1].Items[0].Key)
 					inode.IndexNodes[ix-1].DataNodes = append(inode.IndexNodes[ix-1].DataNodes, inode.IndexNodes[ix].DataNodes[1])
 
