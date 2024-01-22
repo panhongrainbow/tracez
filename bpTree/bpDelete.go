@@ -22,7 +22,7 @@ func (inode *BpIndex) delFromRoot(item BpItem) (deleted, updated bool, ix int, e
 
 		if inode.DataNodes[0].Items[ix].Key == item.Key {
 			inode.DataNodes[0].Items = append(inode.DataNodes[0].Items[0:ix], inode.DataNodes[0].Items[ix+1:]...)
-			updated = true
+			deleted = true
 			return
 		}
 	}
@@ -178,16 +178,50 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 			fmt.Println()
 		}
 
-		if status == statusCombineToLeftAfterDelete {
+		if status == statusCombineNeighborAfterDelete {
 			// 当一个分支只剩一个索引值和一个索引节点，准备要向左合拼
-			if ix-1 > 0 && ix-1 <= len(inode.IndexNodes)-1 && len(inode.IndexNodes[ix-1].Index)+1 < BpWidth {
-				inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
-				inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
-				inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-				inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
-				// 合拼后，ix 的值要减 1
-				status = statusIXMunus
-				ix = ix - 1
+			if ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 {
+				if len(inode.IndexNodes[ix-1].Index)+1 < BpWidth { // 没错，Degree 是针对 Index
+					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+					inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
+					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+					inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+					// 合拼后，ix 的值要减 1
+					status = statusIXMunus
+					ix = ix - 1
+				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
+					if len(inode.IndexNodes) == 2 {
+						inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+						inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
+						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+						inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+
+						var middle *BpIndex
+						middle, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth()
+						if err != nil {
+							return
+						}
+						*inode = *middle
+						return
+
+						// 合拼后，ix 的值要减 1 (不会有这状况)
+						// status = statusIXMunus
+						// ix = ix - 1
+					}
+					fmt.Println("这里程式还没写完1")
+				}
+			}
+
+			if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
+				if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth {
+					fmt.Println("这里程式还没写完")
+					inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
+					inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
+					inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
+					inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
+				} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
+					fmt.Println("这里程式还没写完2")
+				}
 			}
 		}
 
@@ -219,11 +253,11 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 				var edgeValue int64 = -1
 				if updated == true && len(inode.IndexNodes) > 0 && len(inode.IndexNodes[0].DataNodes) > 0 && len(inode.IndexNodes[0].DataNodes[0].Items) > 0 {
 					edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key
-					fmt.Println("计算边界值 3", "->", edgeValue)
+					// fmt.Println("计算边界值 3", "->", edgeValue)
 
 					if edgeValue != -1 && len(inode.Index) == 0 {
 						inode.Index = []int64{edgeValue}
-						status = statusCombineToLeftAfterDelete
+						status = statusCombineNeighborAfterDelete
 						return
 					}
 				}
@@ -298,7 +332,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 				ix >= 0 && ix <= len(inode.DataNodes)-1 &&
 				ix-1 >= 0 && ix-1 <= len(inode.DataNodes)-1 &&
 				len(inode.DataNodes[ix].Items) > 0 {
-				fmt.Println("计算边界值 2", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
+				// fmt.Println("计算边界值 2", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
 				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
 				return
 			}
@@ -669,7 +703,6 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (updated bool, err error) {
 					err = fmt.Errorf("节点未及时整理完成2")
 					return
 				}
-
 			}
 		}
 	}
