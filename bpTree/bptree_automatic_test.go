@@ -106,7 +106,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 			// 中断检验
 			value := shuffledNumbers[i]
 			fmt.Println(i, value)
-			if shuffledNumbers[i] == 123 {
+			if shuffledNumbers[i] == 708 {
 				fmt.Println()
 			}
 

@@ -190,43 +190,46 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 					status = statusIXMunus
 					ix = ix - 1
 				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
-					if len(inode.IndexNodes) == 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
-						inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
-						inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
-						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-						inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
-
-						var middle *BpIndex
-
-						// 要分成单偶数函式处理
-						if len(inode.IndexNodes[ix-1].Index) == 1 { // 单数
-							// 当索引为奇数时
-							middle, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth()
-							if err != nil {
-								return
-							}
-							*inode = *middle
-						} else if len(inode.IndexNodes[ix-1].Index) == 0 { // 偶数
-							// 当索引为偶数时
-							middle, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth()
-							if err != nil {
-								return
-							}
-							*inode = *middle
-						}
-
-						return
-
-						// 合拼后，ix 的值要减 1 (不会有这状况)
-						// status = statusIXMunus
-						// ix = ix - 1
+					// if len(inode.IndexNodes) >= 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
+					// 后来想想，这里直接去除，因为加1后除2也会维持 Degree，只要层数相同就好
+					if len(inode.IndexNodes) >= 2 {
+						fmt.Println()
 					}
-					fmt.Println("这里程式还没写完1")
+					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+					inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
+					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+					inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+
+					var middle *BpIndex
+
+					// 要分成单偶数函式处理
+					if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // 单数
+						// 当索引为奇数时
+						middle, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth()
+						if err != nil {
+							return
+						}
+						inode.IndexNodes[ix-1] = middle
+					} else if len(inode.IndexNodes[ix-1].Index)%2 == 0 { // 偶数
+						// 当索引为偶数时
+						middle, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth()
+						if err != nil {
+							return
+						}
+						inode.IndexNodes[ix-1] = middle
+					}
+
+					return
+
+					// 合拼后，ix 的值要减 1 (不会有这状况)
+					// status = statusIXMunus
+					// ix = ix - 1
 				}
+				fmt.Println("这里程式还没写完1")
+				// }
 			} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
 				// 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
 				if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth {
-					fmt.Println("这里程式还没写完")
 					inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
 					inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
 					inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
