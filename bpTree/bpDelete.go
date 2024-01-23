@@ -190,18 +190,31 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 					status = statusIXMunus
 					ix = ix - 1
 				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
-					if len(inode.IndexNodes) == 2 {
+					if len(inode.IndexNodes) == 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
 						inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
 						inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
 						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
 						inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 
 						var middle *BpIndex
-						middle, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth()
-						if err != nil {
-							return
+
+						// 要分成单偶数函式处理
+						if len(inode.IndexNodes[ix-1].Index) == 1 { // 单数
+							// 当索引为奇数时
+							middle, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth()
+							if err != nil {
+								return
+							}
+							*inode = *middle
+						} else if len(inode.IndexNodes[ix-1].Index) == 0 { // 偶数
+							// 当索引为偶数时
+							middle, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth()
+							if err != nil {
+								return
+							}
+							*inode = *middle
 						}
-						*inode = *middle
+
 						return
 
 						// 合拼后，ix 的值要减 1 (不会有这状况)
