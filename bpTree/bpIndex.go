@@ -13,6 +13,11 @@ const (
 	statusProtrudeDnode
 	statusCombineNeighborAfterDelete
 	statusIXMunus
+	edgeValueChanges
+	edgeValueEmpty
+	edgeValuePassBottom
+	edgeValueLeaveBottom
+	edgeValueFinish
 	statusDeleteItem
 	statusDeleteNon
 	statusDeProtrude

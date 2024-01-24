@@ -2,7 +2,6 @@ package bpTree
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -78,7 +77,7 @@ func Test_Check_BpData_split(t *testing.T) {
 }
 
 // Test_Check_BpData_delete is a test function for the delete method of the BpData type.
-func Test_Check_BpData_delete(t *testing.T) {
+/*func Test_Check_BpData_delete(t *testing.T) {
 	// Run the first subtest: Consider the same key in a single node.
 	t.Run("Consider the same key in a single node.", func(t *testing.T) {
 		// Set up a BpData instance with a slice of BpItems.
@@ -142,4 +141,4 @@ func Test_Check_BpData_delete(t *testing.T) {
 		require.Len(t, bpData2.Items, 1)            // Go to the neighbor BpData node and perform the deletion.
 		require.Equal(t, deleteRightOne, direction) // hit middle one
 	})
-}
+}*/

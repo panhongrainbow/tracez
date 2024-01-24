@@ -61,7 +61,7 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 
 	// ➡️➡️➡️ Right 向右
 	// If it is discontinuous data (different values) (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
-	deleted, updated, _, ix, err = inode.deleteToRight(item) // Delete to the rightmost node ‼️ (向右砍)
+	deleted, updated, _, _, ix, err = inode.deleteToRight(item) // Delete to the rightmost node ‼️ (向右砍)
 
 	// Return the results
 	return
@@ -102,7 +102,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 		// This signifies the beginning of deleting data. (接近资料层) ‼️
 
 		// Here, this is very close to the data, just one index away. (和真实资料只隔一个索引) ‼️
-		deleted, updated, ix = inode.deleteBottomItem(item)
+		deleted, updated, ix, _, _ = inode.deleteBottomItem(item)
 
 		// The individual data node is now empty, and
 		// it is necessary to start borrowing data from neighboring nodes.
@@ -149,7 +149,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 }
 
 // delete is a method of the BpIndex type that deletes the specified BpItem. (由右边删除 👉 ‼️)
-func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status int, ix int, err error) {
+func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeValue1 int64, status int, ix int, err error) {
 	// ⬇️⬇️⬇️ for index node 针对索引节点
 
 	// Check if there are any index nodes.
@@ -170,7 +170,14 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 
 		// Recursion keeps deletion in the right direction. 递归一直向右砍 ⬅️
 		// if ix >= 0 && ix <= len(inode.IndexNodes)-1 {
-		deleted, updated, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
+		deleted, updated, edgeValue1, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
+		if status == edgeValueLeaveBottom {
+			fmt.Println("索引", inode.Index, "->", edgeValue1, ix) // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+			status = edgeValueFinish
+			if ix-1 >= 0 {
+				inode.Index[ix-1] = edgeValue1
+			}
+		}
 		// }
 
 		// 中断检验
@@ -243,7 +250,14 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 		// Deletion failed previously, initiating a retry. (重试)
 		if ix >= 1 && deleted == false && retry == true {
 			ix = ix - 1
-			deleted, updated, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
+			deleted, updated, edgeValue1, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
+			if status == edgeValueLeaveBottom {
+				fmt.Println("索引", inode.Index, "->", edgeValue1, ix) // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+				status = edgeValueFinish
+				if ix-1 >= 0 {
+					inode.Index[ix-2] = edgeValue1
+				}
+			}
 			if deleted == false {
 				// If the data is not deleted in two consecutive attempts, terminate the process here. ‼️
 				//(删不到，中断) ‼️
@@ -326,7 +340,12 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 		}
 
 		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
-		deleted, updated, ix = inode.deleteBottomItem(item)
+		var edgeValue int64
+		deleted, updated, ix, edgeValue, status = inode.deleteBottomItem(item)
+		if status == edgeValuePassBottom {
+			edgeValue1 = edgeValue
+			status = edgeValueLeaveBottom
+		}
 
 		// 计算边界值 1，当删除资料时，立刻更新边界值
 		if deleted == true && len(inode.DataNodes) >= 2 &&
@@ -335,6 +354,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 			len(inode.DataNodes[ix].Items) > 0 {
 			// fmt.Println("计算边界值 1", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
 			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+
+			status = 0 // 抹除
 		}
 
 		// The individual data node is now empty, and
@@ -349,11 +370,15 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 				len(inode.DataNodes[ix].Items) > 0 {
 				// fmt.Println("计算边界值 2", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
 				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+
+				status = 0 // 抹除
 				return
 			}
 
 			if updated == true || err != nil {
 				// Leave as soon as you've borrowed the information.
+
+				status = 0 // 抹除
 				return
 			}
 
@@ -366,6 +391,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 
 				// Return status
 				updated = true
+
+				status = 0 // 抹除
 				return
 			}
 
@@ -374,20 +401,30 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 				// Rebuild the connections between data nodes.
 				if inode.DataNodes[ix].Previous == nil {
 					inode.DataNodes[ix].Next.Previous = nil
+
+					status = 0 // 抹除
 				} else if inode.DataNodes[ix].Next == nil {
 					inode.DataNodes[ix].Previous.Next = nil
+
+					status = 0 // 抹除
 				} else {
 					inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
 					inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
+
+					status = 0 // 抹除
 				}
 
 				// Reorganize nodes.
 				if ix != 0 {
 					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)             // Erase the position of ix - 1.
 					inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...) // Erase the position of ix.
+
+					status = 0 // 抹除
 				} else if ix == 0 { // Conditions have already been established earlier, with the index length not equal to 0. ‼️
 					inode.Index = inode.Index[1:]
 					inode.DataNodes = inode.DataNodes[1:]
+
+					status = 0 // 抹除
 				}
 			}
 		}
@@ -400,14 +437,20 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, status 
 
 // deleteBottomItem will remove data from the bottom layer. (只隔一个索引 ‼️)
 // If the node is too small, it will clear the entire index. (索引可能失效‼️)
-func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int) {
+func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int, edgeValue int64, status int) {
+	// 初始化回传值
+	edgeValue = -1
+
 	// Use binary search to find the index (ix) where the key should be inserted.
 	ix = sort.Search(len(inode.Index), func(i int) bool {
 		return inode.Index[i] > item.Key // No equal sign ‼️
 	})
 
 	// Call the delete method on the corresponding DataNode to delete the item.
-	deleted, _ = inode.DataNodes[ix]._delete(item)
+	deleted, _, edgeValue, status = inode.DataNodes[ix]._delete(item)
+	if status == edgeValueChanges {
+		status = edgeValuePassBottom
+	}
 
 	// The BpDatda node is too small then the index is invalid.
 	if deleted == true && len(inode.DataNodes) < 2 {

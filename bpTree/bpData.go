@@ -120,7 +120,7 @@ const (
 
 // delete is a method of the BpData type that attempts to delete a BpItem from the BpData.
 // It first checks the current node and then navigates to the appropriate neighbor node if needed.
-func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direction int) {
+/*func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direction int) {
 	// Initialize variables to track deletion status and index.
 	var ix int
 	deleted, ix = data._delete(item)
@@ -174,11 +174,13 @@ func (data *BpData) delete(item BpItem, considerMark bool) (deleted bool, direct
 
 	// After going through the above process, proceed with the return.
 	return
-}
+}*/
 
 // _delete is a helper method of the BpData type that performs the actual deletion of a BpItem.
 // It uses binary search to find the index where the item should be deleted.
-func (data *BpData) _delete(item BpItem) (deleted bool, ix int) {
+func (data *BpData) _delete(item BpItem) (deleted bool, ix int, edgeValue int64, status int) {
+	// 初始化回传值
+	edgeValue = data.Items[0].Key
 
 	// 中断检验
 	if item.Key == 123 {
@@ -195,6 +197,16 @@ func (data *BpData) _delete(item BpItem) (deleted bool, ix int) {
 		copy(data.Items[ix:], data.Items[ix+1:])
 		data.Items = data.Items[:len(data.Items)-1]
 		deleted = true
+
+		// 边界值改变了
+		if ix == 0 {
+			status = edgeValueEmpty
+			if len(data.Items) > 0 && edgeValue != data.Items[0].Key {
+				edgeValue = data.Items[0].Key
+				status = edgeValueChanges
+			}
+		}
+
 		return
 	}
 
