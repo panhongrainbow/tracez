@@ -196,6 +196,10 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					// 合拼后，ix 的值要减 1
 					status = statusIXMunus
 					ix = ix - 1
+
+					fmt.Println("这里程式还没写完1-1")
+
+					return
 				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
 					// if len(inode.IndexNodes) >= 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
 					// 后来想想，这里直接去除，因为加1后除2也会维持 Degree，只要层数相同就好
@@ -209,6 +213,16 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					var middle *BpIndex
 
+					// 中断检验
+					if item.Key == 1582 {
+						fmt.Println()
+					}
+
+					var tailNode []*BpIndex
+					// if ix >= 0 && ix <= len(inode.IndexNodes)-1 {
+					tailNode = append(tailNode, inode.IndexNodes[ix:]...)
+					// }
+
 					// 要分成单偶数函式处理
 					if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // 单数
 						// 当索引为奇数时
@@ -216,15 +230,30 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 						if err != nil {
 							return
 						}
-						inode.IndexNodes[ix-1] = middle
+						// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
 					} else if len(inode.IndexNodes[ix-1].Index)%2 == 0 { // 偶数
 						// 当索引为偶数时
 						middle, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth()
 						if err != nil {
 							return
 						}
-						inode.IndexNodes[ix-1] = middle
+						// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
 					}
+
+					// 在这里要整个嵌入原索引节点
+					inode.Index = append([]int64{middle.Index[0]}, inode.Index...) // 嵌入索引
+
+					inode.IndexNodes = append(inode.IndexNodes[:ix-1], middle.IndexNodes...)
+					inode.IndexNodes = append(inode.IndexNodes, tailNode...)
+
+					// 中断检验
+					if item.Key == 1582 {
+						fmt.Println()
+					}
+
+					fmt.Println("这里程式还没写完1-2")
+
+					status = 0
 
 					return
 
@@ -232,17 +261,50 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					// status = statusIXMunus
 					// ix = ix - 1
 				}
-				fmt.Println("这里程式还没写完1")
+				fmt.Println("这里程式还没写完1-3")
 				// }
 			} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
 				// 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
 				if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth {
+
+					// 中断检验
+					if item.Key == 123 {
+						fmt.Println()
+					}
+
 					inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
 					inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
 					inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
 					inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
-				} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
+
+					var middle *BpIndex
+
+					// 要分成单偶数函式处理
+					if len(inode.Index) != 0 && len(inode.IndexNodes[ix].Index)%2 == 1 { // 单数
+						// 当索引为奇数时
+						middle, err = inode.IndexNodes[ix].protrudeInOddBpWidth()
+						if err != nil {
+							return
+						}
+
+						// 在这里要整个嵌入原索引节点
+						inode.IndexNodes[ix] = middle
+					} else if len(inode.Index) != 0 && len(inode.IndexNodes[ix].Index)%2 == 0 { // 偶数
+						// 当索引为偶数时
+						middle, err = inode.IndexNodes[ix].protrudeInEvenBpWidth()
+						if err != nil {
+							return
+						}
+
+						// 在这里要整个嵌入原索引节点
+						inode.IndexNodes[ix] = middle
+
+						// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
+					}
+
 					fmt.Println("这里程式还没写完2")
+				} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
+					fmt.Println("这里程式还没写完3")
 				}
 			}
 		}

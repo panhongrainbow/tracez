@@ -100,6 +100,11 @@ func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err
 	// This is done to increase the chances of merging, as the index may not be cleared on time.
 	// 这里不以节点 index 为空为合拼标准，因为 index 可能没有及时清空
 
+	if len(tree.root.Index) == 0 && len(tree.root.IndexNodes) == 1 {
+		tree.root = tree.root.IndexNodes[0]
+		return
+	}
+
 	if len(tree.root.Index) == 1 && len(tree.root.IndexNodes) == 2 && ix >= 0 && ix < len(tree.root.IndexNodes)-1 && len(tree.root.IndexNodes[ix].IndexNodes) == 1 {
 		// 当根结点其中一个分支利一个索引值和一个索引节点，这个分支就要和其他分支进行全拼
 		tree.root.IndexNodes[ix].Index = []int64{}

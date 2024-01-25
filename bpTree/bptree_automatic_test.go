@@ -106,8 +106,9 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 			// 中断检验
 			value := shuffledNumbers[i]
 			fmt.Println(i, value)
-			if shuffledNumbers[i] == 708 {
+			if shuffledNumbers[i] == 1582 {
 				fmt.Println()
+				//root.root = root.root.IndexNodes[0]
 			}
 
 			deleted, _, _, err := root.RemoveValue(BpItem{Key: shuffledNumbers[i]})
