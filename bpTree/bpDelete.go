@@ -8,53 +8,74 @@ import (
 
 // ➡️ The functions related to direction.
 
-// delFromRoot is responsible for deleting an item from the root of the B+ tree.
+// delFromRoot is responsible for deleting an item from the root of the B Plus tree. // 这是 B 加树的删除入口
 func (inode *BpIndex) delFromRoot(item BpItem) (deleted, updated bool, ix int, err error) {
-	// Check if the root node is empty and has only one data node with a matching key.
+	// 这里根节点规模太小，根节点直接就是索引节点
+
 	if len(inode.Index) == 0 &&
 		len(inode.DataNodes) == 1 {
+		// 以下用 inode.DataNodes 去寻找位置，这时 根结点资料过小，只剩下 单个资料节点 了
 
-		// 以下用 inode.DataNodes 去寻找位置，这时 根结点资料过小，只剩下资料节点了
+		// ▶️ 索引节点数量 0 🗂️ 资料节点数量 1 ⛷️ 层数数量 0
 
+		// 搜寻 🔍
 		ix = sort.Search(len(inode.Index), func(i int) bool {
+			// 二分法直接在资料节点进行搜寻
 			return inode.DataNodes[0].Items[i].Key > item.Key // no equal sign ‼️ no equal sign means delete to the right ‼️
 		})
 
+		// 删除 💢
 		if inode.DataNodes[0].Items[ix].Key == item.Key {
 			inode.DataNodes[0].Items = append(inode.DataNodes[0].Items[0:ix], inode.DataNodes[0].Items[ix+1:]...)
 			deleted = true
 			return
 		}
-	}
 
-	// Call the delAndDir method to handle deletion and direction.
-	deleted, updated, ix, err = inode.delAndDir(item) // 在这里加入方向性
-	if err != nil {
-		return
+		// 没删到时，就要立刻中止
+	} else {
+
+		// ❌ not ( ▶️ 索引节点数量 0 🗂️ 资料节点数量 1 ⛷️ 层数数量 0 )
+
+		// Call the delAndDir method to handle deletion and direction.
+		deleted, updated, ix, err = inode.delAndDir(item) // 在这里加入方向性
+		if err != nil {
+			return
+		}
 	}
 
 	// Return the results
 	return
 }
 
-// delAndDir performs data deletion based on automatic direction detection.
+// delAndDir performs data deletion based on automatic direction detection.  // 这是 B 加树的方向性删除入口
 // 自动判断资料删除方向，其實會由不同方向進行刪除
+
+/*
+ 为何要先优先向左删除资料，因最左边的相同值被删除时，就会被后面相同时递补，比较不会更动到边界值 ✌️
+*/
+
 func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err error) {
+	// 搜寻 🔍 (最右边 ➡️)
 	// Use binary search to find the index (ix) where the key should be deleted.
 	ix = sort.Search(len(inode.Index), func(i int) bool {
-		return inode.Index[i] > item.Key // no equal sign ‼️ no equal sign means delete to the right ‼️
+		return inode.Index[i] > item.Key // no equal sign ‼️ no equal sign means delete to the right ‼️ (一定要大于，所以会找到最右边)
 	})
 
-	// ⬅️⬅️⬅️ Left 向左
+	// 决定 ↩️ 是否要向左
 	// Check if deletion should be performed by the leftmost node first.
 	if len(inode.Index) > 0 && len(inode.IndexNodes) > 0 &&
-		(ix-1) >= 1 && len(inode.IndexNodes)-1 >= (ix-1) { // After the second index node, it's possible to borrow data from the left ⬅️ node
-		// Length of the left node
-		length := len(inode.IndexNodes[ix-1].Index)
+		(ix-1) >= 1 && len(inode.IndexNodes)-1 >= (ix-1) { // 如果当前节点的左边有邻居
 
 		// If it is continuous data (same value) (5❌ - 5 - 5 - 5 - 5 - 6 - 7 - 8)
-		if length > 0 && len(inode.IndexNodes) > 0 && len(inode.IndexNodes[ix].Index) > 0 && len(inode.IndexNodes[ix-1].Index) > 0 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] {
+		length := len(inode.IndexNodes[ix-1].Index) // 为了左边邻居节点最后一个索引值
+		if len(inode.IndexNodes) > 0 &&             // 预防 panic 的检查
+			len(inode.IndexNodes[ix].Index) > 0 && len(inode.IndexNodes[ix-1].Index) > 0 && // 预防 panic 的检查
+			length > 0 && inode.IndexNodes[ix].Index[0] == inode.IndexNodes[ix-1].Index[length-1] { // 最后决定，如果最接近的索引节点有相同的索引值 ‼️
+
+			// 搜寻 🔍 (最左边 ⬅️) (一切重来，重头开始向左搜寻)
 			deleted, updated, ix, err = inode.deleteToLeft(item) // Delete to the leftmost node ‼️ (向左砍)
+
+			// 中断了，不再考虑向右搜寻 ⚠️
 			return
 		}
 	}
@@ -67,88 +88,8 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 	return
 }
 
-// deleteToLeft is a method of the BpIndex type that deletes the leftmost specified BpItem. (由左边删除 👈 ‼️)
-func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, err error) {
-	// ⬇️⬇️⬇️ for index node 针对索引节点
-
-	// Check if there are any index nodes.
-	if len(inode.IndexNodes) > 0 {
-		// Use binary search to find the index (ix) where the key should be deleted.
-		ix = sort.Search(len(inode.Index), func(i int) bool {
-			return inode.Index[i] >= item.Key // equal sign ‼️ no equal sign means delete to the left ‼️
-			// (符合条件就停)
-		})
-
-		// Recursion keeps deletion in the left direction. 递归一直向左砍 ⬅️
-		deleted, updated, _, err = inode.IndexNodes[ix].deleteToLeft(item)
-
-		// Immediately update the index of index node.
-		if updated && len(inode.IndexNodes[ix].Index) == 0 {
-			updated, err = inode.borrowFromIndexNode(ix) // Will borrow part of the index node (向索引节点借资料).
-			if err != nil {
-				return
-			}
-		}
-
-		// Return the results of the deletion.
-		return
-	}
-
-	// ⬇️⬇️⬇️ for data node 针对资料节点
-
-	// Check if there are any data nodes.
-	if len(inode.DataNodes) > 0 {
-		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
-		// This signifies the beginning of deleting data. (接近资料层) ‼️
-
-		// Here, this is very close to the data, just one index away. (和真实资料只隔一个索引) ‼️
-		deleted, updated, ix, _, _ = inode.deleteBottomItem(item)
-
-		// The individual data node is now empty, and
-		// it is necessary to start borrowing data from neighboring nodes.
-		if len(inode.DataNodes[ix].Items) == 0 {
-			updated, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
-			// If update is true, it means that data has been borrowed from the adjacent information node. ‼️
-			// 如果 update 为 true，那就代表有向邻近的资料节点借到资料 ‼️
-			if updated == true || err != nil {
-				// Leave as soon as you've borrowed the information.
-				return
-			}
-
-			// If the data node cannot be borrowed, then information should be borrowed from the index node later.
-			// 资料节点借不到，之后向索引节点借
-
-			// During the deletion process, the node's index may become invalid.
-			if len(inode.DataNodes) <= 2 {
-				inode.Index = []int64{}
-
-				// Return status
-				updated = true
-				return
-			}
-
-			// Wipe out the empty data node at the specified 'ix' position directly.
-			if len(inode.Index) != 0 {
-				// Recreate links.
-				inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
-				inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
-
-				// Reorganize nodes.
-				inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-				inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...)
-
-				// Return status
-				updated = true
-				return
-			}
-		}
-	}
-
-	// Return the results of the deletion.
-	return
-}
-
 // delete is a method of the BpIndex type that deletes the specified BpItem. (由右边删除 👉 ‼️)
+// deleteToRight 先放前面，因为 deleteToLeft 会抄 deleteToRight 的内容
 func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeValue1 int64, status int, ix int, err error) {
 	// ⬇️⬇️⬇️ for index node 针对索引节点
 
@@ -156,15 +97,15 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 	if len(inode.IndexNodes) > 0 {
 
 		// Perhaps there will be a retry.
-		var retry bool
+		// var retry bool // 去除 retry 机制 ❌
 
 		// Use binary search to find the index (ix) where the key should be deleted.
 		ix = sort.Search(len(inode.Index), func(i int) bool {
 			// If the key to be deleted is the same as the index,
 			// there may be data that needs to be deleted at position ix or ix-1. ‼️
-			if inode.Index[i] == item.Key {
+			/*if inode.Index[i] == item.Key { // 去除 retry 机制 ❌
 				retry = true
-			}
+			}*/
 			return inode.Index[i] > item.Key // no equal sign ‼️ no equal sign means delete to the right ‼️
 		})
 
@@ -310,7 +251,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		}
 
 		// Deletion failed previously, initiating a retry. (重试)
-		if ix >= 1 && deleted == false && retry == true {
+		/*if ix >= 1 && deleted == false && retry == true { // 去除 retry 机制 ❌
 			ix = ix - 1
 			deleted, updated, edgeValue1, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
 			if status == edgeValueLeaveBottom {
@@ -325,7 +266,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				//(删不到，中断) ‼️
 				return
 			}
-		}
+		}*/
 
 		// If the index at position ix becomes invalid. ‼️
 		// 删除导致锁引失效 ‼️
@@ -491,6 +432,87 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			}
 		}
 
+	}
+
+	// Return the results of the deletion.
+	return
+}
+
+// deleteToLeft is a method of the BpIndex type that deletes the leftmost specified BpItem. (由左边删除 👈 ‼️)
+func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, err error) {
+	// ⬇️⬇️⬇️ for index node 针对索引节点
+
+	// Check if there are any index nodes.
+	if len(inode.IndexNodes) > 0 {
+		// Use binary search to find the index (ix) where the key should be deleted.
+		ix = sort.Search(len(inode.Index), func(i int) bool {
+			return inode.Index[i] >= item.Key // equal sign ‼️ no equal sign means delete to the left ‼️
+			// (符合条件就停)
+		})
+
+		// Recursion keeps deletion in the left direction. 递归一直向左砍 ⬅️
+		deleted, updated, _, err = inode.IndexNodes[ix].deleteToLeft(item)
+
+		// Immediately update the index of index node.
+		if updated && len(inode.IndexNodes[ix].Index) == 0 {
+			updated, err = inode.borrowFromIndexNode(ix) // Will borrow part of the index node (向索引节点借资料).
+			if err != nil {
+				return
+			}
+		}
+
+		// Return the results of the deletion.
+		return
+	}
+
+	// ⬇️⬇️⬇️ for data node 针对资料节点
+
+	// Check if there are any data nodes.
+	if len(inode.DataNodes) > 0 {
+		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
+		// This signifies the beginning of deleting data. (接近资料层) ‼️
+
+		// Here, this is very close to the data, just one index away. (和真实资料只隔一个索引) ‼️
+		deleted, updated, ix, _, _ = inode.deleteBottomItem(item)
+
+		// The individual data node is now empty, and
+		// it is necessary to start borrowing data from neighboring nodes.
+		if len(inode.DataNodes[ix].Items) == 0 {
+			updated, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
+			// If update is true, it means that data has been borrowed from the adjacent information node. ‼️
+			// 如果 update 为 true，那就代表有向邻近的资料节点借到资料 ‼️
+			if updated == true || err != nil {
+				// Leave as soon as you've borrowed the information.
+				return
+			}
+
+			// If the data node cannot be borrowed, then information should be borrowed from the index node later.
+			// 资料节点借不到，之后向索引节点借
+
+			// During the deletion process, the node's index may become invalid.
+			if len(inode.DataNodes) <= 2 {
+				inode.Index = []int64{}
+
+				// Return status
+				updated = true
+				return
+			}
+
+			// Wipe out the empty data node at the specified 'ix' position directly.
+			if len(inode.Index) != 0 {
+				// Recreate links.
+				inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
+				inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
+
+				// Reorganize nodes.
+				inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+				inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...)
+
+				// Return status
+				updated = true
+				return
+			}
+		}
 	}
 
 	// Return the results of the deletion.
