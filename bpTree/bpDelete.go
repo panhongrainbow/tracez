@@ -113,17 +113,20 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		// if ix >= 0 && ix <= len(inode.IndexNodes)-1 {
 		deleted, updated, edgeValue1, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
 		if status == edgeValueLeaveBottom {
-			fmt.Println("索引", inode.Index, "->", edgeValue1, ix) // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-			status = edgeValueFinish
+
 			if ix-1 >= 0 {
+				fmt.Print("▶️ 索引", inode.Index, "->", "位置", ix-1, "修改成", edgeValue1, "->")
 				inode.Index[ix-1] = edgeValue1
+				fmt.Print("最后变成", inode.Index, "\n")
 			}
+
+			status = edgeValueFinish
 		}
 		// }
 
 		// 中断检验
 		if item.Key == 123 {
-			fmt.Println()
+			fmt.Print()
 		}
 
 		if status == statusCombineNeighborAfterDelete {
@@ -144,9 +147,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
 					// if len(inode.IndexNodes) >= 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
 					// 后来想想，这里直接去除，因为加1后除2也会维持 Degree，只要层数相同就好
-					if len(inode.IndexNodes) >= 2 {
-						fmt.Println()
-					}
 					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
 					inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
 					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
@@ -155,8 +155,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					var middle *BpIndex
 
 					// 中断检验
-					if item.Key == 1582 {
-						fmt.Println()
+					if item.Key == 123 {
+						fmt.Print()
 					}
 
 					var tailNode []*BpIndex
@@ -188,8 +188,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					inode.IndexNodes = append(inode.IndexNodes, tailNode...)
 
 					// 中断检验
-					if item.Key == 1582 {
-						fmt.Println()
+					if item.Key == 123 {
+						fmt.Print()
 					}
 
 					fmt.Println("这里程式还没写完1-2")
@@ -210,7 +210,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					// 中断检验
 					if item.Key == 123 {
-						fmt.Println()
+						fmt.Print()
 					}
 
 					inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
@@ -275,7 +275,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 				// 中断检验
 				if item.Key == 123 {
-					fmt.Println()
+					fmt.Print()
 				}
 
 				updated, err = inode.borrowFromIndexNode(ix) // Will borrow part of the node (借结点).
@@ -311,7 +311,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 				// 中断检验
 				if item.Key == 123 {
-					fmt.Println()
+					fmt.Print()
 				}
 
 				if err != nil && !errors.Is(err, fmt.Errorf("the index is still there; there is no need to borrow nodes")) {
@@ -339,7 +339,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 		// 中断检验
 		if item.Key == 123 {
-			fmt.Println()
+			fmt.Print()
 		}
 
 		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
