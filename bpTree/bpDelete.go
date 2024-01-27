@@ -95,17 +95,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 	// Check if there are any index nodes.
 	if len(inode.IndexNodes) > 0 {
-
-		// Perhaps there will be a retry.
-		// var retry bool // 去除 retry 机制 ❌
-
 		// Use binary search to find the index (ix) where the key should be deleted.
 		ix = sort.Search(len(inode.Index), func(i int) bool {
-			// If the key to be deleted is the same as the index,
-			// there may be data that needs to be deleted at position ix or ix-1. ‼️
-			/*if inode.Index[i] == item.Key { // 去除 retry 机制 ❌
-				retry = true
-			}*/
 			return inode.Index[i] > item.Key // no equal sign ‼️ no equal sign means delete to the right ‼️
 		})
 
@@ -249,24 +240,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				}
 			}
 		}
-
-		// Deletion failed previously, initiating a retry. (重试)
-		/*if ix >= 1 && deleted == false && retry == true { // 去除 retry 机制 ❌
-			ix = ix - 1
-			deleted, updated, edgeValue1, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
-			if status == edgeValueLeaveBottom {
-				fmt.Println("索引", inode.Index, "->", edgeValue1, ix) // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-				status = edgeValueFinish
-				if ix-1 >= 0 {
-					inode.Index[ix-2] = edgeValue1
-				}
-			}
-			if deleted == false {
-				// If the data is not deleted in two consecutive attempts, terminate the process here. ‼️
-				//(删不到，中断) ‼️
-				return
-			}
-		}*/
 
 		// If the index at position ix becomes invalid. ‼️
 		// 删除导致锁引失效 ‼️
