@@ -11,13 +11,13 @@ const (
 	statusNormal = iota + 1
 	statusProtrudeInode
 	statusProtrudeDnode
-	statusCombineNeighborAfterDelete
+	statusBorrowFromIndexNode // 执行 borrowFromIndexNode 后
 	statusIXMunus
+	edgeValueInit
 	edgeValueChanges
 	edgeValueEmpty
 	edgeValuePassBottom
 	edgeValueLeaveBottom
-	edgeValueFinish
 	statusDeleteItem
 	statusDeleteNon
 	statusDeProtrude

@@ -185,6 +185,8 @@ func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err
 func (inode *BpIndex) edgeValue() int64 {
 	if len(inode.IndexNodes) > 0 {
 		return inode.IndexNodes[0].edgeValue()
+	} else if len(inode.DataNodes) > 0 && len(inode.DataNodes[0].Items) > 0 {
+		return inode.DataNodes[0].Items[0].Key
 	}
-	return inode.DataNodes[0].Items[0].Key
+	return -1
 }
