@@ -321,16 +321,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			status = edgeValueLeaveBottom
 		}
 
-		// 这一段程式码可以去除，因为这一段程式码在 deleteBottomItem 函式就己经计算一次了
-		/*if deleted == true && len(inode.DataNodes) >= 2 &&
-			ix >= 0 && ix <= len(inode.DataNodes)-1 &&
-			ix-1 >= 0 && ix-1 <= len(inode.DataNodes)-1 &&
-			len(inode.DataNodes[ix].Items) > 0 {
-			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
-
-			status = 0 // 抹除
-		}*/
-
 		// The individual data node is now empty, and
 		// it is necessary to start borrowing data from neighboring nodes.
 		if len(inode.DataNodes[ix].Items) == 0 {

@@ -210,21 +210,3 @@ func (data *BpData) _delete(item BpItem) (deleted bool, ix int, edgeValue int64,
 	// If the item is not found, return without performing deletion.
 	return
 }
-
-// 应没有用到，准备删除
-/*func (data *BpData) _mask(item BpItem) (deleted bool, ix int) {
-	// Use binary search to find the index where the item should be deleted.
-	ix = sort.Search(len(data.Items), func(i int) bool {
-		return data.Items[i].Key >= item.Key
-	})
-
-	// If the item is found in the current node, perform deletion and update the slice.
-	if ix <= len(data.Items)-1 && data.Items[ix].Key == item.Key {
-		data.Items[ix].Mask = true
-		deleted = true
-		return
-	}
-
-	// If the item is not found, return without performing deletion.
-	return
-}*/
