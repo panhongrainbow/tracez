@@ -14,6 +14,7 @@ const (
 	statusBorrowFromIndexNode // 执行 borrowFromIndexNode 后
 	statusIXMunus
 	edgeValueInit
+	edgeValueNoChanges
 	edgeValueChanges
 	edgeValueEmpty
 	edgeValuePassBottom

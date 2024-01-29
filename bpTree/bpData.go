@@ -178,14 +178,11 @@ const (
 
 // _delete is a helper method of the BpData type that performs the actual deletion of a BpItem.
 // It uses binary search to find the index where the item should be deleted.
+// 状况会回传 (1) 边界值没改变 (2) 边界值已改变 (3) 边界值为空
 func (data *BpData) _delete(item BpItem) (deleted bool, ix int, edgeValue int64, status int) {
 	// 初始化回传值
 	edgeValue = data.Items[0].Key
-
-	// 中断检验
-	if item.Key == 123 {
-		fmt.Print()
-	}
+	status = edgeValueNoChanges
 
 	// Use binary search to find the index where the item should be deleted.
 	ix = sort.Search(len(data.Items), func(i int) bool {
@@ -200,7 +197,7 @@ func (data *BpData) _delete(item BpItem) (deleted bool, ix int, edgeValue int64,
 
 		// 边界值改变了
 		if ix == 0 {
-			status = edgeValueEmpty
+			status = edgeValueEmpty // 在沒有整拼完成時，邊界值有可能不存在
 			if len(data.Items) > 0 && edgeValue != data.Items[0].Key {
 				edgeValue = data.Items[0].Key
 				status = edgeValueChanges
@@ -214,7 +211,8 @@ func (data *BpData) _delete(item BpItem) (deleted bool, ix int, edgeValue int64,
 	return
 }
 
-func (data *BpData) _mask(item BpItem) (deleted bool, ix int) {
+// 应没有用到，准备删除
+/*func (data *BpData) _mask(item BpItem) (deleted bool, ix int) {
 	// Use binary search to find the index where the item should be deleted.
 	ix = sort.Search(len(data.Items), func(i int) bool {
 		return data.Items[i].Key >= item.Key
@@ -229,4 +227,4 @@ func (data *BpData) _mask(item BpItem) (deleted bool, ix int) {
 
 	// If the item is not found, return without performing deletion.
 	return
-}
+}*/

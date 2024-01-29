@@ -138,7 +138,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					fmt.Println("这里程式还没写完1-1")
 
 					return
-				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth { // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 开始1
+				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
 					// if len(inode.IndexNodes) >= 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
 					// 后来想想，这里直接去除，因为加1后除2也会维持 Degree，只要层数相同就好
 					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
@@ -217,7 +217,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					// 要分成单偶数函式处理
 					if len(inode.Index) != 0 && len(inode.IndexNodes[ix].Index)%2 == 1 { // 单数
 						// 当索引为奇数时
-						middle, err = inode.IndexNodes[ix].protrudeInOddBpWidth()
+						middle, err = inode.IndexNodes[ix].protrudeInOddBpWidth() // 🖐️ for arrangement 针对重整结构
 						if err != nil {
 							return
 						}
@@ -226,7 +226,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 						inode.IndexNodes[ix] = middle
 					} else if len(inode.Index) != 0 && len(inode.IndexNodes[ix].Index)%2 == 0 { // 偶数
 						// 当索引为偶数时
-						middle, err = inode.IndexNodes[ix].protrudeInEvenBpWidth()
+						middle, err = inode.IndexNodes[ix].protrudeInEvenBpWidth() // 🖐️ for index node 针对重整结构
 						if err != nil {
 							return
 						}
@@ -254,7 +254,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				fmt.Print("borrowFromIndexNode 执行前后，🏴‍☠️ 边界值变化 ", inode.edgeValue()) // 显示边界值
 
 				var borrowed bool
-				borrowed, err = inode.borrowFromIndexNode(ix) // Will borrow part of the node (借结点). ‼️
+				borrowed, err = inode.borrowFromIndexNode(ix) // Will borrow part of the node (借结点). ‼️  // 🖐️ for index node 针对索引节点
 				// 看看有没有向索引节点借到资料
 
 				fmt.Println(" -> ", inode.edgeValue()) // 显示边界值
@@ -309,46 +309,39 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		return
 	}
 
-	// ⬇️⬇️⬇️ for data node 针对资料节点
-
 	// Check if there are any data nodes.
 	if len(inode.DataNodes) > 0 {
 		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
 		// This signifies the beginning of deleting data. (接近资料层)
 
-		// 中断检验
-		if item.Key == 123 {
-			fmt.Print()
-		}
-
 		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
 		// var edgeValue int64
-		deleted, updated, ix, edgeValue, status = inode.deleteBottomItem(item)
-		if status == edgeValuePassBottom {
+		deleted, updated, ix, edgeValue, status = inode.deleteBottomItem(item) // 🖐️ for data node 针对资料节点
+		if ix == 0 && status == edgeValuePassBottom {                          // 当 ix 为 0 时，才要处理边界值的问题
 			status = edgeValueLeaveBottom
 		}
 
-		// 计算边界值 1，当删除资料时，立刻更新边界值
-		if deleted == true && len(inode.DataNodes) >= 2 &&
+		// 这一段程式码可以去除，因为这一段程式码在 deleteBottomItem 函式就己经计算一次了
+		/*if deleted == true && len(inode.DataNodes) >= 2 &&
 			ix >= 0 && ix <= len(inode.DataNodes)-1 &&
 			ix-1 >= 0 && ix-1 <= len(inode.DataNodes)-1 &&
 			len(inode.DataNodes[ix].Items) > 0 {
-			// fmt.Println("计算边界值 1", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
 			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
 
 			status = 0 // 抹除
-		}
+		}*/
 
 		// The individual data node is now empty, and
 		// it is necessary to start borrowing data from neighboring nodes.
 		if len(inode.DataNodes[ix].Items) == 0 {
 			updated, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
 
-			// 计算边界值 2，当删除资料时，就立刻去更新边界值
+			// 这段删除，程式会不稳定
 			if updated == true && len(inode.DataNodes) >= 2 &&
 				ix >= 0 && ix <= len(inode.DataNodes)-1 &&
 				ix-1 >= 0 && ix-1 <= len(inode.DataNodes)-1 &&
-				len(inode.DataNodes[ix].Items) > 0 {
+				len(inode.DataNodes[ix].Items) > 0 &&
+				inode.Index[ix-1] != inode.DataNodes[ix].Items[0].Key {
 				// fmt.Println("计算边界值 2", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
 				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
 
@@ -499,6 +492,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 
 // deleteBottomItem will remove data from the bottom layer. (只隔一个索引 ‼️)
 // If the node is too small, it will clear the entire index. (索引可能失效‼️)
+// 一层 BpData 资料层，加上一个索引切片，就是一个 Bottom
 func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int, edgeValue int64, status int) {
 	// 初始化回传值
 	edgeValue = -1
@@ -510,28 +504,37 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 
 	// Call the delete method on the corresponding DataNode to delete the item.
 	deleted, _, edgeValue, status = inode.DataNodes[ix]._delete(item)
-	if status == edgeValueChanges {
-		status = edgeValuePassBottom
+	// _delete 函式状况会回传 (1) 边界值没改变 (2) 边界值已改变 (3) 边界值为空
+	if status == edgeValueChanges { // (1) 边界值已改变
+		status = edgeValuePassBottom // 要通知上传的递归函式，边界值已改变
 	}
 
-	// The BpDatda node is too small then the index is invalid.
-	if deleted == true && len(inode.DataNodes) < 2 {
-		inode.Index = []int64{} // Wipe out the whole index. (索引在此失效) ‼️
+	if deleted == true { // 如果资料真的删除的反应
+		// The BpDatda node is too small then the index is invalid.
+		if len(inode.DataNodes) < 2 {
+			fmt.Println("这里注意，我觉得用到的机会不多 !")
+			inode.Index = []int64{} // Wipe out the whole index. (索引在此失效) ‼️
+			// 索引失效也是一种状态的表达方式，当索引为空时，这将再也不是结点了
 
-		// Return status
-		updated = true
-		return
-	}
+			// Return status
+			updated = true
+			return
+		} else if len(inode.DataNodes[ix].Items) > 0 && ix > 0 && // 预防性检查
+			inode.Index[ix-1] != inode.DataNodes[ix].Items[0].Key { // 检查索引是不是有变化
 
-	// Updating within the data node is considered safer, preventing damage in the entire B plus tree index.
-	// 在资料节点内更新应是比较安全，不会造成整个 B 加树的索引错乱
-	if deleted == true && len(inode.DataNodes[ix].Items) > 0 && ix > 0 && // Basic conditions
-		inode.Index[ix-1] != inode.DataNodes[ix].Items[0].Key { // When values differ
-		inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key // Immediately update the index
+			// Updating within the data node is considered safer, preventing damage in the entire B plus tree index.
+			// 在资料节点内更新应是比较安全，不会造成整个 B 加树的索引错乱
 
-		// Return status
-		updated = true
-		return
+			fmt.Print("🏴‍☠️ 索引(3) ", inode.Index, "->", "位置", ix-1, "修改成", inode.DataNodes[ix].Items[0].Key, "->")
+
+			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key // Immediately update the index
+
+			fmt.Print("最后变成", inode.Index, "\n")
+
+			// Return status
+			updated = true
+			return
+		}
 	}
 
 	// Return the results of the deletion.
