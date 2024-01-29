@@ -295,25 +295,9 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					return
 				}
-
-				/*
-					这一段程式码要去除，原因有二
-					第一， inode.Index[ix-1] = inode.IndexNodes[ix].Index[0] 这行是错的，
-					因为 inode.Index 要用边界值去更新
-				*/
-				// 顺手更新边界值
-				/*if updated == true && ix >= 1 && ix <= len(inode.IndexNodes)-1 {
-					fmt.Println(inode.IndexNodes[ix].Index[0], inode.Index[ix-1])
-					if inode.IndexNodes[ix].Index[0] < inode.Index[ix-1] {
-						fmt.Print("🏴‍☠️ 索引(2) ", inode.Index, "->", "位置", ix-1, "修改成", edgeValue, "->")
-						inode.Index[ix-1] = inode.IndexNodes[ix].Index[0]
-						fmt.Print("最后变成", inode.Index, "\n")
-					}
-				}*/
-
 			} else if len(inode.IndexNodes[ix].IndexNodes) != 0 && // IndexNode ▶️
 				len(inode.IndexNodes[ix].DataNodes) == 0 {
-				fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+				fmt.Println("注意 ‼️，有早期 indexMove 的机制需要评估")
 				updated, err = inode.indexMove(ix) // Reorganize the indexing between nodes. (更新索引)
 				if err != nil {
 					return
