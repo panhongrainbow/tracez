@@ -328,17 +328,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				return
 			}
 
-			// 这索引节点计算重复
-			/*if len(inode.DataNodes) >= 2 &&
-				ix >= 0 && ix <= len(inode.DataNodes)-1 &&
-				ix-1 >= 0 && ix-1 <= len(inode.DataNodes)-1 &&
-				len(inode.DataNodes[ix].Items) > 0 {
-				fmt.Println(">>>>> 计算边界值 2", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
-				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
-				status = 0
-				return
-			}*/
-
 			// If the data node cannot be borrowed, then information should be borrowed from the index node later.
 			// 如果资料节点借到，就不需后续处理
 			if borrowed == true {
