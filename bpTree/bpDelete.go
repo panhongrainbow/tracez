@@ -115,7 +115,10 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		// 🖐️ 状态变化 [LeaveBottom] -> Any
 		if status == edgeValueLeaveBottom {
 
+			// ⚠️ 状况一 用边界值去更新任意索引
+
 			// 🖐️ 状态变化 [LeaveBottom] -> [Init]
+			// 看到 LeaveBottom 状态时，就代表准备要更新边界值，但更新的索引不一定在最左边
 			if ix-1 >= 0 {
 				fmt.Print("🏴‍☠️ 索引(1) ", inode.Index, "->", "位置", ix-1, "修改成", edgeValue, "->")
 				inode.Index[ix-1] = edgeValue
@@ -124,9 +127,12 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 			status = edgeValueInit // 重置状态
 		} else if status == statusBorrowFromIndexNode {
-			// 当一个分支只剩一个索引值和一个索引节点，准备要向左合拼
+			// ⚠️ 状况二 当一个分支只剩一个索引值和一个索引节点，准备要向左合拼
+			// 思考后，还是向右合拼比较好，因为左边的资料结点的资料会比较少，合并时，比较不会过大，比较安全
 			if ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 {
+				// ⚠️ 状况二之一 先向左合并
 				if len(inode.IndexNodes[ix-1].Index)+1 < BpWidth { // 没错，Degree 是针对 Index
+					// ⚠️ 状况二之一之一 先向左合并，合拼后底层索引节点过小，合拼成一个新节点
 					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
 					inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
 					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
@@ -139,6 +145,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					return
 				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
+					// ⚠️ 状况二之一之二 先向左合并，合拼后底层索引节点过大，要用 protrudeInOddBpWidth 或 protrudeInEvenBpWidth 重新分配
+
 					// if len(inode.IndexNodes) >= 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
 					// 后来想想，这里直接去除，因为加1后除2也会维持 Degree，只要层数相同就好
 					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
@@ -148,11 +156,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					var middle *BpIndex
 
-					// 中断检验
-					if item.Key == 123 {
-						fmt.Print()
-					}
-
 					var tailNode []*BpIndex
 					// if ix >= 0 && ix <= len(inode.IndexNodes)-1 {
 					tailNode = append(tailNode, inode.IndexNodes[ix:]...)
@@ -161,14 +164,14 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					// 要分成单偶数函式处理
 					if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // 单数
 						// 当索引为奇数时
-						middle, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth()
+						middle, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth() // 进行重新分配
 						if err != nil {
 							return
 						}
 						// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
 					} else if len(inode.IndexNodes[ix-1].Index)%2 == 0 { // 偶数
 						// 当索引为偶数时
-						middle, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth()
+						middle, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth() // 进行重新分配
 						if err != nil {
 							return
 						}
@@ -180,11 +183,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					inode.IndexNodes = append(inode.IndexNodes[:ix-1], middle.IndexNodes...)
 					inode.IndexNodes = append(inode.IndexNodes, tailNode...)
-
-					// 中断检验
-					if item.Key == 123 {
-						fmt.Print()
-					}
 
 					fmt.Println("这里程式还没写完1-2")
 
@@ -199,13 +197,10 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				fmt.Println("这里程式还没写完1-3")
 				// }
 			} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
+				// ⚠️ 状况二之二 再向右合并
+
 				// 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
 				if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth {
-
-					// 中断检验
-					if item.Key == 123 {
-						fmt.Print()
-					}
 
 					inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
 					inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
@@ -242,8 +237,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					fmt.Println("这里程式还没写完3")
 				}
 			}
-		} else {
-			// 🖐️ 其他状态变化写在这里
 		}
 
 		// If the index at position ix becomes invalid. ‼️
@@ -317,50 +310,60 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
 		// var edgeValue int64
 		deleted, updated, ix, edgeValue, status = inode.deleteBottomItem(item) // 🖐️ for data node 针对资料节点
-		if ix == 0 && status == edgeValuePassBottom {                          // 当 ix 为 0 时，才要处理边界值的问题
+		if ix == 0 && status == edgeValuePassBottom {                          // 当 ix 为 0 时，才要处理边界值的问题 (ix == 0，是特别加入的)
 			status = edgeValueLeaveBottom
 		}
 
 		// The individual data node is now empty, and
 		// it is necessary to start borrowing data from neighboring nodes.
-		if len(inode.DataNodes[ix].Items) == 0 {
-			updated, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
+		if len(inode.DataNodes[ix].Items) == 0 { // 会有一边的资料节点没有任何资料
+			var borrowed bool
+			borrowed, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
 
-			// 这段删除，程式会不稳定
-			if updated == true && len(inode.DataNodes) >= 2 &&
+			// 这里要补 edgeValue 才对 !!!!! !!!!! !!!!! !!!!! !!!!!
+
+			// 先检查是否有错误
+			if err != nil {
+				status = statusError
+				return
+			}
+
+			// 这索引节点计算重复
+			/*if len(inode.DataNodes) >= 2 &&
 				ix >= 0 && ix <= len(inode.DataNodes)-1 &&
 				ix-1 >= 0 && ix-1 <= len(inode.DataNodes)-1 &&
-				len(inode.DataNodes[ix].Items) > 0 &&
-				inode.Index[ix-1] != inode.DataNodes[ix].Items[0].Key {
-				// fmt.Println("计算边界值 2", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
+				len(inode.DataNodes[ix].Items) > 0 {
+				fmt.Println(">>>>> 计算边界值 2", inode.Index[ix-1], "->", inode.DataNodes[ix].Items[0].Key)
 				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
-
-				status = 0 // 抹除
+				status = 0
 				return
-			}
-
-			if updated == true || err != nil {
-				// Leave as soon as you've borrowed the information.
-
-				status = 0 // 抹除
-				return
-			}
+			}*/
 
 			// If the data node cannot be borrowed, then information should be borrowed from the index node later.
-			// 资料节点借不到，之后向索引节点借
-
-			// During the deletion process, the node's index may become invalid.
-			if len(inode.DataNodes) <= 2 {
-				inode.Index = []int64{}
-
-				// Return status
+			// 如果资料节点借到，就不需后续处理
+			if borrowed == true {
 				updated = true
-
-				status = 0 // 抹除
 				return
 			}
 
+			// 如果使用 borrowFromDataNode 没有借到资料，就要进行以下处理 ‼️ ‼️
+
+			// ⚠️ 状况一 索引节点资料过少，整个节点失效
+			// During the deletion process, the node's index may become invalid.
+			// 如果资料节点数量过少
+			if len(inode.DataNodes) <= 2 { // 资料节点数量过少
+				inode.Index = []int64{}
+
+				// 状况更新
+				updated = true
+
+				// 直接中断
+				return
+			}
+
+			// ⚠️ 状况二 索引节点有一定数量的资料，删除部份资料后，还能维持为一个节点
 			// Wipe out the empty data node at the specified 'ix' position directly.
+			// 如果资料节点删除资料后，还是维持为一个节点的定义，就要进行抹除部份 ix 位置上的资料 ‼️
 			if len(inode.Index) != 0 {
 				// Rebuild the connections between data nodes.
 				if inode.DataNodes[ix].Previous == nil {

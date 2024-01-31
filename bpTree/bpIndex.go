@@ -13,6 +13,7 @@ const (
 	statusProtrudeDnode
 	statusBorrowFromIndexNode // 执行 borrowFromIndexNode 后
 	statusIXMunus
+	statusError
 	edgeValueInit
 	edgeValueNoChanges
 	edgeValueChanges
