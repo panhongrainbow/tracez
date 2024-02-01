@@ -17,6 +17,7 @@ const (
 	edgeValueInit
 	edgeValueNoChanges
 	edgeValueChanges
+	edgeValueUpload
 	edgeValueEmpty
 	edgeValuePassBottom
 	edgeValueLeaveBottom
