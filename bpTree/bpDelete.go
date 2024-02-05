@@ -108,6 +108,9 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			return inode.Index[i] > item.Key // 一定要大于，所以会找到最右边 ‼️
 		})
 
+		// 🖍️ 在这个区块，会上传边界值，当上传到 ix 大于 0 的地方时，会变成索引，停止上传
+		// 当上传到 ix 等于 0 的地方时，就立刻持续上传，到边界值要更新的地方
+
 		// 搜寻 🔍 (最右边 ➡️)
 		// If it is discontinuous data (different values) (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
 		deleted, updated, edgeValue, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
@@ -116,12 +119,14 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			inode.Index[ix-1] = edgeValue
 			fmt.Print("最后变成", inode.Index, " 上传中断", "\n")
 			updated = false
-			status = 0
+			status = edgeValueInit
 		} else if ix == 0 && status == edgeValueUpload {
 			fmt.Print("🏴‍☠️ 索引(5) ", inode.Index, " -> ", " 位置 ", ix, " 边界值为 ", edgeValue, " 再上传")
 		} else {
 			fmt.Print("🏴‍☠️ 索引(6) ", " 位置 ", ix, " 边界值为 ", edgeValue, " 状态 ", status, " 不更新", "\n")
 		}
+
+		// 🖍️ 在这个区块，(暂时) 决定要更新边界值，还是要上传
 
 		// 🖐️ 状态变化 [LeaveBottom] -> Any
 		if status == edgeValueLeaveBottom {
@@ -134,10 +139,15 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				fmt.Print("🏴‍☠️ 索引(1) ", inode.Index, "->", "位置", ix-1, "修改成", edgeValue, "->")
 				inode.Index[ix-1] = edgeValue
 				fmt.Print("最后变成", inode.Index, "\n")
-			}
 
-			status = edgeValueInit // 重置状态
+				status = edgeValueInit // 暂时重置状态，之后可能会被改
+			} else {
+				status = edgeValueUpload // 暂时重置状态，之后可能会被改
+			}
 		} else if status == statusBorrowFromIndexNode {
+			// 🖍️ 在这个区块，是在进行借完资料后处理
+			// 要就全合拼，不然就先合拼再重分配
+
 			// ⚠️ 状况二 当一个分支只剩一个索引值和一个索引节点，准备要向左合拼
 			// 思考后，还是向右合拼比较好，因为左边的资料结点的资料会比较少，合并时，比较不会过大，比较安全
 			if ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 {
@@ -148,11 +158,14 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
 					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
 					inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+
 					// 合拼后，ix 的值要减 1
-					status = statusIXMunus
 					ix = ix - 1
 
-					fmt.Println("这里程式还没写完1-1")
+					// 在这里不需要重建连结，因为没有资料节点的操作 ‼️
+					// 因为是整个 ix 位置的索引节点向左合拼，最左边索引节点的边界值是不会变的
+
+					status = edgeValueInit
 
 					return
 				} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
@@ -165,49 +178,56 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
 					inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 
-					var middle *BpIndex
+					// 准备要嵌入的节点
+					var embed *BpIndex
 
-					var tailNode []*BpIndex
-					// if ix >= 0 && ix <= len(inode.IndexNodes)-1 {
-					tailNode = append(tailNode, inode.IndexNodes[ix:]...)
-					// }
+					var tailIndex = inode.Index[ix-1:]
+
+					var tailIndexNodes []*BpIndex
+					tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix:]...)
 
 					// 要分成单偶数函式处理
-					if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // 单数
+					if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // 针对单数数量的索引节点
 						// 当索引为奇数时
-						middle, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth() // 进行重新分配
+						embed, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth() // 进行重新分配
 						if err != nil {
 							return
 						}
-						// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
-					} else if len(inode.IndexNodes[ix-1].Index)%2 == 0 { // 偶数
+					} else if len(inode.IndexNodes[ix-1].Index)%2 == 0 { // 针对偶数数量的索引节点
 						// 当索引为偶数时
-						middle, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth() // 进行重新分配
+						embed, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth() // 进行重新分配
 						if err != nil {
 							return
 						}
-						// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
 					}
 
 					// 在这里要整个嵌入原索引节点
-					inode.Index = append([]int64{middle.Index[0]}, inode.Index...) // 嵌入索引
 
-					inode.IndexNodes = append(inode.IndexNodes[:ix-1], middle.IndexNodes...)
-					inode.IndexNodes = append(inode.IndexNodes, tailNode...)
+					if ix-2 >= 0 { // 其实考虑可以改成 ix-2 > 0
+						// 会用到原始索引的前半段
+						inode.Index = append(inode.Index[:ix-2], embed.Index[0])
+						inode.Index = append(inode.Index, tailIndex...)
+					} else {
+						// 不 会用到原始索引的前半段
+						inode.Index = append(embed.Index, tailIndex...)
+					}
 
-					fmt.Println("这里程式还没写完1-2")
+					// 合拼后，执行 protrudeInOddBpWidth 和 protrudeInEvenBpWidth 的，
+					// 索引和索引节点都会增加一个单位，另外，因是向左合拼，ix 会大于等于 1
+					inode.IndexNodes = append(inode.IndexNodes[:ix-1], embed.IndexNodes...)
+					inode.IndexNodes = append(inode.IndexNodes, tailIndexNodes...)
 
-					status = 0
+					// 在这里不需要重建连结，因为没有资料节点的操作 ‼️
+					// 因为是整个 ix 位置的索引节点向左合拼，最左边索引节点的边界值是不会变的
+
+					status = edgeValueInit
 
 					return
-
-					// 合拼后，ix 的值要减 1 (不会有这状况)
-					// status = statusIXMunus
-					// ix = ix - 1
 				}
-				fmt.Println("这里程式还没写完1-3")
-				// }
 			} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
+
+				// 之后，再由这里继续开发 !
+
 				// ⚠️ 状况二之二 再向右合并
 
 				// 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
