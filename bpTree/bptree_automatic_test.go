@@ -78,7 +78,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 		fmt.Println()
 	})
 	// Automated random testing for B+ tree.
-	t.Run("Manually Identify B+ Tree Operation Errors", func(t *testing.T) {
+	t.Run("Manually Identify B Plus Tree Operation Errors", func(t *testing.T) {
 		// 数量一百的例子
 		// Generate random data for insertion.
 		var randomNumbers = []int64{1386, 1739, 1719, 1538, 482, 858, 1931, 1628, 641, 1407, 1225, 1560, 599, 1222, 1786, 1351, 616, 1594, 716, 1127, 493, 1448, 708, 949, 1508, 1288, 134, 1417, 710, 1949, 363, 465, 1247, 337, 693, 1749, 1626, 876, 171, 639, 1659, 1169, 837, 631, 852, 386, 563, 1823, 715, 621, 841, 565, 1872, 225, 1685, 234, 514, 1808, 1568, 1319, 557, 1721, 50, 1001, 1751, 1861, 469, 927, 1461, 217, 159, 171, 119, 279, 1579, 1582, 1648, 1314, 1854, 1752, 1677, 93, 1759, 822, 1602, 1281, 1534, 1696, 756, 1363, 127, 763, 885, 1233, 418, 585, 1189, 519, 182, 1674}
@@ -106,7 +106,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 			// 中断检验
 			value := shuffledNumbers[i]
 			fmt.Println(i, value)
-			if shuffledNumbers[i] == 710 { // 在这里要把索引值由 710 改成 715，之后在删除 599 时，会有 这里程式还没写完2 的警告
+			if shuffledNumbers[i] == 621 { // 在这里要把索引值由 710 改成 715，之后在删除 599 时，会有 这里程式还没写完2 的警告
 				fmt.Print()
 			}
 

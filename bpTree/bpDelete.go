@@ -173,16 +173,16 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					// if len(inode.IndexNodes) >= 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
 					// 后来想想，这里直接去除，因为加1后除2也会维持 Degree，只要层数相同就好
-					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+
+					inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...) // 剩1个索引和1个索引节点，所以可以直接合拼，但很容易出错
+
 					inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
 					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
 					inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 
 					// 准备要嵌入的节点
 					var embed *BpIndex
-
 					var tailIndex = inode.Index[ix-1:]
-
 					var tailIndexNodes []*BpIndex
 					tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix:]...)
 
@@ -219,20 +219,24 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					// 在这里不需要重建连结，因为没有资料节点的操作 ‼️
 					// 因为是整个 ix 位置的索引节点向左合拼，最左边索引节点的边界值是不会变的
-
 					status = edgeValueInit
 
 					return
 				}
-			} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
-
-				// 之后，再由这里继续开发 !
-
+			} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 { // 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
 				// ⚠️ 状况二之二 再向右合并
+				if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth { // 没错，Degree 是针对 Index
+					// ⚠️ 状况二之二之一 先向右合并，合拼后底层索引节点过小，合拼成一个新节点
+					inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
+					inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
+					inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
+					inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
 
-				// 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
-				if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth {
+					status = edgeValueInit
 
+					return
+				} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
+					// 之后，再由这里继续开发 ! <<<<< <<<<< <<<<<
 					inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
 					inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
 					inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
@@ -262,10 +266,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 						// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
 					}
-
-					fmt.Println("这里程式还没写完2")
-				} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
-					fmt.Println("这里程式还没写完3")
 				}
 			}
 		}
@@ -514,6 +514,11 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 // If the node is too small, it will clear the entire index. (索引可能失效‼️)
 // 一层 BpData 资料层，加上一个索引切片，就是一个 Bottom
 func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int, edgeValue int64, status int) {
+
+	if item.Key == 621 {
+		fmt.Println()
+	}
+
 	// 初始化回传值
 	edgeValue = -1
 
