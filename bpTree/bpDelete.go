@@ -276,8 +276,10 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 				fmt.Print("borrowFromIndexNode 执行前后，🏴‍☠️ 边界值变化 ", inode.edgeValue()) // 显示边界值
 
+				// 之后从这开始开发 ‼️
+
 				var borrowed bool
-				borrowed, _, _, err, _ = inode.borrowFromIndexNode(ix) // Will borrow part of the node (借结点). ‼️  // 🖐️ for index node 针对索引节点
+				borrowed, _, edgeValue, err, status = inode.borrowFromIndexNode(ix) // Will borrow part of the node (借结点). ‼️  // 🖐️ for index node 针对索引节点
 				// 看看有没有向索引节点借到资料
 
 				fmt.Println(" -> ", inode.edgeValue()) // 显示边界值
@@ -703,6 +705,14 @@ func (inode *BpIndex) indexMove(ix int) (updated bool, err error) {
 
 // borrowFromIndexNode will borrow more data from neighboring index nodes, including indexes.
 func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edgeValue int64, err error, status int) {
+	// 先初始化回传值
+	newIx = -1
+	edgeValue = -1
+	if len(inode.IndexNodes) > 0 && len(inode.IndexNodes[0].DataNodes) > 0 && len(inode.IndexNodes[0].DataNodes[0].Items) > 0 {
+		edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key
+	}
+	status = edgeValueInit
+
 	// ⬇️ Check if there is an opportunity to borrow data from the index node. Data node with invalid index has neighbors.
 	// (索引失效的资料节点 有邻居)
 	if len(inode.IndexNodes[ix].Index) == 0 && // The underlying index is invalid; repair is required.
@@ -723,7 +733,14 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 				// 如果能更新索引就进行更新
 				if len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 {
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
-					return
+					// return
+				}
+
+				// inode 下的第 ix 索引节点剩 2 个资料节点，ix 索引节点 的资料被移到最左方资料
+				// 如果 ix 为 0 ，就会造成边界值上传的问题，最后会处理，现在不用管
+				// 如果 ix 大于 0，就不需要上传，在 inode 内进行更新
+				if ix > 0 {
+					inode.Index[ix-1] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
 				}
 			}
 
@@ -741,22 +758,16 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 					// 正常更新索引
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
-					// 邻居索引可能有变
-					if ix != 0 {
-
-						// 之后再从这里开发 ‼️
-
-						// 在这在有检查出索引会错误的原因
-						// 但是这里只修正 ix 不等于 0 的状况，
-						// 之后还要修正 ix 为 0 的状况，这时就要上传边界值
-						fmt.Print(" (边界值可能有变 ‼️) 位置 ", ix+1, inode.IndexNodes[ix+1].edgeValue())
-						inode.Index[ix] = inode.IndexNodes[ix+1].edgeValue()
-					}
+					// inode 下的第 ix 索引节点剩 2 个资料节点，
+					// "之前" ix 索引节点 的资料被移到最左方资料，"现在" 向右边的 邻居索引节点 借资料
+					// 这个影响右边索引节点的边界值
+					// 在这里进行修正
+					inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key
 
 					// 更新状态
 					borrowed = true
 
-					return
+					// return
 				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 1 && len(inode.IndexNodes[ix+1].DataNodes) >= 3 { // 如果最邻近的资料结点没有足够的资料，这一借，邻居节点将会破坏，进入 [状况4-2]
 					// 三个被抢一个，还有 2 个，不会对树的结构进行破坏 ✌️
 
@@ -776,12 +787,15 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 					inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]         // 都各退一个
 					inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:] // 都各退一个
 
-					// ☢️ 更改上层索引，应可以，因这里接近底层资料
-					inode.Index[(ix+1)-1] = inode.IndexNodes[(ix + 1)].DataNodes[0].Items[0].Key
+					// inode 下的第 ix 索引节点剩 2 个资料节点，
+					// "之前" ix 索引节点 的资料被移到最左方资料，"现在" 向右边的 邻居索引节点 借资料，
+					// 在这里 向右边的 邻居索引节点 的资料节点数量为会减少
+					// 影响到右方的邻居索引节点，要同步邻居索引节点的边界值，在这里进行修正
+					inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key
 
 					// 更新状态
 					borrowed = true
-					return
+					// return
 				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 1 && len(inode.IndexNodes[ix+1].DataNodes) == 2 { // 邻点太小，将会被合拼，进入 [状况4-3]
 					// 🔴 Case 4-3 Operation
 
@@ -795,16 +809,23 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 
 					// 抹除 ix 位置
 					if ix > 0 {
-						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...) // 边界值在这里修正
 						inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 					} else if ix == 0 {
 						inode.Index = inode.Index[1:]
 						inode.IndexNodes = inode.IndexNodes[1:]
 					}
 
+					// ix 索引节点资料先复制到 ix + 1 索引节点那，再移除 ix 索引节点
+					// ix + 1 索引节点 会到 ix 位置，ix + 1 索引节点又有之前 ix 节点的资料
+					// 所以新节点足够代表之前 ix 位置的索引节点
+					// 也就是 ix 值不用修正
+					// ix 等于 0 时，要把边界值上，这理不用管，之后会处理
+					// ix 大于 0 时，在这段代码有进行修正
+
 					// 更新状态
 					borrowed = true
-					return
+					// return
 				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 0 {
 					err = fmt.Errorf("节点未及时整理完成1")
 					return
@@ -823,10 +844,12 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 				inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix].DataNodes[0].Items[length0-1])
 				inode.IndexNodes[ix].DataNodes[0].Items = inode.IndexNodes[ix].DataNodes[0].Items[:length0-1] // 不包含最后一个
 
-				// 如果能更新索引就进行更新
+				// inode 下的第 ix 索引节点剩 2 个资料节点，ix 索引节点 的资料被移到最右方资料，就是要先形成中空
+				// 如果 ix 为 0 ，就会造成边界值上传的问题，最后会处理，现在不用管，而且这里 ix 也不会为 0，因为 前面有条件 ix-1 >= 0
+				// 如果 ix 大于 0，就不需要上传，在 inode 内进行更新
 				if len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
-					return
+					// return
 				}
 			}
 
@@ -848,9 +871,15 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 					// 正常更新索引
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
+					// inode 下的第 ix 索引节点剩 2 个资料节点，
+					// "之前" ix 索引节点 的资料被移到最右方资料，"现在" 向左边的 邻居索引节点 借资料
+					// 因为是向 最左边的索引节点借的是尾部资料，这不 个会 影响右边索引节点的边界值
+					// 在这里 不需要 进行修正
+					// 同样，上传边界值的问题，最后会处理
+
 					// 更新状态
 					borrowed = true
-					return
+					// return
 				} else if len(inode.IndexNodes[ix-1].DataNodes[length0-1].Items) == 1 && len(inode.IndexNodes[ix-1].DataNodes) >= 3 && length0 > 0 && length1 > 0 { // 如果最邻近的资料结点没有足够的资料，这一借，邻居节点将会破坏，进入 [状况1-2]
 					// 三个被抢一个，还有 2 个，不会对树的结构进行破坏 ✌️
 
@@ -870,12 +899,15 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 					inode.IndexNodes[ix-1].Index = inode.IndexNodes[ix-1].Index[:(length2 - 2)]
 					inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:(length2 - 1)]
 
-					// ☢️ 更改上层索引，应可以，因这里接近底层资料
+					// inode 下的第 ix 索引节点剩 2 个资料节点，
+					// "之前" ix 索引节点 的资料被移到最右方资料，"现在" 向左边的 邻居索引节点 借资料，
+					// 在这里 向左边的 邻居索引节点 借尾部资料，所以不必更新索引节点的边界值
+					// 但是 ix 的索引节点有向左边的邻居节点借到值，所以边界值要进行更新，进行以下修正
 					inode.Index[(ix)-1] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
 
 					// 更新状态
 					borrowed = true
-					return
+					// return
 				} else if len(inode.IndexNodes[ix-1].DataNodes[length0-1].Items) == 1 && len(inode.IndexNodes[ix-1].DataNodes) == 2 && length0 > 0 { // 邻点太小，将会被合拼，进入 [状况1-3]
 					// 🔴 Case 1-3 Operation
 
@@ -891,15 +923,24 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
 					inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 
+					// ix 索引节点资料先复制到 ix - 1 索引节点那，再移除 ix 索引节点
+					// ix - 1 索引节点有之前 ix 节点的资料，所以在位置 ix - 1 的索引节点能代表之前的 ix 的
+					newIx = ix - 1
+
 					// 更新状态
 					borrowed = true
-					return
+					// return
 				} else if len(inode.IndexNodes[ix-1].DataNodes[length0-1].Items) == 0 {
 					err = fmt.Errorf("节点未及时整理完成2")
 					return
 				}
 			}
 		}
+	}
+
+	if edgeValue != inode.IndexNodes[0].DataNodes[0].Items[0].Key {
+		edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key
+		status = edgeValueChanges
 	}
 
 	// Finally, return

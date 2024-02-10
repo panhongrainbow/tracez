@@ -106,7 +106,7 @@ func Test_Check_BpTree_Automatic(t *testing.T) {
 			// 中断检验
 			value := shuffledNumbers[i]
 			fmt.Println(i, value)
-			if shuffledNumbers[i] == 621 { // 在这里要把索引值由 710 改成 715，之后在删除 599 时，会有 这里程式还没写完2 的警告
+			if shuffledNumbers[i] == 949 { // 在这里要把索引值由 710 改成 715，之后在删除 599 时，会有 这里程式还没写完2 的警告
 				fmt.Print()
 			}
 
