@@ -279,7 +279,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				// 之后从这开始开发 ‼️
 
 				var borrowed bool
-				borrowed, _, edgeValue, err, status = inode.borrowFromIndexNode(ix) // Will borrow part of the node (借结点). ‼️  // 🖐️ for index node 针对索引节点
+				borrowed, _, edgeValue, err, status = inode.borrowFromBottomIndexNode(ix) // Will borrow part of the node (借结点). ‼️  // 🖐️ for index node 针对索引节点
 				// 看看有没有向索引节点借到资料
 
 				fmt.Println(" -> ", inode.edgeValue()) // 显示边界值
@@ -302,29 +302,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 						}
 					}
 
-					// 更新其他位置的边界值
-					if ix >= 0 && ix <= len(inode.IndexNodes)-1 && // 预防性检查
-						ix-1 >= 0 && ix-1 <= len(inode.Index)-1 && // 预防性检查
-						len(inode.IndexNodes[ix].DataNodes) > 0 { // 预防性检查
-
-						// 这里不会有 ix 为 0 的状况
-
-						edgeValue = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
-
-						fmt.Print("🏴‍☠️ 索引(2) ", inode.Index, "->", "位置", ix-1, "修改成", edgeValue, "->")
-
-						inode.Index[ix-1] = edgeValue
-
-						fmt.Print("最后变成", inode.Index, "\n")
-					}
-
-					return
-				}
-			} else if len(inode.IndexNodes[ix].IndexNodes) != 0 && // IndexNode ▶️
-				len(inode.IndexNodes[ix].DataNodes) == 0 {
-				fmt.Println("注意 ‼️，有早期 indexMove 的机制需要评估")
-				updated, err = inode.indexMove(ix) // Reorganize the indexing between nodes. (更新索引)
-				if err != nil {
 					return
 				}
 			}
@@ -447,7 +424,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 
 		// Immediately update the index of index node.
 		if updated && len(inode.IndexNodes[ix].Index) == 0 {
-			updated, _, _, err, _ = inode.borrowFromIndexNode(ix) // Will borrow part of the index node (向索引节点借资料).
+			updated, _, _, err, _ = inode.borrowFromBottomIndexNode(ix) // Will borrow part of the index node (向索引节点借资料).
 			if err != nil {
 				return
 			}
@@ -663,48 +640,8 @@ func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, edgeValue int64
 	return
 }
 
-// indexMove performs index movement operations.
-// 预期要废除的函式
-func (inode *BpIndex) indexMove(ix int) (updated bool, err error) {
-
-	fmt.Println("注意，预期 indexMove 函式将不再被使用 ‼️")
-
-	// If the index of a child node is empty, start index movement and push it down.
-	if len(inode.IndexNodes[ix].Index) == 0 {
-		if len(inode.Index) == 1 {
-			// ⬇️ Scenario 1: Directly push down the only index from the upper level, making the upper-level index empty.
-			inode.IndexNodes[ix].Index = []int64{inode.Index[0]}
-			inode.Index = []int64{}
-
-			// The top-level index disappears, create a new node for direct merging.
-			node := &BpIndex{}
-
-			// Merge indices
-			node.Index = append(node.Index, inode.IndexNodes[0].Index...)
-			node.Index = append(node.Index, inode.IndexNodes[1].Index...)
-
-			// Merge indices
-			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[0].IndexNodes...)
-			node.IndexNodes = append(node.IndexNodes, inode.IndexNodes[1].IndexNodes...)
-
-			// Save the modification at the end
-			*inode = *node
-
-			updated = true
-		} else if len(inode.Index) > 1 && ix > 0 {
-			// ⬇️ Scenario 2: Directly push down one index from the upper level, leaving others unchanged.
-			inode.IndexNodes[ix].Index = []int64{inode.Index[ix-1]}
-			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-
-			// Return status
-			updated = true
-		}
-	}
-	return
-}
-
 // borrowFromIndexNode will borrow more data from neighboring index nodes, including indexes.
-func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edgeValue int64, err error, status int) {
+func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx int, edgeValue int64, err error, status int) {
 	// 先初始化回传值
 	newIx = -1
 	edgeValue = -1
@@ -944,5 +881,131 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edg
 	}
 
 	// Finally, return
+	return
+}
+
+func (inode *BpIndex) borrowFromIndexNode(ix int) (borrowed bool, newIx int, edgeValue int64, err error, status int) {
+	// 🖍️ 在这个区块，是在进行借完资料后处理
+	// 要就全合拼，不然就先合拼再重分配
+
+	// ⚠️ 状况二 当一个分支只剩一个索引值和一个索引节点，准备要向左合拼
+	// 思考后，还是向右合拼比较好，因为左边的资料结点的资料会比较少，合并时，比较不会过大，比较安全
+	if ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 {
+		// ⚠️ 状况二之一 先向左合并
+		if len(inode.IndexNodes[ix-1].Index)+1 < BpWidth { // 没错，Degree 是针对 Index
+			// ⚠️ 状况二之一之一 先向左合并，合拼后底层索引节点过小，合拼成一个新节点
+			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+			inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
+			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+			inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+
+			// 合拼后，ix 的值要减 1
+			ix = ix - 1
+
+			// 在这里不需要重建连结，因为没有资料节点的操作 ‼️
+			// 因为是整个 ix 位置的索引节点向左合拼，最左边索引节点的边界值是不会变的
+
+			status = edgeValueInit
+
+			return
+		} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
+			// ⚠️ 状况二之一之二 先向左合并，合拼后底层索引节点过大，要用 protrudeInOddBpWidth 或 protrudeInEvenBpWidth 重新分配
+
+			// if len(inode.IndexNodes) >= 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
+			// 后来想想，这里直接去除，因为加1后除2也会维持 Degree，只要层数相同就好
+
+			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...) // 剩1个索引和1个索引节点，所以可以直接合拼，但很容易出错
+
+			inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
+			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+			inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+
+			// 准备要嵌入的节点
+			var embed *BpIndex
+			var tailIndex = inode.Index[ix-1:]
+			var tailIndexNodes []*BpIndex
+			tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix:]...)
+
+			// 要分成单偶数函式处理
+			if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // 针对单数数量的索引节点
+				// 当索引为奇数时
+				embed, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth() // 进行重新分配
+				if err != nil {
+					return
+				}
+			} else if len(inode.IndexNodes[ix-1].Index)%2 == 0 { // 针对偶数数量的索引节点
+				// 当索引为偶数时
+				embed, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth() // 进行重新分配
+				if err != nil {
+					return
+				}
+			}
+
+			// 在这里要整个嵌入原索引节点
+
+			if ix-2 >= 0 { // 其实考虑可以改成 ix-2 > 0
+				// 会用到原始索引的前半段
+				inode.Index = append(inode.Index[:ix-2], embed.Index[0])
+				inode.Index = append(inode.Index, tailIndex...)
+			} else {
+				// 不 会用到原始索引的前半段
+				inode.Index = append(embed.Index, tailIndex...)
+			}
+
+			// 合拼后，执行 protrudeInOddBpWidth 和 protrudeInEvenBpWidth 的，
+			// 索引和索引节点都会增加一个单位，另外，因是向左合拼，ix 会大于等于 1
+			inode.IndexNodes = append(inode.IndexNodes[:ix-1], embed.IndexNodes...)
+			inode.IndexNodes = append(inode.IndexNodes, tailIndexNodes...)
+
+			// 在这里不需要重建连结，因为没有资料节点的操作 ‼️
+			// 因为是整个 ix 位置的索引节点向左合拼，最左边索引节点的边界值是不会变的
+			status = edgeValueInit
+
+			return
+		}
+	} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 { // 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
+		// ⚠️ 状况二之二 再向右合并
+		if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth { // 没错，Degree 是针对 Index
+			// ⚠️ 状况二之二之一 先向右合并，合拼后底层索引节点过小，合拼成一个新节点
+			inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
+			inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
+			inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
+			inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
+
+			status = edgeValueInit
+
+			return
+		} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
+			inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
+			inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
+			inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
+			inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
+
+			var middle *BpIndex
+
+			// 要分成单偶数函式处理
+			if len(inode.Index) != 0 && len(inode.IndexNodes[ix].Index)%2 == 1 { // 单数
+				// 当索引为奇数时
+				middle, err = inode.IndexNodes[ix].protrudeInOddBpWidth() // 🖐️ for arrangement 针对重整结构
+				if err != nil {
+					return
+				}
+
+				// 在这里要整个嵌入原索引节点
+				inode.IndexNodes[ix] = middle
+			} else if len(inode.Index) != 0 && len(inode.IndexNodes[ix].Index)%2 == 0 { // 偶数
+				// 当索引为偶数时
+				middle, err = inode.IndexNodes[ix].protrudeInEvenBpWidth() // 🖐️ for index node 针对重整结构
+				if err != nil {
+					return
+				}
+
+				// 在这里要整个嵌入原索引节点
+				inode.IndexNodes[ix] = middle
+
+				// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
+			}
+		}
+	}
 	return
 }
