@@ -115,15 +115,14 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		// If it is discontinuous data (different values) (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
 		deleted, updated, edgeValue, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
 		if ix > 0 && status == edgeValueUpload {
-			fmt.Print("🏴‍☠️ 索引(4) ", inode.Index, " -> ", " 位置 ", ix-1, " 修改成 ", edgeValue, "->")
+			fmt.Println(">>>>> 更新完成")
 			inode.Index[ix-1] = edgeValue
-			fmt.Print("最后变成", inode.Index, " 上传中断", "\n")
 			updated = false
 			status = edgeValueInit
 		} else if ix == 0 && status == edgeValueUpload {
-			fmt.Print("🏴‍☠️ 索引(5) ", inode.Index, " -> ", " 位置 ", ix, " 边界值为 ", edgeValue, " 再上传")
-		} else {
-			fmt.Print("🏴‍☠️ 索引(6) ", " 位置 ", ix, " 边界值为 ", edgeValue, " 状态 ", status, " 不更新", "\n")
+			fmt.Println(">>>>> 进行上传")
+			// 继续上传，只是修改索引
+			return
 		}
 
 		// 🖍️ 在这个区块，(暂时) 决定要更新边界值，还是要上传
@@ -136,16 +135,27 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			// 🖐️ 状态变化 [LeaveBottom] -> [Init]
 			// 看到 LeaveBottom 状态时，就代表准备要更新边界值，但更新的索引不一定在最左边
 			if ix-1 >= 0 {
-				fmt.Print("🏴‍☠️ 索引(1) ", inode.Index, "->", "位置", ix-1, "修改成", edgeValue, "->")
-				inode.Index[ix-1] = edgeValue
-				fmt.Print("最后变成", inode.Index, "\n")
 
-				status = edgeValueInit // 暂时重置状态，之后可能会被改
+				fmt.Println(">>>>> 更新完成")
+
+				inode.Index[ix-1] = edgeValue
+
+				status = edgeValueInit
+				return
 			} else {
-				status = edgeValueUpload // 暂时重置状态，之后可能会被改
+				fmt.Println(">>>>> 进行上传")
+				status = edgeValueUpload
+				return
 			}
 		} else if status == statusBorrowFromIndexNode {
 			ix, edgeValue, err, status = inode.borrowFromIndexNode(ix)
+
+			if ix == 0 && status == edgeValueChanges {
+				fmt.Println(">>>>> 进行上传")
+				status = edgeValueUpload
+				return
+			}
+
 			return
 		}
 
@@ -154,21 +164,28 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		if len(inode.IndexNodes[ix].Index) == 0 { // invalid ❌
 			if len(inode.IndexNodes[ix].DataNodes) >= 2 { // DataNode 🗂️
 
-				fmt.Print("borrowFromIndexNode 执行前后，🏴‍☠️ 边界值变化 ", inode.edgeValue()) // 显示边界值
-
 				// 之后从这开始开发 ‼️
 
 				var borrowed bool
+
+				if item.Key == 264 {
+					fmt.Println()
+				}
+
 				borrowed, _, edgeValue, err, status = inode.borrowFromBottomIndexNode(ix) // Will borrow part of the node (借结点). ‼️  // 🖐️ for index node 针对索引节点
 				// 看看有没有向索引节点借到资料
-
-				fmt.Println(" -> ", inode.edgeValue()) // 显示边界值
 
 				if err != nil && !errors.Is(err, fmt.Errorf("the index is still there; there is no need to borrow nodes")) {
 					return
 				}
 
 				if borrowed == true { // 当向其他索引节点借完后，在执行 borrowFromIndexNode，重新计算边界值
+
+					if ix == 0 && status == edgeValueChanges {
+						fmt.Println(">>>>> 进行上传")
+						status = edgeValueUpload
+						return
+					}
 
 					if len(inode.IndexNodes) > 0 && // 预防性检查
 						len(inode.IndexNodes[0].DataNodes) > 0 && // 预防性检查
@@ -177,6 +194,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 						edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key // 边界值是由 索引节点中取出，所以可以直接把边界值放入 索引  ‼️‼️
 
 						if edgeValue != -1 && len(inode.Index) == 0 { // 如果有正确取得 边界值 后
+							fmt.Println(">>>>> 进行更新")
 							inode.Index = []int64{edgeValue}
 							status = statusBorrowFromIndexNode
 						}
@@ -209,18 +227,18 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			var borrowed bool
 			borrowed, edgeValue, err, status = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
 
+			// 先检查是否有错误
+			if err != nil {
+				status = statusError
+				return
+			}
+
 			// 看之前的 if 判断式，len(inode.DataNodes) > 0 条件满足后，才会来这里
 			// 由这条件可以知，目前是在底层，不是修改边界值的时机，边界值要到上层去修改
 			// 在这里的工作是观察边界值是否要往上传
 			if ix == 0 && status == edgeValueChanges {
-				fmt.Println("上传边界值 ", edgeValue)
+				fmt.Println(">>>>> 进行上传")
 				status = edgeValueUpload
-				return
-			}
-
-			// 先检查是否有错误
-			if err != nil {
-				status = statusError
 				return
 			}
 
@@ -237,6 +255,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			// During the deletion process, the node's index may become invalid.
 			// 如果资料节点数量过少
 			if len(inode.DataNodes) <= 2 { // 资料节点数量过少
+
 				inode.Index = []int64{}
 
 				// 状况更新
@@ -254,16 +273,16 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				if inode.DataNodes[ix].Previous == nil {
 					inode.DataNodes[ix].Next.Previous = nil
 
-					status = 0 // 抹除
+					status = edgeValueInit
 				} else if inode.DataNodes[ix].Next == nil {
 					inode.DataNodes[ix].Previous.Next = nil
 
-					status = 0 // 抹除
+					status = edgeValueInit
 				} else {
 					inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
 					inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
 
-					status = 0 // 抹除
+					status = edgeValueInit
 				}
 
 				// Reorganize nodes.
@@ -271,12 +290,13 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 					inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)             // Erase the position of ix - 1.
 					inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...) // Erase the position of ix.
 
-					status = 0 // 抹除
+					status = edgeValueInit
 				} else if ix == 0 { // Conditions have already been established earlier, with the index length not equal to 0. ‼️
+
 					inode.Index = inode.Index[1:]
 					inode.DataNodes = inode.DataNodes[1:]
 
-					status = 0 // 抹除
+					status = edgeValueInit
 				}
 			}
 		}
@@ -289,6 +309,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 // deleteToLeft is a method of the BpIndex type that deletes the leftmost specified BpItem. (由左边删除 👈 ‼️)
 func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, err error) {
+	fmt.Println("这例子不能采用")
 	// ⬇️⬇️⬇️ for index node 针对索引节点
 
 	// Check if there are any index nodes.
@@ -373,7 +394,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 // 一层 BpData 资料层，加上一个索引切片，就是一个 Bottom
 func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int, edgeValue int64, status int) {
 
-	if item.Key == 621 {
+	if item.Key == 537 {
 		fmt.Println()
 	}
 
@@ -408,11 +429,7 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 			// Updating within the data node is considered safer, preventing damage in the entire B plus tree index.
 			// 在资料节点内更新应是比较安全，不会造成整个 B 加树的索引错乱
 
-			fmt.Print("🏴‍☠️ 索引(3) ", inode.Index, "->", "位置", ix-1, "修改成", inode.DataNodes[ix].Items[0].Key, "->")
-
 			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key // Immediately update the index
-
-			fmt.Print("最后变成", inode.Index, "\n")
 
 			// Return status
 			updated = true
@@ -571,6 +588,9 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 					// 先不让 资料 为空
 					inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
 					inode.IndexNodes[ix+1].DataNodes[0].Items = inode.IndexNodes[ix+1].DataNodes[0].Items[1:]
+					if len(inode.IndexNodes[ix+1].DataNodes[0].Items) > 0 {
+						inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key // 借资料后要进行修正的地方 ‼️
+					}
 
 					// 正常更新索引
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
@@ -626,9 +646,13 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 					// 抹除 ix 位置
 					if ix > 0 {
+						inode.Index[ix] = inode.Index[ix-1]                           // 借资料后要进行修正的地方 ‼️
 						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...) // 边界值在这里修正
 						inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
 					} else if ix == 0 {
+						if len(inode.Index) >= 2 {
+							// inode.Index[1] = inode.Index[0] // 借资料后要进行修正的地方，但不稳定，进行注解 ‼️
+						}
 						inode.Index = inode.Index[1:]
 						inode.IndexNodes = inode.IndexNodes[1:]
 					}
@@ -755,7 +779,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 		}
 	}
 
-	if edgeValue != inode.IndexNodes[0].DataNodes[0].Items[0].Key {
+	if len(inode.IndexNodes[0].DataNodes) > 0 && len(inode.IndexNodes[0].DataNodes[0].Items) > 0 && edgeValue != inode.IndexNodes[0].DataNodes[0].Items[0].Key {
 		edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key
 		status = edgeValueChanges
 	}
