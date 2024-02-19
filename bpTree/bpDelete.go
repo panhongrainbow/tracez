@@ -292,11 +292,12 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 					status = edgeValueInit
 				} else if ix == 0 { // Conditions have already been established earlier, with the index length not equal to 0. ‼️
-
 					inode.Index = inode.Index[1:]
 					inode.DataNodes = inode.DataNodes[1:]
 
-					status = edgeValueInit
+					// 边界值要立刻进行修改
+					edgeValue = inode.DataNodes[0].Items[0].Key
+					status = edgeValueUpload
 				}
 			}
 		}

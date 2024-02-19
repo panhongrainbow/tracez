@@ -180,6 +180,11 @@ const (
 // It uses binary search to find the index where the item should be deleted.
 // 状况会回传 (1) 边界值没改变 (2) 边界值已改变 (3) 边界值为空
 func (data *BpData) _delete(item BpItem) (deleted bool, ix int, edgeValue int64, status int) {
+
+	if item.Key == 1625 {
+		fmt.Println()
+	}
+
 	// 初始化回传值
 	edgeValue = data.Items[0].Key
 	status = edgeValueNoChanges

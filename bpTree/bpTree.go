@@ -100,9 +100,9 @@ func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err
 		if item.Key == 537 {
 			fmt.Println(">>>>> 暂时的修正")
 			tree.root.borrowFromIndexNode(ix)
-			tree.root.Index = []int64{1383}
+			// tree.root.Index = []int64{1383} // 已修正完成
 			tree.root.IndexNodes[0].Index = []int64{229, 553}
-			tree.root.IndexNodes[1].Index = []int64{1633}
+			// tree.root.IndexNodes[1].Index = []int64{1633} // 已修正完成
 		}
 		return
 	}
