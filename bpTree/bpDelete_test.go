@@ -110,17 +110,17 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete commands.
-		deleted, updated, ix, err := inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 10})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 2})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 13})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 11})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 1})
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 12})
+		deleted, updated, ix, _, err := inode.delFromRoot(BpItem{Key: 5})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 10})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 2})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 13})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 11})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 1})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 12})
 		fmt.Println(deleted, updated, ix, err)
 	})
 
@@ -248,31 +248,31 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete commands.
-		deleted, updated, ix, err := inode.delFromRoot(BpItem{Key: 4})
+		deleted, updated, ix, _, err := inode.delFromRoot(BpItem{Key: 4})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 1})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 1})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 8})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 8})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 6})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 6})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 3})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 3})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 5})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 7})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 7})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 2})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 2})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 9})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 9})
 		fmt.Println(deleted, updated, ix, err)
 
 		fmt.Println("must be empty", inode.Index)
@@ -406,58 +406,58 @@ func Test_Check_BpIndex_delete(t *testing.T) {
 		}
 
 		// Execute the delete commands.
-		deleted, updated, ix, err := inode.delFromRoot(BpItem{Key: 7})
+		deleted, updated, ix, _, err := inode.delFromRoot(BpItem{Key: 7})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 15})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 15})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 17})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 17})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 9})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 9})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 2})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 2})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 12})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 12})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 3})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 3})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 8})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 8})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 16})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 16})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 19})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 19})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 6})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 6})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 5})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 10})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 10})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 11})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 11})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 4})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 4})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 14})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 14})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 1})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 1})
 		fmt.Println(deleted, updated, ix, err)
 
-		deleted, updated, ix, err = inode.delFromRoot(BpItem{Key: 13})
+		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 13})
 		fmt.Println(deleted, updated, ix, err)
 
 		fmt.Println("must be empty", inode.Index)

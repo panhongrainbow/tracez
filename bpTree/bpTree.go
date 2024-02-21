@@ -93,17 +93,18 @@ func (tree *BpTree) RemoveValue(item BpItem) (deleted, updated bool, ix int, err
 	// 删除操作由根节点管理，确保所有子节点层级相同 ‼️
 
 	// Performing deletion operation.
-	deleted, updated, ix, err = tree.root.delFromRoot(item)
+	var edgeValue int64 = -1
+	deleted, updated, ix, edgeValue, err = tree.root.delFromRoot(item)
 
 	// 以下进行临时修正
 	if ix >= 0 && ix <= len(tree.root.IndexNodes)-1 && len(tree.root.IndexNodes[ix].Index) == 0 {
-		if item.Key == 537 {
-			fmt.Println(">>>>> 暂时的修正")
-			tree.root.borrowFromIndexNode(ix)
-			// tree.root.Index = []int64{1383} // 已修正完成
-			tree.root.IndexNodes[0].Index = []int64{229, 553}
-			// tree.root.IndexNodes[1].Index = []int64{1633} // 已修正完成
-		}
+		// if item.Key == 537 {
+		// fmt.Println(">>>>> 暂时的修正")
+		err = tree.root.borrowFromRootIndexNode(ix, edgeValue)
+		// tree.root.Index = []int64{1383} // 已修正完成
+		// tree.root.IndexNodes[0].Index = []int64{229, 553}
+		// tree.root.IndexNodes[1].Index = []int64{1633} // 已修正完成
+		// }
 		return
 	}
 

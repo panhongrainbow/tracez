@@ -9,7 +9,7 @@ import (
 // ➡️ The functions related to direction.
 
 // delFromRoot is responsible for deleting an item from the root of the B Plus tree. // 这是 B 加树的删除入口
-func (inode *BpIndex) delFromRoot(item BpItem) (deleted, updated bool, ix int, err error) {
+func (inode *BpIndex) delFromRoot(item BpItem) (deleted, updated bool, ix int, edgeValue int64, err error) {
 	// 这里根节点规模太小，根节点直接就是索引节点
 
 	if len(inode.Index) == 0 &&
@@ -37,7 +37,7 @@ func (inode *BpIndex) delFromRoot(item BpItem) (deleted, updated bool, ix int, e
 		// ❌ not ( ▶️ 索引节点数量 0 🗂️ 资料节点数量 1 ⛷️ 层数数量 0 )
 
 		// Call the delAndDir method to handle deletion and direction.
-		deleted, updated, ix, err = inode.delAndDir(item) // 在这里加入方向性
+		deleted, updated, ix, edgeValue, err = inode.delAndDir(item) // 在这里加入方向性
 		if err != nil {
 			return
 		}
@@ -54,7 +54,7 @@ func (inode *BpIndex) delFromRoot(item BpItem) (deleted, updated bool, ix int, e
  为何要先优先向左删除资料，因最左边的相同值被删除时，就会被后面相同时递补，比较不会更动到边界值 ✌️
 */
 
-func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err error) {
+func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, edgeValue int64, err error) {
 	// 搜寻 🔍 (最右边 ➡️)
 	// Use binary search to find the index (ix) where the key should be deleted.
 	ix = sort.Search(len(inode.Index), func(i int) bool {
@@ -82,7 +82,7 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, err
 
 	// 搜寻 🔍 (最右边 ➡️)
 	// If it is discontinuous data (different values) (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
-	deleted, updated, _, _, ix, err = inode.deleteToRight(item) // Delete to the rightmost node ‼️ (向右砍)
+	deleted, updated, edgeValue, _, ix, err = inode.deleteToRight(item) // Delete to the rightmost node ‼️ (向右砍)
 
 	// Return the results.
 	return
@@ -167,10 +167,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				// 之后从这开始开发 ‼️
 
 				var borrowed bool
-
-				if item.Key == 264 {
-					fmt.Println()
-				}
 
 				borrowed, _, edgeValue, err, status = inode.borrowFromBottomIndexNode(ix) // Will borrow part of the node (借结点). ‼️  // 🖐️ for index node 针对索引节点
 				// 看看有没有向索引节点借到资料
@@ -786,6 +782,14 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 	}
 
 	// Finally, return
+	return
+}
+
+func (inode *BpIndex) borrowFromRootIndexNode(ix int, edgeValue int64) (err error) {
+	if len(inode.IndexNodes[ix].Index) == 0 {
+		inode.IndexNodes[ix].Index = []int64{edgeValue}
+	}
+	_, _, err, _ = inode.borrowFromIndexNode(ix)
 	return
 }
 
