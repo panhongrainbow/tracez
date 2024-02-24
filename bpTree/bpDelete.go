@@ -148,7 +148,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				return
 			}
 		} else if status == statusBorrowFromIndexNode {
-			ix, edgeValue, err, status = inode.borrowFromIndexNode(ix)
+			ix, edgeValue, status, err = inode.borrowFromIndexNode(ix)
 
 			if ix == 0 && status == edgeValueChanges {
 				fmt.Println(">>>>> 进行上传")
@@ -789,85 +789,112 @@ func (inode *BpIndex) borrowFromRootIndexNode(ix int, edgeValue int64) (err erro
 	if len(inode.IndexNodes[ix].Index) == 0 {
 		inode.IndexNodes[ix].Index = []int64{edgeValue}
 	}
-	_, _, err, _ = inode.borrowFromIndexNode(ix)
+	_, _, _, err = inode.borrowFromIndexNode(ix)
 	return
 }
 
-func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, err error, status int) {
-	// 🖍️ 在这个区块，是在进行借完资料后处理
-	// 要就全合拼，不然就先合拼再重分配
+// borrowFromIndexNode function ⚙️ is used to borrow data when it is not a root node or a data node, to quickly maintain the operation of the B Plus tree.
+// (在 非根节点 和 非资料节点)
+// When a B-tree deletes data, the index nodes may need to borrow data.
+// The reason B-tree borrows data is to quickly adjust its index to ensure the normal operation of the B-tree.
+// Scanning the entire B Plus tree and making large-scale adjustments is impractical and may cause performance bottlenecks. (借资料维持整个树的运作)
+// Therefore, I believe that the operations of deleting data in a B-tree may be slower than adding new data's. (我认为 B 加树删除操作会比新增较慢)
+func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, status int, err error) {
 
-	// ⚠️ 状况二 当一个分支只剩一个索引值和一个索引节点，准备要向左合拼
-	// 思考后，还是向左合拼比较好，因为左边的资料结点的资料会比较少，合并时，比较不会过大，比较安全
+	// 🩻 The index at position ix must be set first, otherwise the number of indexes and nodes won't match up later.
+	if len(inode.IndexNodes[ix].Index) == 0 {
+		err = fmt.Errorf("the index at position ix must be set first")
+		return
+	}
+
+	// 🖍️ The index node may not be able to borrow data, this is when the neighboring node has too little data,
+	// then the index node and the neighboring node will be merged to one index node. (借不到就合拼)
+	//
+	// 🖍️ If only one index node remains after merging in inode, (借资枓失败，上层再处理)
+	// the upper-level node will continue to borrow data to maintain the operation of the entire tree.
+
+	// 🖍️ it's better to merge to the left neighbor node because the data nodes on the left side usually have fewer data,
+	// which makes the merging less likely to be too large and thus safer. (优先向左合拼)
+
+	// The data merges with the left neighbor node.
+	inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+	inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
+	// Deleting the data node at position ix will result in the original data being at position ix - 1. (原资料就在 ix -1)
+	inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+	inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+
+	// There is a neighbor node on the left.
 	if ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 {
-		// ⚠️ 状况二之一 先向左合并
-		if len(inode.IndexNodes[ix-1].Index)+1 < BpWidth { // 没错，Degree 是针对 Index
-			// ⚠️ 状况二之一之一 先向左合并，合拼后底层索引节点过小，合拼成一个新节点
-			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
-			inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
-			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-			inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+		// There is a neighbor node on the left.
+		if len(inode.IndexNodes[ix-1].Index)+1 < BpWidth { // That's right, "Degree" is for the index. ‼️
 
-			// 合拼后，ix 的值要减 1
+			// ⚠️ Here, the data borrowing might fail, and the upper-level node will have to continue borrowing data. (合并后太小了)
+
+			// 🖍️ [IX] ix-1 indicates the position of the newly merged index node. (ix-1 为新的位置)
 			newIx = ix - 1
 
-			// 在这里不需要重建连结，因为没有资料节点的操作 ‼️
-			// 因为是整个 ix 位置的索引节点向左合拼，最左边索引节点的边界值是不会变的
+			// 🖍️ [Link] Here, there's no need to reconstruct data node links as there are no operations involving data nodes. (不重建连结)
+			// nothing
 
+			// 🖍️ [Status] Because the entire index position is being merged to the left, the edge value of the leftmost index node will not change. (边界值不变)
 			status = edgeValueInit
 
 			return
 		} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
-			// ⚠️ 状况二之一之二 先向左合并，合拼后底层索引节点过大，要用 protrudeInOddBpWidth 或 protrudeInEvenBpWidth 重新分配
+			// There is a neighbor node on the right.
 
-			// if len(inode.IndexNodes) >= 2 { // 这里要检合拼后，多个节点层数是否相同 ⁉️
-			// 后来想想，这里直接去除，因为加1后除2也会维持 Degree，只要层数相同就好
+			// 🦺 The index of the merged node becomes excessively large, requiring reallocation using either protrudeInOddBpWidth or protrudeInEvenBpWidth.
 
-			inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...) // 剩1个索引和1个索引节点，所以可以直接合拼，但很容易出错
-
-			inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
-			inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-			inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
-
-			// 准备要嵌入的节点
-			var embed *BpIndex
-			var tailIndex = inode.Index[ix-1:]
+			// The original data is located at ix-1. Subsequently, backing up the data of the index nodes occurs after position ix.
+			var embedNode *BpIndex
 			var tailIndexNodes []*BpIndex
-			tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix:]...)
+			tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix:]...) // 原资料在 ix-1，那备份 ix 之后的索引节点的资料
+			// The position difference between the index and the index node is one.
+			var tailIndex = inode.Index[ix-1:] // 备份 ix 之后的索引节点的资料，那索引就是备份 ix 之后的位置
 
-			// 要分成单偶数函式处理
-			if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // 针对单数数量的索引节点
-				// 当索引为奇数时
-				embed, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth() // 进行重新分配
-				if err != nil {
+			// The merged nodes are subjected to reallocation.
+			if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // For odd quantity of index, reallocate using the odd function.
+				if embedNode, err = inode.IndexNodes[ix-1].protrudeInOddBpWidth(); err != nil {
 					return
 				}
-			} else if len(inode.IndexNodes[ix-1].Index)%2 == 0 { // 针对偶数数量的索引节点
-				// 当索引为偶数时
-				embed, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth() // 进行重新分配
-				if err != nil {
+			} else if len(inode.IndexNodes[ix-1].Index)%2 == 0 { // For even quantity of index, reallocate using the even function.
+				if embedNode, err = inode.IndexNodes[ix-1].protrudeInEvenBpWidth(); err != nil {
 					return
 				}
 			}
 
-			// 在这里要整个嵌入原索引节点
-
-			if ix-2 >= 0 { // 其实考虑可以改成 ix-2 > 0
-				// 会用到原始索引的前半段
-				inode.Index = append(inode.Index[:ix-2], embed.Index[0])
-				inode.Index = append(inode.Index, tailIndex...)
-			} else {
-				// 不 会用到原始索引的前半段
-				inode.Index = append(embed.Index, tailIndex...)
-			}
-
-			// 合拼后，执行 protrudeInOddBpWidth 和 protrudeInEvenBpWidth 的，
-			// 索引和索引节点都会增加一个单位，另外，因是向左合拼，ix 会大于等于 1
-			inode.IndexNodes = append(inode.IndexNodes[:ix-1], embed.IndexNodes...)
+			// 🖍️ The data to be merged should be divided into three segments:
+			// Front Segment (inode.IndexNodes[:ix-1]): The segment before ix-1 (exclusive 不含)
+			// Middle Segment (embedNode) : The data at ix-1
+			// Back Segment (tailIndexNodes) : The segment after ix (inclusive)
+			inode.IndexNodes = append(inode.IndexNodes[:ix-1], embedNode.IndexNodes...)
 			inode.IndexNodes = append(inode.IndexNodes, tailIndexNodes...)
 
-			// 在这里不需要重建连结，因为没有资料节点的操作 ‼️
-			// 因为是整个 ix 位置的索引节点向左合拼，最左边索引节点的边界值是不会变的
+			// Let's adjust the index.
+			if ix-2 >= 0 {
+				// 🖍️ After merging with the left node, the data is redistributed and split into two nodes again, with only the index value at position ix changing.
+				// 合拼后再重分配后，只有一个索引值会变，就在位置 ix
+				inode.Index = append(inode.Index[:ix-1], embedNode.Index[0])
+				inode.Index = append(inode.Index, tailIndex...)
+			} else {
+				// 🖍️  If ix is not 0, it is 1, there must be a neighbor node on the left side, so ix is 1.
+				// The original data is merged into the position of ix-1, which is also 0, and then redistributed.
+				// So, it's fine to directly use embedNode.Index to form the new index.
+
+				// ix 不是 0，就是 1，一定有左边的邻居节点，所以 ix 就是 1
+				// 原始数据合并到 ix-1 的位置，也是 0，再重新分配
+				// 所以直接用 embedNode.Index 去组成新索引就好了
+				inode.Index = append(embedNode.Index, tailIndex...)
+			}
+
+			// 🖍️ [IX] After merging with the left node, it is redistributed and split into two nodes again, so the position of ix remains unchanged.
+			// (合拼到左节点后，再重新分配并分割成两个节点，所以 ix 位置不变)
+
+			// 🖍️ [Link] Here, there's no need to reconstruct data node links as there are no operations involving data nodes. (不重建连结)
+			// nothing
+
+			// 🖍️ [Status] Because the entire index position is being merged to the left and be split into two nodes again,
+			// the edge value of the leftmost index node will not change. (边界值不变)
 
 			status = edgeValueInit
 
