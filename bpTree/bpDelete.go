@@ -807,26 +807,23 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 		return
 	}
 
-	// 🖍️ The index node may not be able to borrow data, this is when the neighboring node has too little data,
-	// then the index node and the neighboring node will be merged to one index node. (借不到就合拼)
-	//
-	// 🖍️ If only one index node remains after merging in inode, (借资枓失败，上层再处理)
-	// the upper-level node will continue to borrow data to maintain the operation of the entire tree.
-
-	// 🖍️ it's better to merge to the left neighbor node because the data nodes on the left side usually have fewer data,
-	// which makes the merging less likely to be too large and thus safer. (优先向左合拼)
-
-	// The data merges with the left neighbor node.
-	inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
-	inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
-	// Deleting the data node at position ix will result in the original data being at position ix - 1. (原资料就在 ix -1)
-	inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-	inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
-
 	// There is a neighbor node on the left.
 	if ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1 {
+
+		// 🖍️ The index node may not be able to borrow data, this is when the neighboring node has too little data,
+		// then the index node and the neighboring node will be merged to one index node. (借不到就合拼)
+		//
+		// 🖍️ If only one index node remains after merging in inode, (借资枓失败，上层再处理)
+		// the upper-level node will continue to borrow data to maintain the operation of the entire tree.
+
+		// 🖍️ it's better to merge to the left neighbor node because the data nodes on the left side usually have fewer data,
+		// which makes the merging less likely to be too large and thus safer. (优先向左合拼)
+
 		// There is a neighbor node on the left.
 		if len(inode.IndexNodes[ix-1].Index)+1 < BpWidth { // That's right, "Degree" is for the index. ‼️
+
+			// Merge into the left neighbor node first.
+			inode.combineToLeftNeighborNode(ix)
 
 			// ⚠️ Here, the data borrowing might fail, and the upper-level node will have to continue borrowing data. (合并后太小了)
 
@@ -841,7 +838,9 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 
 			return
 		} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
-			// There is a neighbor node on the right.
+
+			// Merge into the left neighbor node first.
+			inode.combineToLeftNeighborNode(ix)
 
 			// 🦺 The index of the merged node becomes excessively large, requiring reallocation using either protrudeInOddBpWidth or protrudeInEvenBpWidth.
 
@@ -900,23 +899,37 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 
 			return
 		}
-	} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 { // 不能合拼后再合拼，会出事，所以用 else if，只做一次 ‼️
-		// ⚠️ 状况二之二 再向右合并
+
+		// 🖍️ When unable to borrow data from the left neighbor node, start borrowing data from the right neighbor node.
+		// Here we don't simplify the code by changing `ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1` to `ix == 0`,
+		// because even if `ix == 0`, when `inode` has only one index node left, there may be no neighbor nodes at all, and borrowing data may still not be possible.
+		// (只剩一个索引节点时，没邻居，会有都借不到的问题，条件不能精简成 ix == 1)
+
+		// 🖍️ Borrowing data repeatedly is not allowed; It can only be done once.
+		// Therefore, it is crucial to use 'else if' here
+	} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 { // 不能连续借资料，必用 else if ⚠️
+
 		if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth { // 没错，Degree 是针对 Index
+
+			inode.combineToRightNeighborNode(ix)
+
 			// ⚠️ 状况二之二之一 先向右合并，合拼后底层索引节点过小，合拼成一个新节点
-			inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
+			/*inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
 			inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
 			inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
-			inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
+			inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)*/
 
 			status = edgeValueInit
 
 			return
 		} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
-			inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
+
+			inode.combineToRightNeighborNode(ix)
+
+			/*inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
 			inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
 			inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
-			inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
+			inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)*/
 
 			var middle *BpIndex
 
@@ -944,5 +957,35 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 			}
 		}
 	}
+	return
+}
+
+// combineToLeftNeighborNode is part of borrowFromIndexNode, where the current index node will be merged into the left neighbor node.
+// (borrowFromIndexNode 的一部份)
+func (inode *BpIndex) combineToLeftNeighborNode(ix int) {
+	// The data merges with the left neighbor node.
+	inode.IndexNodes[ix-1].Index = append(inode.IndexNodes[ix-1].Index, inode.IndexNodes[ix].Index...)
+	inode.IndexNodes[ix-1].IndexNodes = append(inode.IndexNodes[ix-1].IndexNodes, inode.IndexNodes[ix].IndexNodes...)
+
+	// Deleting the data node at position ix will result in the original data being at position ix - 1. (原资料就在 ix -1)
+	inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
+	inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+	return
+}
+
+// combineToRightNeighborNode is part of borrowFromIndexNode, where the current index node will be merged into the right neighbor node.
+// (borrowFromIndexNode 的一部份)
+func (inode *BpIndex) combineToRightNeighborNode(ix int) {
+	// The data merges with the right neighbor node.
+	inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
+	inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
+
+	// 🖍️ At first, the original data is located at index ix. (原始资料在 ix)
+	// Next, the original data will be merged into the neighbor node on the right, shifting the original data to position ix+1. (原始资料合拼到 ix+1)
+	// Then, the index node at position ix will be erased, and the original data returns to position ix. (抹除 ix 节点，原始资料又回到 ix)
+	// 再来，原始资料会先合并到右方的邻居节点，原始资料移动到位置 ix+1
+	// 之后，再抹除 ix 位置上的索引节点，原始料料又回到位置 ix
+	inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
+	inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)
 	return
 }
