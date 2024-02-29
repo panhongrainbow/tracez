@@ -825,7 +825,7 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 			// Merge into the left neighbor node first.
 			inode.combineToLeftNeighborNode(ix)
 
-			// ⚠️ Here, the data borrowing might fail, and the upper-level node will have to continue borrowing data. (合并后太小了)
+			// ⚠️ Here, because the node is too small after merging, the data borrowing might fail, leading the upper-level node to continue borrowing data. (合并后太小了)
 
 			// 🖍️ [IX] ix-1 indicates the position of the newly merged index node. (ix-1 为新的位置)
 			newIx = ix - 1
@@ -833,10 +833,11 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 			// 🖍️ [Link] Here, there's no need to reconstruct data node links as there are no operations involving data nodes. (不重建连结)
 			// nothing
 
-			// 🖍️ [Status] Because the entire index position is being merged to the left, the edge value of the leftmost index node will not change. (边界值不变)
+			// 🖍️ Because the original data in position ix is being merged to the left, the edge value of the leftmost index node will not change. (边界值不变)
 			status = edgeValueInit
 
 			return
+
 		} else if len(inode.IndexNodes[ix-1].Index)+1 >= BpWidth {
 
 			// Merge into the left neighbor node first.
@@ -844,7 +845,7 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 
 			// 🦺 The index of the merged node becomes excessively large, requiring reallocation using either protrudeInOddBpWidth or protrudeInEvenBpWidth.
 
-			// The original data is located at ix-1. Subsequently, backing up the data of the index nodes occurs after position ix.
+			// The original data is located at ix-1. Subsequently, backing up the data of the index nodes occurs after position ix (inclusive 包含).
 			var embedNode *BpIndex
 			var tailIndexNodes []*BpIndex
 			tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix:]...) // 原资料在 ix-1，那备份 ix 之后的索引节点的资料
@@ -870,13 +871,15 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 			inode.IndexNodes = append(inode.IndexNodes, tailIndexNodes...)
 
 			// Let's adjust the index.
-			if ix-2 >= 0 {
-				// 🖍️ After merging with the left node, the data is redistributed and split into two nodes again, with only the index value at position ix changing.
-				// 合拼后再重分配后，只有一个索引值会变，就在位置 ix
-				inode.Index = append(inode.Index[:ix-1], embedNode.Index[0])
+
+			// The original data is at ix-1. Using this position as a boundary, if ix-2 >= 0, it indicates the presence of the Front Segment.
+			if ix-2 >= 0 { // 原始数据位于 ix-1，如果 ix-2 >= 0，则表示存在前半部分
+				// 🖍️ After merging with the left node, the data is redistributed and split into two nodes again, with only one index value changes, which is at the position of index node ix.
+				// 合拼后再重分配后，只有一个索引值会变，就在索引节点的位置为 ix 的地方
+				inode.Index = append(inode.Index[:ix-1], embedNode.Index[0]) // 但是要转换到索引位置时，要减1，为ix-1，也就是 inode.Index[:ix-1]
 				inode.Index = append(inode.Index, tailIndex...)
 			} else {
-				// 🖍️  If ix is not 0, it is 1, there must be a neighbor node on the left side, so ix is 1.
+				// 🖍️ If ix is not 0, it is 1, there must be a neighbor node on the left side, so ix is 1.
 				// The original data is merged into the position of ix-1, which is also 0, and then redistributed.
 				// So, it's fine to directly use embedNode.Index to form the new index.
 
@@ -906,55 +909,92 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 		// (只剩一个索引节点时，没邻居，会有都借不到的问题，条件不能精简成 ix == 1)
 
 		// 🖍️ Borrowing data repeatedly is not allowed; It can only be done once.
-		// Therefore, it is crucial to use 'else if' here
+		// Therefore, it is crucial to use 'else if' here.
 	} else if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 { // 不能连续借资料，必用 else if ⚠️
 
 		if len(inode.IndexNodes[ix+1].Index)+1 < BpWidth { // 没错，Degree 是针对 Index
 
+			// Merge into the right neighbor node first.
 			inode.combineToRightNeighborNode(ix)
 
-			// ⚠️ 状况二之二之一 先向右合并，合拼后底层索引节点过小，合拼成一个新节点
-			/*inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
-			inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
-			inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
-			inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)*/
+			// ⚠️ Here, because the node is too small after merging, the data borrowing might fail, leading the upper-level node to continue borrowing data. (合并后太小了)
+
+			// 🖍️ [IX] The IX position remains unchanged, as mentioned earlier. (ix 位置不变)
+			// empty
+
+			// 🖍️ [Link] Here, there's no need to reconstruct data node links as there are no operations involving data nodes. (不重建连结)
+			// nothing
+
+			// 🖍️ [Status] Because the original data in position ix is being merged to the right, the edge value of the leftmost index node will not change. (边界值不变)
+			status = edgeValueInit
+
+			return
+
+		} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
+
+			// Merge into the right neighbor node first.
+			inode.combineToRightNeighborNode(ix)
+
+			// 🦺 The index of the merged node becomes excessively large, requiring reallocation using either protrudeInOddBpWidth or protrudeInEvenBpWidth.
+
+			// The original data is located at ix. Subsequently, backing up the data of the index nodes occurs after position ix+1 (inclusive 包含).
+			var embedNode *BpIndex
+			var tailIndexNodes []*BpIndex
+			var tailIndex []int64
+
+			// 🖍️ [Check] The index node under the inode has been previously merged, so now we need to check if the index node at position ix+1 exists.
+			// 再检查一次 ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1
+			if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
+				tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix+1:]...) // 原资料在 ix，那备份 ix+1 之后的索引节点的资料
+				// The position difference between the index and the index node is one.
+				tailIndex = inode.Index[ix:] // 备份 ix+1 之后的索引节点的资料，那索引就是备份 ix 之后的位置
+			}
+
+			// The merged nodes are subjected to reallocation.
+			if len(inode.IndexNodes[ix].Index)%2 == 1 { // For odd quantity of index, reallocate using the odd function.
+				// 当索引为奇数时
+				if embedNode, err = inode.IndexNodes[ix].protrudeInOddBpWidth(); err != nil {
+					return
+				}
+			} else if len(inode.IndexNodes[ix].Index)%2 == 0 { // For even quantity of index, reallocate using the even function.
+				// 当索引为偶数时
+				if embedNode, err = inode.IndexNodes[ix].protrudeInEvenBpWidth(); err != nil {
+					return
+				}
+			}
+
+			// 🖍️ The data to be merged should be divided into three segments:
+			// Front Segment (inode.IndexNodes[:ix]): The segment before ix (exclusive 不含)
+			// Middle Segment (embedNode) : The data at ix
+			// Back Segment (tailIndexNodes) : The segment after ix+1 (inclusive)
+			inode.IndexNodes = append(inode.IndexNodes[:ix], embedNode.IndexNodes...)
+			inode.IndexNodes = append(inode.IndexNodes, tailIndexNodes...)
+
+			// Let's adjust the index.
+
+			// The original data is at ix. Using this position as a boundary, if ix-1 >= 0, it indicates the presence of the Front Segment.
+			if ix-1 >= 0 { // 原始数据位于 ix，如果 ix-1 >= 0，则表示存在前半部分
+				// 🖍️ After merging with the right node, the data is redistributed and split into two nodes again, with only one index value changes, which is at the position of index node ix+1.
+				// 合拼后再重分配后，只有一个索引值会变，就在索引节点的位置为 ix+1 的地方
+				inode.Index = append(inode.Index[:ix], embedNode.Index[0]) // 但是要转换到索引位置时，要减1，为ix，也就是 inode.Index[:ix]
+				inode.Index = append(inode.Index, tailIndex...)
+			} else {
+				// If there is no the Front Segment.
+				inode.Index = append(embedNode.Index, tailIndex...)
+			}
+
+			// 🖍️ [IX] After merging with the right node, it is redistributed and split into two nodes again, so the position of ix remains unchanged.
+			// (合拼到右节点后，再重新分配并分割成两个节点，所以 ix 位置不变)
+
+			// 🖍️ [Link] Here, there's no need to reconstruct data node links as there are no operations involving data nodes. (不重建连结)
+			// nothing
+
+			// 🖍️ [Status] Because the entire index position is being merged to the left and be split into two nodes again,
+			// the edge value of the leftmost index node will not change. (边界值不变)
 
 			status = edgeValueInit
 
 			return
-		} else if len(inode.IndexNodes[ix+1].Index)+1 >= BpWidth {
-
-			inode.combineToRightNeighborNode(ix)
-
-			/*inode.IndexNodes[ix].Index = append([]int64{inode.IndexNodes[ix+1].edgeValue()}, inode.IndexNodes[ix+1].Index...)
-			inode.IndexNodes[ix].IndexNodes = append(inode.IndexNodes[ix].IndexNodes, inode.IndexNodes[ix+1].IndexNodes...)
-			inode.Index = append(inode.Index[:ix], inode.Index[ix+1:]...)
-			inode.IndexNodes = append(inode.IndexNodes[:ix+1], inode.IndexNodes[ix+2:]...)*/
-
-			var middle *BpIndex
-
-			// 要分成单偶数函式处理
-			if len(inode.Index) != 0 && len(inode.IndexNodes[ix].Index)%2 == 1 { // 单数
-				// 当索引为奇数时
-				middle, err = inode.IndexNodes[ix].protrudeInOddBpWidth() // 🖐️ for arrangement 针对重整结构
-				if err != nil {
-					return
-				}
-
-				// 在这里要整个嵌入原索引节点
-				inode.IndexNodes[ix] = middle
-			} else if len(inode.Index) != 0 && len(inode.IndexNodes[ix].Index)%2 == 0 { // 偶数
-				// 当索引为偶数时
-				middle, err = inode.IndexNodes[ix].protrudeInEvenBpWidth() // 🖐️ for index node 针对重整结构
-				if err != nil {
-					return
-				}
-
-				// 在这里要整个嵌入原索引节点
-				inode.IndexNodes[ix] = middle
-
-				// inode.IndexNodes[ix-1] = middle // 这个错误，会造成层数不相批配
-			}
 		}
 	}
 	return
