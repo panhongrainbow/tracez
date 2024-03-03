@@ -534,74 +534,94 @@ func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, edgeValue int64
 	return
 }
 
-// borrowFromIndexNode will borrow more data from neighboring index nodes, including indexes.
+// The differences between the borrowFromBottomIndexNode function ⚙️ and borrowFromIndexNode are as follows:
+// `borrowFromBottomIndexNode` performs borrowing operations from the bottom-level index node, while also handling index nodes and data nodes.
+// On the other hand, `borrowFromIndexNode` only deals with index nodes.
 func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx int, edgeValue int64, err error, status int) {
-	// 先初始化回传值
+	// The return value is initialized to a negative value first, because the indices in the database are all positive and there won't be any negative values.
+	// (初始化为负值，有更改易发现)
 	newIx = -1
 	edgeValue = -1
+
+	// 🖍️ The return value is initially initialized to a negative value because the indices in the database are all positive, and there are no negative values.
+	// This makes it easier to detect if there have been any modifications. (初始化为负值，有变化才容易发现)
 	if len(inode.IndexNodes) > 0 && len(inode.IndexNodes[0].DataNodes) > 0 && len(inode.IndexNodes[0].DataNodes[0].Items) > 0 {
 		edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key
 	}
 	status = edgeValueInit
 
-	// ⬇️ Check if there is an opportunity to borrow data from the index node. Data node with invalid index has neighbors.
-	// (索引失效的资料节点 有邻居)
-	if len(inode.IndexNodes[ix].Index) == 0 && // The underlying index is invalid; repair is required.
-		inode.IndexNodes[ix].DataNodes != nil && // This is an issue that the index node needs to address.
-		len(inode.IndexNodes) >= 2 { // There are multiple neighboring index nodes that can share data. 空资料节点有邻居 // (这是所有的状况要遵守的条件)
-		// (先向右边借，因右边资料比较多)
-		if (ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1) &&
-			len(inode.IndexNodes[ix+1].DataNodes) >= 2 { // 邻居资料结点资料够多，可向右借; 当有 ix+1 时，不是 [状况3] 就是 [状况4] // (这是状况3和状况4要遵守的)
-			// ➡️ Check if there is a chance to borrow data to the right.
+	// 🖍️ As long as (1) the index node contains data, // 含资料的索引节点
+	// but (2) becomes invalid due to an empty index, // 失效
+	// and (3) has neighboring nodes, borrowing data can take place. // 有邻居
+	// (符合这三条件可借资料)
 
-			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 { // 由 [狀況3] 發生，要先形成中间有空
-				// 🔴 Case 3 Operation
+	// 🖍️ However, could there be a situation where there are no neighbors?
+	// No, because after merging into a single node in borrowFromBottomIndexNode, borrowing from borrowFromIndexNode will occur,
+	// so there won't be no neighbors.
+	// 会不会有没邻居？不，就算 borrowFromBottomIndexNode 合拼成 1 节点，borrowFromIndexNode 会去借资料，不会没邻居
 
-				// 先向同一个 [索引节点] 下的 [资料节点] 借资料
+	if inode.IndexNodes[ix].DataNodes != nil && len(inode.IndexNodes[ix].Index) == 0 && len(inode.IndexNodes) >= 2 {
+
+		// 🖍️ When merging, merge with the neighbor node on the left because it may have fewer data.
+		// When borrowing data, borrow from the neighbor node on the right because it may have more data.
+		// (合拼向左，借资料向右)
+
+		// 🖍️ When the right neighbor node has sufficient data and the data node has two or more elements.
+		// If borrowing from the neighbor node results in its invalidation, it will be merged.
+		// (2个以上足够，就算邻居节点失效，就合拼)
+		if (ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1) && len(inode.IndexNodes[ix+1].DataNodes) >= 2 {
+
+			// The following can be explained conveniently with the diagram below:
+			// [] represents data nodes
+			// () represents index nodes
+			// <-link-> represents links
+
+			// 🖍️ As shown below, a vacuum forms between the final origin index node and the neighbor index node.
+			// ( [0] <-link-> [1] )origin <-link-> ( [unknown] <-link-> [unknown] )neighbor
+			// ( [1] <-link-> [0] )origin <-link-> ( [unknown] <-link-> [unknown] )neighbor
+			// (形成中空)
+
+			// 🖍️ As shown below, a solid forms between the final origin index node and the neighbor index node.
+			// ( [0] <-link-> [2] )origin <-link-> ( [unknown] <-link-> [unknown] )neighbor
+			// ( [1] <-link-> [1] )origin <-link-> ( [unknown] <-link-> [unknown] )neighbor
+			// (形成实心)
+
+			// To prepare for becoming hollow or solid.
+			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 {
+				// Borrow data in the same index node from the data node first.
 				inode.IndexNodes[ix].DataNodes[0].Items = append(inode.IndexNodes[ix].DataNodes[0].Items, inode.IndexNodes[ix].DataNodes[1].Items[0])
 				inode.IndexNodes[ix].DataNodes[1].Items = inode.IndexNodes[ix].DataNodes[1].Items[1:]
 
-				// 如果能更新索引就进行更新
+				// 🖍️ Not considering boundary values for now, will handle them later.
+
+				// Update the index of the original index node.
 				if len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 {
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
-					// return
 				}
 
-				// inode 下的第 ix 索引节点剩 2 个资料节点，ix 索引节点 的资料被移到最左方资料
-				// 如果 ix 为 0 ，就会造成边界值上传的问题，最后会处理，现在不用管
-				// 如果 ix 大于 0，就不需要上传，在 inode 内进行更新
+				// Update inode's index.
 				if ix > 0 {
 					inode.Index[ix-1] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
 				}
 			}
 
-			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 { // 执行完后有可能由 [状况3] 变成 [状况4] 的状态，中间变成空的
+			// If the following vacuum state does indeed form, we need to borrow a node from the neighbor node.
+			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
 
-				// 🔴 Case 4 Operation
-
-				if len(inode.IndexNodes[ix+1].DataNodes[0].Items) >= 2 { // 如果最邻近的资料结点也有足够的资料，这时不会破坏邻近节点，进入 [状况4-1]，最好的状况
-					// 🔴 Case 4-1 Operation
-
-					// 先不让 资料 为空
+				// If the neighbor node has sufficient data, although it does not damage the neighbor, the index of the inode will be modified.
+				if len(inode.IndexNodes[ix+1].DataNodes[0].Items) >= 2 {
+					// Borrow data from the index node first.
 					inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
 					inode.IndexNodes[ix+1].DataNodes[0].Items = inode.IndexNodes[ix+1].DataNodes[0].Items[1:]
-					if len(inode.IndexNodes[ix+1].DataNodes[0].Items) > 0 {
-						inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key // 借资料后要进行修正的地方 ‼️
-					}
 
-					// 正常更新索引
+					// Correct the index of the original index node.
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
-					// inode 下的第 ix 索引节点剩 2 个资料节点，
-					// "之前" ix 索引节点 的资料被移到最左方资料，"现在" 向右边的 邻居索引节点 借资料
-					// 这个影响右边索引节点的边界值
-					// 在这里进行修正
+					// Update inode's index.
 					inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key
 
-					// 更新状态
+					// Update the status
 					borrowed = true
-
-					// return
 				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 1 && len(inode.IndexNodes[ix+1].DataNodes) >= 3 { // 如果最邻近的资料结点没有足够的资料，这一借，邻居节点将会破坏，进入 [状况4-2]
 					// 三个被抢一个，还有 2 个，不会对树的结构进行破坏 ✌️
 
