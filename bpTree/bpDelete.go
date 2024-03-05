@@ -605,51 +605,47 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 				}
 			}
 
-			// If the following vacuum state does indeed form, we need to borrow a node from the neighbor node.
+			// If the following vacuum state does indeed form, we need to borrow a node from the neighbor node. (中空形成)
 			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
 
-				// If the neighbor node has sufficient data, although it does not damage the neighbor, the index of the inode will be modified.
+				// If the neighbor node has sufficient data, although it does not damage the neighbor, the index of the inode will be modified. (非破坏)
 				if len(inode.IndexNodes[ix+1].DataNodes[0].Items) >= 2 {
-					// Borrow data from the index node first.
+					// Borrow data from the neighbor node first.
 					inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
 					inode.IndexNodes[ix+1].DataNodes[0].Items = inode.IndexNodes[ix+1].DataNodes[0].Items[1:]
 
-					// Correct the index of the original index node.
+					// Update the index of the original index node.
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
 					// Update inode's index.
 					inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key
 
-					// Update the status
+					// Update the status.
 					borrowed = true
-				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 1 && len(inode.IndexNodes[ix+1].DataNodes) >= 3 { // 如果最邻近的资料结点没有足够的资料，这一借，邻居节点将会破坏，进入 [状况4-2]
-					// 三个被抢一个，还有 2 个，不会对树的结构进行破坏 ✌️
 
-					// 🔴 Case 4-2 Operation
-
-					// 先不让 资料 为空
+					// If the nearest data node does not have sufficient data, borrowing data will result in the destruction of neighboring nodes. (被破坏)
+				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 1 && len(inode.IndexNodes[ix+1].DataNodes) >= 3 {
+					// Borrow data from the neighbor node first.
 					inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix+1].DataNodes[0].Items[0])
+					inode.IndexNodes[ix+1].DataNodes[0].Items = inode.IndexNodes[ix+1].DataNodes[0].Items[1:]
 
-					// 再 锁引 不能为空
+					// Update the index of the original index node.
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
-					// 重建连结
+					// Rebuild the connection; inode.IndexNodes[ix+1].DataNodes[0] will transfer all links.
 					inode.IndexNodes[ix+1].DataNodes[1].Previous = inode.IndexNodes[ix+1].DataNodes[0].Previous
-					inode.IndexNodes[ix].DataNodes[1].Next = inode.IndexNodes[ix+1].DataNodes[1]
+					inode.IndexNodes[ix].DataNodes[1].Next = inode.IndexNodes[ix+1].DataNodes[0].Next
 
-					// 唯一值被取走，被破坏了，清空无效索引和资料节点
-					inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]         // 都各退一个
-					inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:] // 都各退一个
+					// Remove empty node that is inode.IndexNodes[ix+1].DataNodes[0]
+					inode.IndexNodes[ix+1].Index = inode.IndexNodes[ix+1].Index[1:]
+					inode.IndexNodes[ix+1].DataNodes = inode.IndexNodes[ix+1].DataNodes[1:]
 
-					// inode 下的第 ix 索引节点剩 2 个资料节点，
-					// "之前" ix 索引节点 的资料被移到最左方资料，"现在" 向右边的 邻居索引节点 借资料，
-					// 在这里 向右边的 邻居索引节点 的资料节点数量为会减少
-					// 影响到右方的邻居索引节点，要同步邻居索引节点的边界值，在这里进行修正
+					// Update inode's index.
 					inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key
 
-					// 更新状态
+					// Update the status.
 					borrowed = true
-					// return
+
 				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 1 && len(inode.IndexNodes[ix+1].DataNodes) == 2 { // 邻点太小，将会被合拼，进入 [状况4-3]
 					// 🔴 Case 4-3 Operation
 
