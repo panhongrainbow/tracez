@@ -588,7 +588,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 			// 🖍️ Not considering boundary values for now, will handle them later.
 
-			// To prepare for becoming hollow or solid.
+			// To prepare for becoming vacuum or solid.
 			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 {
 				// Borrow data in the same index node from the data node first.
 				inode.IndexNodes[ix].DataNodes[0].Items = append(inode.IndexNodes[ix].DataNodes[0].Items, inode.IndexNodes[ix].DataNodes[1].Items[0])
@@ -661,7 +661,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 					inode.IndexNodes[ix+1].Index = append([]int64{inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key}, inode.IndexNodes[ix+1].Index...)
 
 					// The data at ix + 1 contains that of ix, therefore the index at position ix also needs to be corrected to ix - 1.
-					// ix+1 的资料内含 ix 的，之后 ix 位置的索引也要修正成 ix-1 的
+					// ix+1 的资料内含 ix 的，之后 ix 位置的索引也要修正成 ix-1 的 (索引和索引节点只差个单位)
 					inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[0]}, inode.IndexNodes[ix+1].DataNodes...)
 
 					// Erase the indexed node at position ix.
@@ -681,21 +681,35 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 					// Update the status.
 					borrowed = true
-
-				} else if len(inode.IndexNodes[ix+1].DataNodes[0].Items) == 0 {
-					err = fmt.Errorf("节点未及时整理完成1")
-					return
 				}
 			}
-		} else if (ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1) &&
-			len(inode.IndexNodes[ix-1].DataNodes) >= 2 { // 邻居资料结点资料够多，可向左借; 当有 ix-1 时，不是 [状况1] 就是 [状况2] // (这是状况1和状况2要遵守的)
-			// ⬅️ Check if there is a chance to borrow data to the left.
 
-			// (再向左边借)
-			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 { // 由 [狀況2] 發生，要先形成中间有空
-				// 🔴 Case 2 Operation
+			// Here is the latter part discussing borrowing materials from the neighbor on the right. (现在才要讨论向右借资料) ‼️
 
-				// 先向同一个 [索引节点] 下的 [资料节点] 借资料
+			// The following can be explained conveniently with the diagram below:
+			// [] represents data nodes
+			// () represents index nodes
+			// <-link-> represents links
+
+			// 🖍️ As shown below, a vacuum forms between the final origin index node and the neighbor index node.
+
+			// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [1] <-link-> [0] )origin
+			// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [0] <-link-> [1] )origin
+			// (形成中空)
+
+			// 🖍️ As shown below, a solid forms between the final origin index node and the neighbor index node.
+
+			// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [2] <-link-> [0] )origin
+			// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [1] <-link-> [1] )origin
+			// (形成实心)
+
+			// 🖍️ Not considering boundary values for now, will handle them later.
+
+			// To prepare for becoming vacuum or solid.
+		} else if (ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1) && len(inode.IndexNodes[ix-1].DataNodes) >= 2 {
+
+			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
+				// Borrow data in the same index node from the data node first.
 				length0 := len(inode.IndexNodes[ix].DataNodes[0].Items)
 				inode.IndexNodes[ix].DataNodes[1].Items = append(inode.IndexNodes[ix].DataNodes[1].Items, inode.IndexNodes[ix].DataNodes[0].Items[length0-1])
 				inode.IndexNodes[ix].DataNodes[0].Items = inode.IndexNodes[ix].DataNodes[0].Items[:length0-1] // 不包含最后一个
@@ -703,10 +717,10 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 				// inode 下的第 ix 索引节点剩 2 个资料节点，ix 索引节点 的资料被移到最右方资料，就是要先形成中空
 				// 如果 ix 为 0 ，就会造成边界值上传的问题，最后会处理，现在不用管，而且这里 ix 也不会为 0，因为 前面有条件 ix-1 >= 0
 				// 如果 ix 大于 0，就不需要上传，在 inode 内进行更新
-				if len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
-					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
-					// return
-				}
+				//if len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
+				inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
+				// return
+				// }
 			}
 
 			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 && ix != 0 { // 执行完后有可能由 [状况2] 变成 [状况1] 的状态，中间变成空的
