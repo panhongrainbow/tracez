@@ -539,7 +539,7 @@ func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, edgeValue int64
 func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx int, edgeValue int64, err error, status int) {
 	// The return value is initialized to a negative value first, because the indices in the database are all positive and there won't be any negative values.
 	// (初始化为负值，有更改易发现)
-	newIx = ix
+	newIx = -1
 	edgeValue = -1
 
 	// 🖍️ The return value is initially initialized to a negative value because the indices in the database are all positive, and there are no negative values.
@@ -760,7 +760,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 					// >>> (不抹除搬移资料，将删除资料节点)
 
 					// The index has already been updated, so this line of code is not executed. (更新索引)
-					// inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
+					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
 					// Rebuild the connection; inode.IndexNodes[ix-1].DataNodes[LastOne] will transfer all links.
 					inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-2].Next = inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Next
@@ -772,8 +772,6 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 					// Update inode's index.
 					inode.Index[(ix)-1] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
-
-					fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>1")
 
 					// Update the status.
 					borrowed = true
@@ -807,7 +805,6 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 					// The data is concentrated on ix - 1 and the position is corrected.
 					newIx = ix - 1
-					fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>2")
 
 					// Update the status.
 					borrowed = true
