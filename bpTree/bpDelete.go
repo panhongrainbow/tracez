@@ -391,7 +391,7 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 // 一层 BpData 资料层，加上一个索引切片，就是一个 Bottom
 func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int, edgeValue int64, status int) {
 
-	if item.Key == 537 {
+	if item.Key == 1381 {
 		fmt.Println()
 	}
 
@@ -887,7 +887,9 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 			var tailIndexNodes []*BpIndex
 			tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix:]...) // 原资料在 ix-1，那备份 ix 之后的索引节点的资料
 			// The position difference between the index and the index node is one.
-			var tailIndex = inode.Index[ix-1:] // 备份 ix 之后的索引节点的资料，那索引就是备份 ix 之后的位置
+			// 备份 ix 之后的索引节点的资料，那索引就是备份 ix 之后的位置
+			tailIndex := make([]int64, len(inode.Index[ix-1:])) // Deep copying to prevent value changes
+			copy(tailIndex, inode.Index[ix-1:])
 
 			// The merged nodes are subjected to reallocation.
 			if len(inode.IndexNodes[ix-1].Index)%2 == 1 { // For odd quantity of index, reallocate using the odd function.
@@ -977,14 +979,15 @@ func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, s
 			// The original data is located at ix. Subsequently, backing up the data of the index nodes occurs after position ix+1 (inclusive 包含).
 			var embedNode *BpIndex
 			var tailIndexNodes []*BpIndex
-			var tailIndex []int64
+			tailIndex := make([]int64, len(inode.Index[ix:])) // Deep copying to prevent value changes
 
 			// 🖍️ [Check] The index node under the inode has been previously merged, so now we need to check if the index node at position ix+1 exists.
 			// 再检查一次 ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1
 			if ix+1 >= 0 && ix+1 <= len(inode.IndexNodes)-1 {
 				tailIndexNodes = append(tailIndexNodes, inode.IndexNodes[ix+1:]...) // 原资料在 ix，那备份 ix+1 之后的索引节点的资料
 				// The position difference between the index and the index node is one.
-				tailIndex = inode.Index[ix:] // 备份 ix+1 之后的索引节点的资料，那索引就是备份 ix 之后的位置
+				// 备份 ix+1 之后的索引节点的资料，那索引就是备份 ix 之后的位置
+				copy(tailIndex, inode.Index[ix:]) // Deep copying to prevent value changes
 			}
 
 			// The merged nodes are subjected to reallocation.
