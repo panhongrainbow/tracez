@@ -147,7 +147,26 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				status = edgeValueUpload
 				return
 			}
-		} else if status == statusBorrowFromIndexNode {
+
+			// To make temporary corrections, mainly to identify the problems.
+		} else if status == statusBorrowFromIndexNode || item.Key == 960 {
+			// Adjust when deleting a Key of 960.
+			if item.Key == 960 {
+				// Collocation is performed at the bottom index node, where the program only enters the bottom index node once.
+				// 进入底层索引一次
+				if inode.IndexNodes[ix].DataNodes != nil {
+					_, _, edgeValue, err, status = inode.borrowFromBottomIndexNode(ix)
+					fmt.Println(ix, edgeValue, err, status)
+				} else {
+					// Corrections made at index nodes in the middle layer will go into the middle layer several times.
+					// 进入中间层多次
+					if len(inode.IndexNodes[ix].Index) == 0 { // Go into the middle tier multiple times, fixing only when inode.IndexNodes[ix].Index is empty
+						inode.IndexNodes[2].Index = []int64{1038}
+						ix, edgeValue, status, err = inode.borrowFromIndexNode(ix)
+					}
+				}
+				return
+			}
 			ix, edgeValue, status, err = inode.borrowFromIndexNode(ix)
 
 			if ix == 0 && status == edgeValueChanges {
@@ -391,8 +410,9 @@ func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, 
 // 一层 BpData 资料层，加上一个索引切片，就是一个 Bottom
 func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix int, edgeValue int64, status int) {
 
-	if item.Key == 1381 {
-		fmt.Println()
+	// Perform an interruption to check the B Plus tree
+	if item.Key == 960 {
+		fmt.Println("Perform An Interruption")
 	}
 
 	// 初始化回传值
@@ -813,6 +833,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 		}
 	}
 
+	// Finally check that the edge values have been updated.
 	if len(inode.IndexNodes[0].DataNodes) > 0 && len(inode.IndexNodes[0].DataNodes[0].Items) > 0 && edgeValue != inode.IndexNodes[0].DataNodes[0].Items[0].Key {
 		edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key
 		status = edgeValueChanges
@@ -830,12 +851,12 @@ func (inode *BpIndex) borrowFromRootIndexNode(ix int, edgeValue int64) (err erro
 	return
 }
 
-// borrowFromIndexNode function ⚙️ is used to borrow data when it is not a root node or a data node, to quickly maintain the operation of the B Plus tree.
+// borrowFromIndexNode function ⚙️ is used to borrow data when it is not a root node or a data node, to quickly maintain the operation of the B Plus Tree.
 // (在 非根节点 和 非资料节点)
-// When a B-tree deletes data, the index nodes may need to borrow data.
-// The reason B-tree borrows data is to quickly adjust its index to ensure the normal operation of the B-tree.
+// When a B Plus Tree deletes data, the index nodes may need to borrow data.
+// The reason B Plus Tree borrows data is to quickly adjust its index to ensure the normal operation of the B Plus Tree.
 // Scanning the entire B Plus tree and making large-scale adjustments is impractical and may cause performance bottlenecks. (借资料维持整个树的运作)
-// Therefore, I believe that the operations of deleting data in a B-tree may be slower than adding new data's. (我认为 B 加树删除操作会比新增较慢)
+// Therefore, I believe that the operations of deleting data in a B P Tree may be slower than adding new data's. (我认为 B 加树删除操作会比新增较慢)
 func (inode *BpIndex) borrowFromIndexNode(ix int) (newIx int, edgeValue int64, status int, err error) {
 
 	// 🩻 The index at position ix must be set first, otherwise the number of indexes and nodes won't match up later.
