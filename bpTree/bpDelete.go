@@ -88,40 +88,42 @@ func (inode *BpIndex) delAndDir(item BpItem) (deleted, updated bool, ix int, edg
 	return
 }
 
-// delete is a method of the BpIndex type that deletes the specified BpItem. (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
+// deleteToRight is designed to delete from the rightmost side within continuous data.  (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
+
 // deleteToRight 先放前面，因为 deleteToLeft 会抄 deleteToRight 的内容
 func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeValue int64, status int, ix int, err error) {
-	// 设定初始值
-	if status == 0 {
-		status = edgeValueInit // 初始状态
-	}
-	if edgeValue == 0 {
-		edgeValue = -1 // 边界的初始值
-	}
+	// Initialize the return value first.
+	status = edgeValueInit
+	edgeValue = -1
 
-	// 🖍️ for index node 针对索引节点
-
-	// 搜寻 🔍 (最右边 ➡️)
-	// Use binary search to find the index (ix) where the key should be deleted.
+	// ✈️ Process the Index Node.
 	if len(inode.IndexNodes) > 0 {
 		ix = sort.Search(len(inode.Index), func(i int) bool {
-			return inode.Index[i] > item.Key // 一定要大于，所以会找到最右边 ‼️
+			// 🖍️ The `Sort` function stops when the condition is met.
+			// When it equals, it meets the condition later, so it will delete the data on the far right.
+			// When it is greater than or equal to, it meets the condition earlier, so it will delete the data on the far left.
+			return inode.Index[i] > item.Key // 在最右边 ‼️
 		})
-
-		// 🖍️ 在这个区块，会上传边界值，当上传到 ix 大于 0 的地方时，会变成索引，停止上传
-		// 当上传到 ix 等于 0 的地方时，就立刻持续上传，到边界值要更新的地方
 
 		// 搜寻 🔍 (最右边 ➡️)
 		// If it is discontinuous data (different values) (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
 		deleted, updated, edgeValue, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
+
+		// 🖍️ In this block, the edge values will be uploaded. When uploaded to a location where ix is greater than 0, it becomes an index and stops uploading.
+		// (边界值会变成索引)
+
 		if ix > 0 && status == edgeValueUpload {
-			fmt.Println(">>>>> 更新完成")
 			inode.Index[ix-1] = edgeValue
 			updated = false
 			status = edgeValueInit
+
+			// Interrupted, index updated, no uploading. ⚠️
+			return
 		} else if ix == 0 && status == edgeValueUpload {
-			fmt.Println(">>>>> 进行上传")
-			// 继续上传，只是修改索引
+			// 🖍️ When uploaded to a location where ix equals 0, it continues to upload immediately until the boundary value is not 0.
+			// (当 IX 为 0 就不停上传)
+
+			// Continuous uploading. ⚠️
 			return
 		}
 
@@ -149,30 +151,36 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			}
 
 			// To make temporary corrections, mainly to identify the problems.
-		} else if status == statusBorrowFromIndexNode || item.Key == 960 {
-			// Adjust when deleting a Key of 960.
-			if item.Key == 960 {
-				// Collocation is performed at the bottom index node, where the program only enters the bottom index node once.
-				// 进入底层索引一次
-				if inode.IndexNodes[ix].DataNodes != nil {
-					_, _, edgeValue, err, status = inode.borrowFromBottomIndexNode(ix)
-					fmt.Println(ix, edgeValue, err, status)
-				} else {
-					// Corrections made at index nodes in the middle layer will go into the middle layer several times.
-					// 进入中间层多次
-					if len(inode.IndexNodes[ix].Index) == 0 { // Go into the middle tier multiple times, fixing only when inode.IndexNodes[ix].Index is empty
-						inode.IndexNodes[2].Index = []int64{1038}
-						ix, edgeValue, status, err = inode.borrowFromIndexNode(ix)
-					}
+		} else { // if status == statusBorrowFromIndexNode || item.Key == 960 {
+
+			if status != statusBorrowFromIndexNode && inode.IndexNodes[ix].DataNodes != nil {
+				_, _, edgeValue, err, status = inode.borrowFromBottomIndexNode(ix)
+				return
+			}
+
+			if status != statusBorrowFromIndexNode && len(inode.IndexNodes[ix].Index) == 0 {
+				if len(inode.IndexNodes[ix].Index) == 0 {
+					inode.IndexNodes[ix].Index = []int64{edgeValue}
+				}
+
+				ix, edgeValue, status, err = inode.borrowFromIndexNode(ix)
+				if ix == 0 && status == edgeValueChanges {
+					status = edgeValueUpload
+					return
 				}
 				return
 			}
-			ix, edgeValue, status, err = inode.borrowFromIndexNode(ix)
 
-			if ix == 0 && status == edgeValueChanges {
-				fmt.Println(">>>>> 进行上传")
-				status = edgeValueUpload
-				return
+			if status == statusBorrowFromIndexNode {
+				if len(inode.IndexNodes[ix].Index) == 0 {
+					inode.IndexNodes[ix].Index = []int64{edgeValue}
+				}
+
+				ix, edgeValue, status, err = inode.borrowFromIndexNode(ix)
+				if ix == 0 && status == edgeValueChanges {
+					status = edgeValueUpload
+					return
+				}
 			}
 
 			return
@@ -209,7 +217,6 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 						edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key // 边界值是由 索引节点中取出，所以可以直接把边界值放入 索引  ‼️‼️
 
 						if edgeValue != -1 && len(inode.Index) == 0 { // 如果有正确取得 边界值 后
-							fmt.Println(">>>>> 进行更新")
 							inode.Index = []int64{edgeValue}
 							status = statusBorrowFromIndexNode
 						}
@@ -224,7 +231,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		return
 	}
 
-	// Check if there are any data nodes.
+	// ✈️ Process the Data Node.
 	if len(inode.DataNodes) > 0 {
 		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
 		// This signifies the beginning of deleting data. (接近资料层)
@@ -276,6 +283,12 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 				// 状况更新
 				updated = true
 
+				// 有可能新增状态
+				if item.Key == 960 {
+					fmt.Println()
+				}
+				fmt.Println("有可能新增状态")
+
 				// 直接中断
 				return
 			}
@@ -325,81 +338,7 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 
 // deleteToLeft is a method of the BpIndex type that deletes the leftmost specified BpItem. (由左边删除 👈 ‼️)
 func (inode *BpIndex) deleteToLeft(item BpItem) (deleted, updated bool, ix int, err error) {
-	fmt.Println("这例子不能采用")
-	// ⬇️⬇️⬇️ for index node 针对索引节点
-
-	// Check if there are any index nodes.
-	if len(inode.IndexNodes) > 0 {
-		// Use binary search to find the index (ix) where the key should be deleted.
-		ix = sort.Search(len(inode.Index), func(i int) bool {
-			return inode.Index[i] >= item.Key // equal sign ‼️ no equal sign means delete to the left ‼️
-			// (符合条件就停)
-		})
-
-		// Recursion keeps deletion in the left direction. 递归一直向左砍 ⬅️
-		deleted, updated, _, err = inode.IndexNodes[ix].deleteToLeft(item)
-
-		// Immediately update the index of index node.
-		if updated && len(inode.IndexNodes[ix].Index) == 0 {
-			updated, _, _, err, _ = inode.borrowFromBottomIndexNode(ix) // Will borrow part of the index node (向索引节点借资料).
-			if err != nil {
-				return
-			}
-		}
-
-		// Return the results of the deletion.
-		return
-	}
-
-	// ⬇️⬇️⬇️ for data node 针对资料节点
-
-	// Check if there are any data nodes.
-	if len(inode.DataNodes) > 0 {
-		// Call the deleteBottomItem method on the current node as it is close to the bottom layer.
-		// This signifies the beginning of deleting data. (接近资料层) ‼️
-
-		// Here, this is very close to the data, just one index away. (和真实资料只隔一个索引) ‼️
-		deleted, updated, ix, _, _ = inode.deleteBottomItem(item)
-
-		// The individual data node is now empty, and
-		// it is necessary to start borrowing data from neighboring nodes.
-		if len(inode.DataNodes[ix].Items) == 0 {
-			updated, _, err, _ = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
-			// If update is true, it means that data has been borrowed from the adjacent information node. ‼️
-			// 如果 update 为 true，那就代表有向邻近的资料节点借到资料 ‼️
-			if updated == true || err != nil {
-				// Leave as soon as you've borrowed the information.
-				return
-			}
-
-			// If the data node cannot be borrowed, then information should be borrowed from the index node later.
-			// 资料节点借不到，之后向索引节点借
-
-			// During the deletion process, the node's index may become invalid.
-			if len(inode.DataNodes) <= 2 {
-				inode.Index = []int64{}
-
-				// Return status
-				updated = true
-				return
-			}
-
-			// Wipe out the empty data node at the specified 'ix' position directly.
-			if len(inode.Index) != 0 {
-				// Recreate links.
-				inode.DataNodes[ix].Previous.Next = inode.DataNodes[ix].Next
-				inode.DataNodes[ix].Next.Previous = inode.DataNodes[ix].Previous
-
-				// Reorganize nodes.
-				inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-				inode.DataNodes = append(inode.DataNodes[:ix], inode.DataNodes[ix+1:]...)
-
-				// Return status
-				updated = true
-				return
-			}
-		}
-	}
+	panic("Currently developing right deletion, not developing left deletion.")
 
 	// Return the results of the deletion.
 	return

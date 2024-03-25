@@ -10,7 +10,7 @@ import (
 
 var (
 	// randomQuantity represents the number of elements to be generated for random testing.
-	randomQuantity = 200
+	randomQuantity = 500
 
 	// randomMax represents the maximum value for generating random numbers.
 	randomMax = 2000
