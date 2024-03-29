@@ -17,10 +17,11 @@ const (
 	edgeValueInit
 	edgeValueNoChanges
 	edgeValueChanges
+	edgeValueChangesByDelete
 	edgeValueUpload
-	edgeValueEmpty
+	edgeValueUnDecided
 	edgeValuePassBottom
-	edgeValueLeaveBottom
+	edgeValueRenew
 	statusDeleteItem
 	statusDeleteNon
 	statusDeProtrude

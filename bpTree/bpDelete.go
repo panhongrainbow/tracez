@@ -105,14 +105,15 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			return inode.Index[i] > item.Key // 在最右边 ‼️
 		})
 
-		// 搜寻 🔍 (最右边 ➡️)
-		// If it is discontinuous data (different values) (5 - 5 - 5 - 5 - 5❌ - 6 - 7 - 8)
+		// Entering the Recursive Function. 🔁
 		deleted, updated, edgeValue, status, _, err = inode.IndexNodes[ix].deleteToRight(item)
 
-		// 🖍️ In this block, the edge values will be uploaded. When uploaded to a location where ix is greater than 0, it becomes an index and stops uploading.
-		// (边界值会变成索引)
-
+		// Mechanism for updating edge values.
 		if ix > 0 && status == edgeValueUpload {
+			// 🖍️ In this block, the edge values will be uploaded.
+			// When uploaded to a location where ix is greater than 0, it becomes an index and stops uploading.
+			// (边界值会变成索引并中止)
+
 			inode.Index[ix-1] = edgeValue
 			updated = false
 			status = edgeValueInit
@@ -121,16 +122,16 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 			return
 		} else if ix == 0 && status == edgeValueUpload {
 			// 🖍️ When uploaded to a location where ix equals 0, it continues to upload immediately until the boundary value is not 0.
-			// (当 IX 为 0 就不停上传)
+			// (IX 为 0 时不停上传)
 
 			// Continuous uploading. ⚠️
 			return
 		}
 
-		// 🖍️ 在这个区块，(暂时) 决定要更新边界值，还是要上传
+		// 🖍️ In this block, (temporarily) decide whether you want to update the boundary values or upload the
 
 		// 🖐️ 状态变化 [LeaveBottom] -> Any
-		if status == edgeValueLeaveBottom {
+		if status == edgeValueRenew {
 
 			// ⚠️ 状况一 用边界值去更新任意索引
 
@@ -239,8 +240,8 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		// Here, adjustments may be made to IX (IX 在这里可能会被修改) ‼️
 		// var edgeValue int64
 		deleted, updated, ix, edgeValue, status = inode.deleteBottomItem(item) // 🖐️ for data node 针对资料节点
-		if ix == 0 && status == edgeValuePassBottom {                          // 当 ix 为 0 时，才要处理边界值的问题 (ix == 0，是特别加入的)
-			status = edgeValueLeaveBottom
+		if ix == 0 && status == edgeValueChangesByDelete {                     // 当 ix 为 0 时，才要处理边界值的问题 (ix == 0，是特别加入的)
+			status = edgeValueRenew
 		}
 
 		// The individual data node is now empty, and
@@ -365,9 +366,11 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 	// Call the delete method on the corresponding DataNode to delete the item.
 	deleted, _, edgeValue, status = inode.DataNodes[ix]._delete(item) // 总是有错误
 	// _delete 函式状况会回传 (1) 边界值没改变 (2) 边界值已改变 (3) 边界值为空
-	if status == edgeValueChanges { // (1) 边界值已改变
+
+	// 这里精简
+	/*if status == edgeValueChangesByDelete { // (1) 边界值已改变
 		status = edgeValuePassBottom // 要通知上传的递归函式，边界值已改变
-	}
+	}*/
 
 	if deleted == true { // 如果资料真的删除的反应
 		// The BpDatda node is too small then the index is invalid.

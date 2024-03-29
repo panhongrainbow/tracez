@@ -178,14 +178,9 @@ const (
 
 // _delete is a helper method of the BpData type that performs the actual deletion of a BpItem.
 // It uses binary search to find the index where the item should be deleted.
-// 状况会回传 (1) 边界值没改变 (2) 边界值已改变 (3) 边界值为空
+// (真正执行删除的地方 ‼️)
 func (data *BpData) _delete(item BpItem) (deleted bool, ix int, edgeValue int64, status int) {
-
-	if item.Key == 1625 {
-		fmt.Println()
-	}
-
-	// 初始化回传值
+	// 初始化回传值，data.Items 的长度不可能会为 0，因为在删除资料前，早就会进行资料合拼
 	edgeValue = data.Items[0].Key
 	status = edgeValueNoChanges
 
@@ -200,16 +195,17 @@ func (data *BpData) _delete(item BpItem) (deleted bool, ix int, edgeValue int64,
 		data.Items = data.Items[:len(data.Items)-1]
 		deleted = true
 
-		// 边界值改变了
+		// When ix is 0, it is a data edge node (这为资料边界节点)
 		if ix == 0 {
-			status = edgeValueEmpty // 在沒有整拼完成時，邊界值有可能不存在
+			// When the edge node is empty, the edge value cannot be determined and the status becomes edgeValueUnDecided.
+			// (边界节点为空)
+			status = edgeValueUnDecided
 			if len(data.Items) > 0 && edgeValue != data.Items[0].Key {
 				edgeValue = data.Items[0].Key
-				status = edgeValueChanges
+				// When the edge value changes, the status changes to edgeValueChanges.
+				status = edgeValueChangesByDelete
 			}
 		}
-
-		return
 	}
 
 	// If the item is not found, return without performing deletion.
