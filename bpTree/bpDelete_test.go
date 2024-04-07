@@ -1,465 +1,128 @@
 package bpTree
 
 import (
-	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-// Test_Check_BpData_delete is a test function for the delete method of the BpIndex type.
-func Test_Check_BpIndex_delete(t *testing.T) {
-	// Data deletion will take place in different directions depending on the context.
-	// If the data is continuous and spans points, deletion will occur from the left.
-	// However, for non-continuous data or when there are no span points, deletion will occur from the right.
-	// 连续并跨节点往左边，不连续并没跨节点往右边 ‼️
+func loadBasicDeletionExample() (basicDeletionBpTree *BpTree) {
+	// Generate continuous data for insertion.
+	var basicDeletionNumbers = []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}
 
-	// 🧪 This test is to evaluate the deletion of consecutive data in a B Plus tree.
-	t.Run("The continuous data deletion.", func(t *testing.T) {
-		// Set up the total width and half-width for the B Plus Tree.
-		BpWidth = 3
-		BpHalfWidth = 2
+	// Initialize B Plus tree.
+	basicDeletionBpTree = NewBpTree(4)
 
-		// Create seven BpData nodes.
-		bpData0 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 1}, {Key: 2}},
-		}
+	// Start inserting data.
+	for i := 0; i < len(basicDeletionNumbers); i++ {
+		// Insert data entries continuously.
+		basicDeletionBpTree.InsertValue(BpItem{Key: basicDeletionNumbers[i]})
+	}
 
-		bpData1 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 5}, {Key: 5}},
-		}
+	// Complete this function.
+	return
+}
 
-		bpData2 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 5}, {Key: 5}},
-		}
+// Test_Check_Basic_BpIndex_Deletion is to load a test B Plus Tree and check the indexes and data.
+func Test_Check_Basic_BpIndex_Deletion(t *testing.T) {
+	// 🧪 This test is to confirm that the test data is correct.
+	t.Run("Load Basic Deletion Example.", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
 
-		bpData3 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 5}},
-		}
+		// Check the index node of the first level.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
 
-		bpData4 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 10}},
-		}
+		// Check the index nodes on the second level.
+		require.Equal(t, []int64{3, 5}, basicDeletionBpTree.root.IndexNodes[0].Index)
+		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
+		require.Equal(t, []int64{15, 17, 19}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		bpData5 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 11}},
-		}
+		// Now that there are ten data nodes, use Data Head to traverse all the data in the B Plus Tree.
 
-		bpData6 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 12}, {Key: 13}},
-		}
+		dataHeader := basicDeletionBpTree.root.IndexNodes[0].DataNodes[0]
+		require.Equal(t, int64(1), dataHeader.Items[0].Key)
+		require.Equal(t, int64(2), dataHeader.Items[1].Key)
 
-		// Establish the link between the two nodes. (Next Direction)
-		bpData0.Next = &bpData1
-		bpData1.Next = &bpData2
-		bpData2.Next = &bpData3
-		bpData3.Next = &bpData4
-		bpData4.Next = &bpData5
-		bpData5.Next = &bpData6
-		bpData6.Next = nil
+		secondDataNode := dataHeader.Next
+		require.Equal(t, int64(3), secondDataNode.Items[0].Key)
+		require.Equal(t, int64(4), secondDataNode.Items[1].Key)
 
-		// Establish the link between the two nodes. (Previous Direction)
-		bpData6.Previous = &bpData5
-		bpData5.Previous = &bpData4
-		bpData4.Previous = &bpData3
-		bpData3.Previous = &bpData2
-		bpData2.Previous = &bpData1
-		bpData1.Previous = &bpData0
-		bpData0.Previous = nil
+		thirdDataNode := secondDataNode.Next
+		require.Equal(t, int64(5), thirdDataNode.Items[0].Key)
+		require.Equal(t, int64(6), thirdDataNode.Items[1].Key)
 
-		// Set up a top-level index node. (整个树建立好)
-		inode := &BpIndex{
-			Index: []int64{5, 10},
-			IndexNodes: []*BpIndex{
-				{
-					Index: []int64{5},
-					DataNodes: []*BpData{ // IndexNode ▶️
-						&bpData0, // DataNode 🗂️
-						&bpData1, // DataNode 🗂️
-					},
-				},
-				{
-					Index: []int64{5},
-					DataNodes: []*BpData{ // IndexNode ▶️
-						&bpData2, // DataNode 🗂️
-						&bpData3, // DataNode 🗂️
-					},
-				},
-				{
-					Index: []int64{11, 12},
-					DataNodes: []*BpData{ // IndexNode ▶️
-						&bpData4, // DataNode 🗂️
-						&bpData5, // DataNode 🗂️
-						&bpData6, // DataNode 🗂️
-					},
-				},
-			},
-			DataNodes: []*BpData{},
-		}
+		fourthDataNode := thirdDataNode.Next
+		require.Equal(t, int64(7), fourthDataNode.Items[0].Key)
+		require.Equal(t, int64(8), fourthDataNode.Items[1].Key)
 
-		// Execute the delete commands.
-		deleted, updated, ix, _, err := inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 10})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 2})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 13})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 11})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 1})
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 12})
-		fmt.Println(deleted, updated, ix, err)
+		fifthDataNode := fourthDataNode.Next
+		require.Equal(t, int64(9), fifthDataNode.Items[0].Key)
+		require.Equal(t, int64(10), fifthDataNode.Items[1].Key)
+
+		sixthDataNode := fifthDataNode.Next
+		require.Equal(t, int64(11), sixthDataNode.Items[0].Key)
+		require.Equal(t, int64(12), sixthDataNode.Items[1].Key)
+
+		seventhDataNode := sixthDataNode.Next
+		require.Equal(t, int64(13), seventhDataNode.Items[0].Key)
+		require.Equal(t, int64(14), seventhDataNode.Items[1].Key)
+
+		eighthDataNode := seventhDataNode.Next
+		require.Equal(t, int64(15), eighthDataNode.Items[0].Key)
+		require.Equal(t, int64(16), eighthDataNode.Items[1].Key)
+
+		ninthDataNode := eighthDataNode.Next
+		require.Equal(t, int64(17), ninthDataNode.Items[0].Key)
+		require.Equal(t, int64(18), ninthDataNode.Items[1].Key)
+
+		tenthDataNode := ninthDataNode.Next
+		require.Equal(t, int64(19), tenthDataNode.Items[0].Key)
+		require.Equal(t, int64(20), tenthDataNode.Items[1].Key)
+		require.Equal(t, int64(21), tenthDataNode.Items[2].Key)
 	})
 
-	// 🧪 This example is intended to test the deletion of multi-layered B plus tree data.
-	t.Run("The multi layered data deletion.", func(t *testing.T) {
-		// Set up the total width and half-width for the B Plus Tree.
-		BpWidth = 3
-		BpHalfWidth = 2
+	// 🧪 This test is to verify that when deleting a Non-Edge Value, the Local-Index is not changed.
+	t.Run("When deleting a Non-Edge Value, the Local-Index is not changed.", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
 
-		// Create seven BpData nodes.
-		bpData0 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 1}},
-		}
+		// Deleting the Non-Edge-Value 20.
+		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 20})
+		require.True(t, deleted)
 
-		bpData1 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 2}},
-		}
+		// Check the index node of the first level after deleting the Non-Edge-Value 20.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
 
-		bpData2 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 3}},
-		}
+		// Check the index node of the second level after deleting the Non-Edge-Value 20.
+		require.Equal(t, []int64{15, 17, 19}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		bpData3 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 4}},
-		}
-
-		bpData4 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 5}},
-		}
-
-		bpData5 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 6}},
-		}
-
-		bpData6 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 7}},
-		}
-
-		bpData7 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 8}, {Key: 9}},
-		}
-
-		// Establish the link between the two nodes. (Next Direction)
-		bpData0.Next = &bpData1
-		bpData1.Next = &bpData2
-		bpData2.Next = &bpData3
-		bpData3.Next = &bpData4
-		bpData4.Next = &bpData5
-		bpData5.Next = &bpData6
-		bpData6.Next = &bpData7
-		bpData7.Next = nil
-
-		// Establish the link between the two nodes. (Previous Direction)
-		bpData7.Previous = &bpData6
-		bpData6.Previous = &bpData5
-		bpData5.Previous = &bpData4
-		bpData4.Previous = &bpData3
-		bpData3.Previous = &bpData2
-		bpData2.Previous = &bpData1
-		bpData1.Previous = &bpData0
-		bpData0.Previous = nil
-
-		// Set up a top-level index node. (整个树建立好)
-		inode := &BpIndex{
-			Index: []int64{5},
-			IndexNodes: []*BpIndex{ // IndexNode ▶️
-				{
-					Index: []int64{3},
-					IndexNodes: []*BpIndex{ // IndexNode ▶️
-						{
-							Index: []int64{2},
-							DataNodes: []*BpData{
-								&bpData0, // DataNode 🗂️
-								&bpData1, // DataNode 🗂️
-							},
-						},
-						{
-							Index: []int64{4},
-							DataNodes: []*BpData{
-								&bpData2, // DataNode 🗂️
-								&bpData3, // DataNode 🗂️
-							},
-						},
-					},
-					DataNodes: []*BpData{},
-				},
-				{
-					Index: []int64{7},
-					IndexNodes: []*BpIndex{ // IndexNode ▶️
-						{
-							Index: []int64{6},
-							DataNodes: []*BpData{
-								&bpData4, // DataNode 🗂️
-								&bpData5, // DataNode 🗂️
-							},
-						},
-						{
-							Index: []int64{8},
-							DataNodes: []*BpData{
-								&bpData6, // DataNode 🗂️
-								&bpData7, // DataNode 🗂️
-							},
-						},
-					},
-					DataNodes: []*BpData{},
-				},
-			},
-			DataNodes: []*BpData{},
-		}
-
-		// Execute the delete commands.
-		deleted, updated, ix, _, err := inode.delFromRoot(BpItem{Key: 4})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 1})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 8})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 6})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 3})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 7})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 2})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 9})
-		fmt.Println(deleted, updated, ix, err)
-
-		fmt.Println("must be empty", inode.Index)
+		// Check the data nodes of the third level after deleting the Non-Edge-Value 20.
+		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items))
+		require.Equal(t, int64(19), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
+		require.Equal(t, int64(21), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[1].Key)
 	})
 
-	// 🧪 This example is intended to test the deletion of multi-layered B plus tree data.
-	t.Run("Test larger data nodes.", func(t *testing.T) {
-		// Set up the total width and half-width for the B Plus Tree.
-		BpWidth = 5
-		BpHalfWidth = 3
+	// 🧪 This test is to verify that when an Edge-Value is deleted, the Local-Index needs to be updated.
+	t.Run("When an Edge-Value is deleted, the Local-Index needs to be updated.", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
 
-		// Create seven BpData nodes.
-		bpData0 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 1}, {Key: 2}},
-		}
+		// Deleting the Non-Edge-Value 20.
+		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 20})
+		require.True(t, deleted)
 
-		bpData1 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 3}, {Key: 4}},
-		}
+		// Deleting the Edge-Value 19.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 19})
+		require.True(t, deleted)
 
-		bpData2 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 5}, {Key: 6}},
-		}
+		// Check the index node of the first level after deleting the Edge-Value 19.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
 
-		bpData3 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 7}, {Key: 8}},
-		}
+		// Check the index node of the second level after deleting the Edge-Value 19.
+		require.Equal(t, []int64{15, 17, 21}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		bpData4 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 9}, {Key: 10}},
-		}
-
-		bpData5 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 11}, {Key: 12}},
-		}
-
-		bpData6 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 13}, {Key: 14}},
-		}
-
-		bpData7 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 15}, {Key: 16}},
-		}
-
-		bpData8 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 17}, {Key: 18}},
-		}
-
-		bpData9 := BpData{
-			Previous: nil,
-			Next:     nil,
-			Items:    []BpItem{{Key: 19}, {Key: 20}, {Key: 21}, {Key: 22}},
-		}
-
-		// Establish the link between the two nodes. (Next Direction)
-		bpData0.Next = &bpData1
-		bpData1.Next = &bpData2
-		bpData2.Next = &bpData3
-		bpData3.Next = &bpData4
-		bpData4.Next = &bpData5
-		bpData5.Next = &bpData6
-		bpData6.Next = &bpData7
-		bpData7.Next = &bpData8
-		bpData8.Next = &bpData9
-		bpData9.Next = nil
-
-		// Establish the link between the two nodes. (Previous Direction)
-		bpData9.Previous = &bpData8
-		bpData8.Previous = &bpData7
-		bpData7.Previous = &bpData6
-		bpData6.Previous = &bpData5
-		bpData5.Previous = &bpData4
-		bpData4.Previous = &bpData3
-		bpData3.Previous = &bpData2
-		bpData2.Previous = &bpData1
-		bpData1.Previous = &bpData0
-		bpData0.Previous = nil
-
-		// Set up a top-level index node. (整个树建立好)
-		inode := &BpIndex{
-			Index: []int64{7, 13},
-			IndexNodes: []*BpIndex{ // IndexNode ▶️
-				{
-					Index:      []int64{3, 5},
-					IndexNodes: []*BpIndex{},
-					DataNodes: []*BpData{
-						&bpData0, // DataNode 🗂️
-						&bpData1, // DataNode 🗂️
-						&bpData2, // DataNode 🗂️
-					},
-				},
-				{
-					Index:      []int64{9, 11},
-					IndexNodes: []*BpIndex{},
-					DataNodes: []*BpData{
-						&bpData3, // DataNode 🗂️
-						&bpData4, // DataNode 🗂️
-						&bpData5, // DataNode 🗂️
-					},
-				},
-				{
-					Index:      []int64{15, 17, 19},
-					IndexNodes: []*BpIndex{},
-					DataNodes: []*BpData{
-						&bpData6, // DataNode 🗂️
-						&bpData7, // DataNode 🗂️
-						&bpData8, // DataNode 🗂️
-						&bpData9, // DataNode 🗂️
-					},
-				},
-			},
-			DataNodes: []*BpData{},
-		}
-
-		// Execute the delete commands.
-		deleted, updated, ix, _, err := inode.delFromRoot(BpItem{Key: 7})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 15})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 17})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 9})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 2})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 12})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 3})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 8})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 16})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 19})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 6})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 5})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 10})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 11})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 4})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 14})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 1})
-		fmt.Println(deleted, updated, ix, err)
-
-		deleted, updated, ix, _, err = inode.delFromRoot(BpItem{Key: 13})
-		fmt.Println(deleted, updated, ix, err)
-
-		fmt.Println("must be empty", inode.Index)
+		// Check the data nodes of the third level after deleting the Edge-Value 19.
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items))
+		require.Equal(t, int64(21), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
 	})
 }
