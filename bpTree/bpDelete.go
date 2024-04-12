@@ -248,20 +248,11 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		// it is necessary to start borrowing data from neighboring nodes.
 		if len(inode.DataNodes[ix].Items) == 0 { // 会有一边的资料节点没有任何资料
 			var borrowed bool
-			borrowed, edgeValue, err, status = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
+			borrowed, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
 
 			// 先检查是否有错误
 			if err != nil {
 				status = statusError
-				return
-			}
-
-			// 看之前的 if 判断式，len(inode.DataNodes) > 0 条件满足后，才会来这里
-			// 由这条件可以知，目前是在底层，不是修改边界值的时机，边界值要到上层去修改
-			// 在这里的工作是观察边界值是否要往上传
-			if ix == 0 && status == edgeValueChanges {
-				fmt.Println(">>>>> 进行上传")
-				status = edgeValueUpload
 				return
 			}
 
@@ -403,21 +394,18 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 // ➡️ The following function will make detailed adjustments for the B Plus tree.
 
 // borrowFromDataNode only borrows a portion of data from the neighboring nodes.
-func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, edgeValue int64, err error, status int) {
+// As for the direction, it may be borrowing data from the left data node, but it may also be borrowing data from the right one. (向左右两方借资料)
+// This function does not return an Outer-Edge-Value, within the same index node's manageable area, because no matter how much the date is borrowed, it does not modify the Outer-Edge-Value.
+// (在同一个索引节点的管理范围内，都不会修改到外边界值)
+func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, err error) {
 	// No data borrowing is necessary as long as the node is not empty, since all indices are still in their normal state.
 	if len(inode.DataNodes[ix].Items) != 0 {
-		err = fmt.Errorf("not an empty node, do not need to borrow")
+		err = fmt.Errorf("not an empty node, the current data node do not need to borrow data from either side")
 		return
 	}
 
-	// 以下会向临近节点借资料，但是邻近节点会被切成 2 半 ‼️
-
 	// Borrow from the left side first
 	if (ix - 1) >= 0 { // Left neighbor exists ‼️
-
-		// 初始化回传值
-		edgeValue = inode.DataNodes[0].Items[0].Key // 总是有错误		status = edgeValueNoChanges
-
 		length := len(inode.DataNodes[ix-1].Items)
 		if length >= 2 { // The left neighbor node has enough data to borrow
 			// ⬇️ The left neighbor node is split.
@@ -437,13 +425,6 @@ func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, edgeValue int64
 			// ⬇️ Return status
 			borrowed = true
 
-			// 向左借应不会有边界值的变化，到时再考虑是否要去除这段程式码 🔥
-			// 检查边界值是否有变化
-			if edgeValue != inode.DataNodes[0].Items[0].Key {
-				edgeValue = inode.DataNodes[0].Items[0].Key
-				status = edgeValueChanges
-			}
-
 			return
 		}
 	}
@@ -452,15 +433,6 @@ func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, edgeValue int64
 	if (ix + 1) <= len(inode.DataNodes)-1 { // Right neighbor exists ‼️
 		length := len(inode.DataNodes[ix+1].Items)
 		if length >= 2 { // The right neighbor node has enough data to borrow
-
-			// 初始化回传值
-			if ix != 0 {
-				edgeValue = inode.DataNodes[0].Items[0].Key
-			} else if ix == 0 {
-				edgeValue = -1
-			}
-
-			status = edgeValueNoChanges
 
 			// ⬇️ The right neighbor node is split.
 			borrowedItems := inode.DataNodes[ix+1].Items[:1] // First part contains the first element
@@ -482,11 +454,6 @@ func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, edgeValue int64
 			// ⬇️ Return status
 			borrowed = true
 
-			// 检查边界值是否有变化
-			if edgeValue != inode.DataNodes[0].Items[0].Key {
-				edgeValue = inode.DataNodes[0].Items[0].Key
-				status = edgeValueChanges
-			}
 			return
 		}
 	}

@@ -125,4 +125,35 @@ func Test_Check_Basic_BpIndex_Deletion(t *testing.T) {
 		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items))
 		require.Equal(t, int64(21), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
 	})
+
+	// 🧪 This test is to see if an empty node borrows data from a neighbor node on the left.
+	t.Run("An empty node borrows data from a neighbor node on the left.", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
+
+		// Deleting the Non-Edge-Value 20.
+		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 20})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 19. (First deletion of Inner-Edge-Value)
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 19})
+		require.True(t, deleted)
+
+		// Deleting the inner-Edge-Value 19. (Second deletion of Inner-Edge-Value)
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 21})
+		require.True(t, deleted)
+
+		// Check the index node of the first level after the empty node borrows data from a neighbor node on the left.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after the empty node borrows data from a neighbor node on the left.
+		require.Equal(t, []int64{15, 17, 18}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Check the data nodes of the third level after  the empty node borrows data from a neighbor node on the left.
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items))
+		require.Equal(t, int64(17), basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items[0].Key)
+
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items))
+		require.Equal(t, int64(18), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
+	})
 }
