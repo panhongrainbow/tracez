@@ -125,9 +125,40 @@ func Test_Check_Basic_BpIndex_Deletion(t *testing.T) {
 		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items))
 		require.Equal(t, int64(21), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
 	})
+}
 
-	// 🧪 This test is to see if an empty node borrows data from a neighbor node on the left.
-	t.Run("An empty node borrows data from a neighbor node on the left.", func(t *testing.T) {
+// Test_Check_borrowFromDataNode_Function is primarily used to test the borrowFromDataNode function.
+// More details can be found in Chapter 2.3.1 `Borrow from Neighbor` in the documentation.
+func Test_Check_borrowFromDataNode_Function(t *testing.T) {
+	// 🧪 This test is mainly used to test the scenario of Status 1.
+	t.Run("Status 1 in Chapter 2.3.1", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
+
+		// Deleting the Non-Edge-Value 14.
+		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 14})
+		require.True(t, deleted)
+
+		// Deleting the Non-Edge-Value 13.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 13})
+		require.True(t, deleted)
+
+		// Check the index node of the first level after deleting data.
+		require.Equal(t, []int64{7, 15}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, []int64{16, 17, 19}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Check the data nodes of the third level after deleting data.
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items))
+		require.Equal(t, int64(15), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
+
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items))
+		require.Equal(t, int64(16), basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items[0].Key)
+	})
+
+	// 🧪  This test is mainly used to test the scenario of Status 2-1.
+	t.Run("Status 2-1 in Chapter 2.3.1", func(t *testing.T) {
 		// Load a simple B Plus Tree where max degree is 4.
 		basicDeletionBpTree := loadBasicDeletionExample()
 
@@ -135,25 +166,91 @@ func Test_Check_Basic_BpIndex_Deletion(t *testing.T) {
 		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 20})
 		require.True(t, deleted)
 
-		// Deleting the Inner-Edge-Value 19. (First deletion of Inner-Edge-Value)
+		// Deleting the Inner-Edge-Value 19.
 		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 19})
 		require.True(t, deleted)
 
-		// Deleting the inner-Edge-Value 19. (Second deletion of Inner-Edge-Value)
+		// Deleting the inner-Edge-Value 21.
 		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 21})
 		require.True(t, deleted)
 
-		// Check the index node of the first level after the empty node borrows data from a neighbor node on the left.
+		// Check the index node of the first level after deleting data.
 		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
 
-		// Check the index node of the second level after the empty node borrows data from a neighbor node on the left.
+		// Check the index node of the second level after deleting data.
 		require.Equal(t, []int64{15, 17, 18}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		// Check the data nodes of the third level after  the empty node borrows data from a neighbor node on the left.
+		// Check the data nodes of the third level after deleting data.
 		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items))
 		require.Equal(t, int64(17), basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items[0].Key)
 
 		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items))
 		require.Equal(t, int64(18), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
+	})
+
+	// 🧪  This test is mainly used to test the scenario of Status 2-2.
+	t.Run("Status 2-2 in Chapter 2.3.1", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
+
+		// Deleting the Non-Edge-Value 20.
+		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 20})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 19.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 19})
+		require.True(t, deleted)
+
+		// Deleting the inner-Edge-Value 18.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 18})
+		require.True(t, deleted)
+
+		// Deleting the inner-Edge-Value 17.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 17})
+		require.True(t, deleted)
+
+		// Check the index node of the first level after deleting data.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, []int64{15, 16, 21}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Check the data nodes of the third level after deleting data.
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items))
+		require.Equal(t, int64(15), basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items[0].Key)
+
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items))
+		require.Equal(t, int64(16), basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items[0].Key)
+
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items))
+		require.Equal(t, int64(21), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
+	})
+
+	// 🧪  This test is mainly used to test the scenario of Status 3.
+	t.Run("Status 3 in Chapter 2.3.1", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
+
+		// Deleting the Non-Edge-Value 18.
+		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 18})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 17.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 17})
+		require.True(t, deleted)
+
+		// Check the index node of the first level after deleting data.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, []int64{15, 19, 20}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Check the data nodes of the third level after deleting data.
+		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items))
+		require.Equal(t, int64(19), basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items[0].Key)
+
+		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items))
+		require.Equal(t, int64(20), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
+		require.Equal(t, int64(21), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[1].Key)
 	})
 }

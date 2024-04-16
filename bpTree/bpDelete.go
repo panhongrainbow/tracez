@@ -248,11 +248,16 @@ func (inode *BpIndex) deleteToRight(item BpItem) (deleted, updated bool, edgeVal
 		// it is necessary to start borrowing data from neighboring nodes.
 		if len(inode.DataNodes[ix].Items) == 0 { // 会有一边的资料节点没有任何资料
 			var borrowed bool
-			borrowed, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
+			borrowed, edgeValue, err = inode.borrowFromDataNode(ix) // Will borrow part of the data node. (向资料节点借资料)
 
 			// 先检查是否有错误
 			if err != nil {
 				status = statusError
+				return
+			}
+
+			if edgeValue != -1 {
+				status = edgeValueUpload
 				return
 			}
 
@@ -391,67 +396,76 @@ func (inode *BpIndex) deleteBottomItem(item BpItem) (deleted, updated bool, ix i
 	return
 }
 
-// ➡️ The following function will make detailed adjustments for the B Plus tree.
-
-// borrowFromDataNode only borrows a portion of data from the neighboring nodes.
+// borrowFromDataNode 🛠️ only borrows a portion of data from the neighbor nodes.
 // As for the direction, it may be borrowing data from the left data node, but it may also be borrowing data from the right one. (向左右两方借资料)
-// This function does not return an Outer-Edge-Value, within the same index node's manageable area, because no matter how much the date is borrowed, it does not modify the Outer-Edge-Value.
-// (在同一个索引节点的管理范围内，都不会修改到外边界值)
-func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, err error) {
+// The whole operation is complicated, please refer to the documentation Chapter 2.3.1 Borrow from Neighbor.
+func (inode *BpIndex) borrowFromDataNode(ix int) (borrowed bool, outerEdgeValue int64, err error) {
+	// ⚙️ Pre-operation and inspection.
+
+	// Initialization Outer-Edge-Value.
+	outerEdgeValue = -1
+
 	// No data borrowing is necessary as long as the node is not empty, since all indices are still in their normal state.
 	if len(inode.DataNodes[ix].Items) != 0 {
 		err = fmt.Errorf("not an empty node, the current data node do not need to borrow data from either side")
 		return
 	}
 
-	// Borrow from the left side first
-	if (ix - 1) >= 0 { // Left neighbor exists ‼️
-		length := len(inode.DataNodes[ix-1].Items)
-		if length >= 2 { // The left neighbor node has enough data to borrow
-			// ⬇️ The left neighbor node is split.
-			firstItems := inode.DataNodes[ix-1].Items[:(length - 1)]    // First part contains the first element
-			borrowedItems := inode.DataNodes[ix-1].Items[(length - 1):] // Second part contains the remaining elements
+	// ⚙️ Processing of **statuses 1** and **3**, borrowing data from the right neighbor data node.
 
-			// ⬇️ Data reassignment
-			inode.DataNodes[ix-1].Items = firstItems
+	// This is due to the fact that for most conditions, the right neighbor data node has a higher number of data.
+
+	// Borrow data from the right neighbor data node.
+	if (ix + 1) <= len(inode.DataNodes)-1 { // Right neighbor data node exists ‼️
+		borrowerLength := len(inode.DataNodes[ix+1].Items)
+		if borrowerLength >= 2 { // The right neighbor data node has enough data to borrow.
+
+			// The right neighbor node is split.
+			borrowedItems := inode.DataNodes[ix+1].Items[:1] // First part contains an borrowed element. (This is the first data from the right neighbor data node.)
+			remainItems := inode.DataNodes[ix+1].Items[1:]   // Second part contains the remaining elements.
+			// (反正就借右资料节点的第一笔资料，只借一笔)
+
+			// Further distribution will be completed by borrowing process.
 			inode.DataNodes[ix].Items = borrowedItems
+			inode.DataNodes[ix+1].Items = remainItems
 
-			// ⬇️ Index reassignment
+			// First update an Inner-Edge-Value.
+			inode.Index[ix] = inode.DataNodes[ix+1].Items[0].Key
 
-			// This counts as a safe index update, within the internal structure of the DataNode itself. ✔️
-			// 在 DataNode 内部更新索引算安全 ✔️
-			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+			if ix != 0 {
+				// Update another Inner-Edge-Value. (Status 2 状况 2 ⬅️)
+				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
+			} else {
+				// Upload the Outer-Edge-Values. (Status 1 状况 1 ⬅️)
+				outerEdgeValue = inode.DataNodes[ix].Items[0].Key
+			}
 
-			// ⬇️ Return status
+			// The return status indicates that the data has been borrowed.
 			borrowed = true
 
 			return
 		}
 	}
 
-	// Borrow from the right side next.
-	if (ix + 1) <= len(inode.DataNodes)-1 { // Right neighbor exists ‼️
-		length := len(inode.DataNodes[ix+1].Items)
-		if length >= 2 { // The right neighbor node has enough data to borrow
+	// ⚙️ Processing of **statuses 2-1** and **2-2**, borrowing data from the left neighbor data node.
 
-			// ⬇️ The right neighbor node is split.
-			borrowedItems := inode.DataNodes[ix+1].Items[:1] // First part contains the first element
-			secondItems := inode.DataNodes[ix+1].Items[1:]   // Second part contains the remaining elements
+	// Borrow data from the left neighbor data node.
+	if (ix - 1) >= 0 { // Left neighbor data node exists ‼️
+		borrowerLength := len(inode.DataNodes[ix-1].Items)
+		if borrowerLength >= 2 { // The left neighbor data node has enough data to borrow.
+			// The left neighbor node is split.
+			remainItems := inode.DataNodes[ix-1].Items[:(borrowerLength - 1)]   // First part contains the remaining elements.
+			borrowedItems := inode.DataNodes[ix-1].Items[(borrowerLength - 1):] // Second part contains an borrowed element. (This is the last data from the left neighbor data node.)
 
-			// ⬇️ Data reassignment
+			// Further distribution will be completed by borrowing process.
+			inode.DataNodes[ix-1].Items = remainItems
 			inode.DataNodes[ix].Items = borrowedItems
-			inode.DataNodes[ix+1].Items = secondItems
 
-			// ⬇️ Index reassignment
-			if ix != 0 {
-				// 最左边的 dataNode 不会产生索引
-				inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key
-			}
+			// Update an Inner-Edge-Value.
+			inode.Index[ix-1] = inode.DataNodes[ix].Items[0].Key // (Status 2-1 2-2 状况 2-1 2-2 ⬅️ ⬅️)
+			// (在不符合状况1和状况3执行此行)
 
-			// other conditions
-			inode.Index[ix] = inode.DataNodes[ix+1].Items[0].Key
-
-			// ⬇️ Return status
+			// The return status indicates that the data has been borrowed.
 			borrowed = true
 
 			return
