@@ -518,7 +518,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 			// () represents index nodes
 			// <-link-> represents links
 
-			// 🖍️ As shown below, a vacuum forms between the final origin index node and the neighbor index node.
+			// 🖍️ As shown below, a hollow forms between the final origin index node and the neighbor index node.
 			// ( [0] <-link-> [1] )origin <-link-> ( [unknown] <-link-> [unknown] )neighbor
 			// ( [1] <-link-> [0] )origin <-link-> ( [unknown] <-link-> [unknown] )neighbor
 			// (形成中空)
@@ -530,7 +530,8 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 			// 🖍️ Not considering boundary values for now, will handle them later.
 
-			// To prepare for becoming vacuum or solid.
+			// [ Perform Simple Aid ]
+			// To prepare for becoming hollow or solid.
 			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 {
 				// Borrow data in the same index node from the data node first.
 				inode.IndexNodes[ix].DataNodes[0].Items = append(inode.IndexNodes[ix].DataNodes[0].Items, inode.IndexNodes[ix].DataNodes[1].Items[0])
@@ -547,7 +548,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 				}
 			}
 
-			// If the following vacuum state does indeed form, we need to borrow a node from the neighbor node. (中空形成)
+			// If the following hollow state does indeed form, we need to borrow a node from the neighbor node. (中空形成)
 			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
 
 				// If the neighbor node has sufficient data, although it does not damage the neighbor, the index of the inode will be modified. (非破坏)
@@ -560,7 +561,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 					// Update the index of the original index node. (ix 节点更新索引)
 					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
-					// Update inode's index. (ix-1 节点边界值)
+					// Update inode's index. (ix+1 节点边界值)
 					inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key
 
 					// Update the status.
@@ -638,7 +639,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 			// () represents index nodes
 			// <-link-> represents links
 
-			// 🖍️ As shown below, a vacuum forms between the final origin index node and the neighbor index node.
+			// 🖍️ As shown below, a hollow forms between the final origin index node and the neighbor index node.
 
 			// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [1] <-link-> [0] )origin
 			// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [0] <-link-> [1] )origin
@@ -652,7 +653,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 			// 🖍️ Not considering boundary values for now, will handle them later.
 
-			// To prepare for becoming vacuum or solid.
+			// To prepare for becoming hollow or solid.
 		} else if (ix-1 >= 0 && ix-1 <= len(inode.IndexNodes)-1) && len(inode.IndexNodes[ix-1].DataNodes) >= 2 {
 
 			if len(inode.IndexNodes[ix].DataNodes[1].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[0].Items) > 0 {
@@ -663,13 +664,13 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 				// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [1] <-link-> [0] )origin
 				// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [0] <-link-> [1] )origin
-				// neighbor node and origin node result a phenomenon of vacuum.
+				// neighbor node and origin node result a phenomenon of hollow.
 				// At this point, the index might still be in a invalid state, so I'll just update the index directly.
 				// (在中间状态，origin 失效，但还是先更新索引)
 				inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 			}
 
-			// If the following vacuum state does indeed form, we need to borrow a node from the neighbor node. (中空形成)
+			// If the following hollow state does indeed form, we need to borrow a node from the neighbor node. (中空形成)
 			if len(inode.IndexNodes[ix].DataNodes[0].Items) == 0 && len(inode.IndexNodes[ix].DataNodes[1].Items) > 0 {
 
 				// Knowing the number of items in the nearest data node.
@@ -757,7 +758,8 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 	}
 
 	// Finally check that the edge values have been updated.
-	if len(inode.IndexNodes[0].DataNodes) > 0 && len(inode.IndexNodes[0].DataNodes[0].Items) > 0 && edgeValue != inode.IndexNodes[0].DataNodes[0].Items[0].Key {
+	if len(inode.IndexNodes) > 0 && len(inode.IndexNodes[0].DataNodes) > 0 && len(inode.IndexNodes[0].DataNodes[0].Items) > 0 &&
+		edgeValue != inode.IndexNodes[0].DataNodes[0].Items[0].Key {
 		edgeValue = inode.IndexNodes[0].DataNodes[0].Items[0].Key
 		status = edgeValueChanges
 	}
