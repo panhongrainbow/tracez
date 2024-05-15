@@ -374,7 +374,7 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, int64(15), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
 		require.Equal(t, int64(16), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[1].Key)
 	})
-	// 🧪  This test is mainly used to test the scenario in Chapter 2.3.4.
+	// 🧪 This test is mainly used to test the scenario in Chapter 2.3.4.
 	t.Run("Scenario in Chapter 2.3.4", func(t *testing.T) {
 		// Load a simple B Plus Tree where max degree is 4.
 		basicDeletionBpTree := loadBasicDeletionExample()

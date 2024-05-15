@@ -608,15 +608,18 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 					// ix+1 的资料内含 ix 的，之后 ix 位置的索引也要修正成 ix-1 的 (索引和索引节点只差个单位)
 					inode.IndexNodes[ix+1].DataNodes = append([]*BpData{inode.IndexNodes[ix].DataNodes[0]}, inode.IndexNodes[ix+1].DataNodes...)
 
+					// The index node at position ix will release all data node. (释放所有下层资料节点)
+					inode.IndexNodes[ix].DataNodes = nil
+
 					// Erase the indexed node at position ix.
 					if ix > 0 {
-						// The index at position ix also needs to be corrected to ix-1.
-						// ix 位置的索引也要修正成 ix-1 的
-						inode.Index[ix] = inode.Index[ix-1]
+						// Update the index ix from the edge-value of the index node in position ix.
+						// 利用边界值更新
+						inode.Index[ix] = inode.IndexNodes[ix+1].DataNodes[0].Items[0].Key
 
 						// Erase the indexed node at position ix.
-						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)
-						inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...)
+						inode.Index = append(inode.Index[:ix-1], inode.Index[ix:]...)                // Remove ix - 1
+						inode.IndexNodes = append(inode.IndexNodes[:ix], inode.IndexNodes[ix+1:]...) // Remove ix
 					} else if ix == 0 {
 						// Erase the indexed node at position ix.
 						inode.Index = inode.Index[1:]
