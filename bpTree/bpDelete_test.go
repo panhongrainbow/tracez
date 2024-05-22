@@ -485,4 +485,84 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, int64(15), basicDeletionBpTree.root.IndexNodes[1].DataNodes[2].Items[0].Key)
 		require.Equal(t, int64(16), basicDeletionBpTree.root.IndexNodes[1].DataNodes[2].Items[1].Key)
 	})
+	// 🧪 This test is mainly used to test the scenario in Chapter 2.3.5.
+	t.Run("Scenario in Chapter 2.3.5", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
+
+		// Deleting the Inner-Edge-Value 14.
+		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 14})
+		require.True(t, deleted)
+
+		// Deleting the new Inner-Edge-Value 16.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 16})
+		require.True(t, deleted)
+
+		// Deleting the new Inner-Edge-Value 18.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 18})
+		require.True(t, deleted)
+
+		// Deleting the new Inner-Edge-Value 20.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 20})
+		require.True(t, deleted)
+
+		// Deleting the new Inner-Edge-Value 21.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 21})
+		require.True(t, deleted)
+
+		// Neither the Outer-Edge-Values nor the Inner-Edge-Values are deleted, so the index will not change.
+
+		// Check the index node of the first level after deleting data.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, []int64{3, 5}, basicDeletionBpTree.root.IndexNodes[0].Index)
+		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
+		require.Equal(t, []int64{15, 17, 19}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Check the contents of the data in the 2nd index node.
+		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
+		require.Equal(t, int64(15), basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items[0].Key)
+		require.Equal(t, int64(17), basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items[0].Key)
+		require.Equal(t, int64(19), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
+
+		// Deleting the Inner-Edge-Value 19.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 19})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 17.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 17})
+		require.True(t, deleted)
+
+		// When this is done, the third index node at the bottom will be trimmed to the edge.
+		// (削边缘部份)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, []int64{3, 5}, basicDeletionBpTree.root.IndexNodes[0].Index)
+		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
+		require.Equal(t, []int64{15}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Check the contents of the data in the 2nd index node.
+		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
+
+		// Delete critical data, key 15, triggering node merging.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 15}) // ⚔️ Delete crucial data and test.
+
+		// 🩻 Check Test Results.
+
+		// Check the index node of the first level after deleting data.
+		require.Equal(t, []int64{7, 12}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, []int64{3, 5}, basicDeletionBpTree.root.IndexNodes[0].Index)
+		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
+		require.Equal(t, []int64{13}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Check the contents of the data in the 2nd index node.
+		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
+
+		// Check the contents of the data in the 2nd index node.
+		require.Equal(t, int64(12), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
+		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items[0].Key)
+	})
 }
