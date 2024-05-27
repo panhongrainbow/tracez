@@ -669,7 +669,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 				// ( [unknown] <-link-> [unknown] )neighbor <-link-> ( [0] <-link-> [1] )origin
 				// neighbor node and origin node result a phenomenon of hollow.
 				// At this point, the index might still be in a invalid state, so I'll just update the index directly.
-				// (在中间状态，origin 失效，但还是先更新索引)
+				// (在中间状态，origin 目前还是失效，但还是先更新索引)
 				inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 			}
 
@@ -684,12 +684,12 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 				if len(inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items) >= 2 && numDataNodeInNeighbor > 0 && numItemClosestDataNode > 0 {
 					// Knowing the number of items in the nearest data node.
 					inode.IndexNodes[ix].DataNodes[0].Items = append(inode.IndexNodes[ix].DataNodes[0].Items, inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items[numItemClosestDataNode-1])
-					inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items = inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items[:(numItemClosestDataNode - 1)] // "Wipe out the last item."
+					inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items = inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items[:(numItemClosestDataNode - 1)] // Wipe out the last item.
 
 					// After borrowing data, the index of the index node at position ix-1 will not change. ‼️
 					// (ix - 1 那的索引节点都不会变 ‼️)
 
-					// The index has already been updated, so this line of code is not executed. (更新索引)
+					// The index here was updated long ago when the previous hollow was formed. (在中空时就更新了)
 					// inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
 					// Update inode's index. (ix 节点边界值)
