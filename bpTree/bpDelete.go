@@ -703,22 +703,19 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 				} else if len(inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items) == 1 && len(inode.IndexNodes[ix-1].DataNodes) >= 3 && numDataNodeInNeighbor > 0 && numItemClosestDataNode > 0 {
 					// Borrow data from the neighbor node first.
 					inode.IndexNodes[ix].DataNodes[0].Items = append(inode.IndexNodes[ix].DataNodes[0].Items, inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items[numItemClosestDataNode-1])
-					// >>> The moved data does not need to be wiped in the original location, because the neighboring data nodes will be removed afterwards.
+					// >>> The moved data does not need to be wiped in the original location, because the neighboring data nodes will be removed afterward.
 					// >>> (不抹除搬移资料，将删除资料节点)
-
-					// The index has already been updated, so this line of code is not executed. (更新索引)
-					inode.IndexNodes[ix].Index = []int64{inode.IndexNodes[ix].DataNodes[1].Items[0].Key}
 
 					// Rebuild the connection; inode.IndexNodes[ix-1].DataNodes[LastOne] will transfer all links.
 					inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-2].Next = inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Next
 					inode.IndexNodes[ix].DataNodes[0].Previous = inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Previous
 
 					// Remove empty node that is inode.IndexNodes[ix-1].DataNodes[LastOne]
-					inode.IndexNodes[ix-1].Index = inode.IndexNodes[ix-1].Index[:(numDataNodeInNeighbor - 2)]
+					inode.IndexNodes[ix-1].Index = inode.IndexNodes[ix-1].Index[:(numDataNodeInNeighbor - 2)]         // Downsized index
 					inode.IndexNodes[ix-1].DataNodes = inode.IndexNodes[ix-1].DataNodes[:(numDataNodeInNeighbor - 1)] // Will not contain numDataNodeInNeighbor-1
 
 					// Update inode's index.
-					inode.Index[(ix)-1] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
+					inode.Index[ix-1] = inode.IndexNodes[ix].DataNodes[0].Items[0].Key
 
 					// Update the status.
 					borrowed = true
