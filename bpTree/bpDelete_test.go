@@ -416,7 +416,7 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
 		require.Equal(t, []int64{15, 17, 19}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		// Deleting the boundary values will change the index significantly.
+		// Deleting the edge values will change the index significantly.
 
 		// Deleting the Inner-Edge-Value 11.
 		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 11})
@@ -448,12 +448,12 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, []int64{9}, basicDeletionBpTree.root.IndexNodes[1].Index)
 		require.Equal(t, []int64{15}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		// Check the number of data in the 2nd index node.
+		// Check the length of data nodes in the 2nd index node.
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[1].DataNodes))
 		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[1].DataNodes[0].Items))
 		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[1].DataNodes[1].Items))
 
-		// Check the number of data in the 3rd index node.
+		// Check the length of data nodes in the 3rd index node.
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
 		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items))
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items))
@@ -526,6 +526,8 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, int64(17), basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items[0].Key)
 		require.Equal(t, int64(19), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
 
+		// Deleting the edge values will change the index significantly.
+
 		// Deleting the Inner-Edge-Value 19.
 		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 19})
 		require.True(t, deleted)
@@ -542,7 +544,7 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
 		require.Equal(t, []int64{15}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		// Check the contents of the data in the 2nd index node.
+		// Check the length of the data nodes in the 2nd index node.
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
 
 		// Delete critical data, key 15, triggering node merging.
@@ -558,10 +560,8 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
 		require.Equal(t, []int64{13}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		// Check the number of data nodes for the 3rd index node.
-		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
-
 		// Check the contents of the data in the 3rd index node.
+		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
 		require.Equal(t, int64(12), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
 		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items[0].Key)
 	})
@@ -596,8 +596,6 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 
 		// Neither the Outer-Edge-Values nor the Inner-Edge-Values are deleted, so the index will not change.
 
-		// Neither the Outer-Edge-Values nor the Inner-Edge-Values are deleted, so the index will not change.
-
 		// Check the index node of the first level after deleting data.
 		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
 
@@ -616,6 +614,8 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, int64(17), basicDeletionBpTree.root.IndexNodes[2].DataNodes[2].Items[0].Key)
 		require.Equal(t, int64(19), basicDeletionBpTree.root.IndexNodes[2].DataNodes[3].Items[0].Key)
 
+		// Deleting the edge values will change the index significantly.
+
 		// Deleting the Inner-Edge-Value 19.
 		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 19})
 		require.True(t, deleted)
@@ -632,7 +632,7 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
 		require.Equal(t, []int64{15}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		// Check the contents of the data in the 2nd index node.
+		// Check the length of the data nodes in the 2nd index node.
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
 
 		// Delete critical data, key 15, triggering node merging.
@@ -648,7 +648,7 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, []int64{9}, basicDeletionBpTree.root.IndexNodes[1].Index)
 		require.Equal(t, []int64{13}, basicDeletionBpTree.root.IndexNodes[2].Index)
 
-		// Check the number of data nodes for the 2nd index node
+		// Check the length of the data nodes in the 2nd index node.
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[1].DataNodes))
 
 		// Check the contents of the data in the 2nd index node.
@@ -659,9 +659,102 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 
 		// Check the contents of the data in the 3rd index node.
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
-
-		// Check the contents of the data in the 3rd index node.
 		require.Equal(t, int64(11), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
 		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items[0].Key)
+	})
+	t.Run("Scenario in Chapter 2.3.7", func(t *testing.T) {
+		// Load a simple B Plus Tree where max degree is 4.
+		basicDeletionBpTree := loadBasicDeletionExample()
+
+		// Deleting the Inner-Edge-Value 8.
+		deleted, _, _, _ := basicDeletionBpTree.RemoveValue(BpItem{Key: 8})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 10.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 10})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 12.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 12})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 14.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 14})
+		require.True(t, deleted)
+
+		// Deleting the new Inner-Edge-Value 16.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 16})
+		require.True(t, deleted)
+
+		// Deleting the new Inner-Edge-Value 18.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 18})
+		require.True(t, deleted)
+
+		// Deleting the new Inner-Edge-Value 20.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 20})
+		require.True(t, deleted)
+
+		// Deleting the new Inner-Edge-Value 21.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 21})
+		require.True(t, deleted)
+
+		// Neither the Outer-Edge-Values nor the Inner-Edge-Values are deleted, so the index will not change.
+		// Check the index node of the first level after deleting data.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, []int64{3, 5}, basicDeletionBpTree.root.IndexNodes[0].Index)
+		require.Equal(t, []int64{9, 11}, basicDeletionBpTree.root.IndexNodes[1].Index)
+		require.Equal(t, []int64{15, 17, 19}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Deleting the edge values will change the index significantly.
+
+		// Deleting the Inner-Edge-Value 11.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 11})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 17.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 17})
+		require.True(t, deleted)
+
+		// Deleting the Inner-Edge-Value 19.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 19})
+		require.True(t, deleted)
+
+		// When this is done, the third index node at the bottom will be trimmed to the edge.
+		// (削边缘部份)
+
+		// Check the index node of the first level after deleting data.
+		require.Equal(t, []int64{7, 13}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, []int64{3, 5}, basicDeletionBpTree.root.IndexNodes[0].Index)
+		require.Equal(t, []int64{9}, basicDeletionBpTree.root.IndexNodes[1].Index)
+		require.Equal(t, []int64{15}, basicDeletionBpTree.root.IndexNodes[2].Index)
+
+		// Check the length of the data nodes in the 2nd index node.
+		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[1].DataNodes))
+
+		// Check the length of the data nodes in the 3rd index node.
+		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
+
+		// Delete critical data, key 15, triggering node merging.
+		deleted, _, _, _ = basicDeletionBpTree.RemoveValue(BpItem{Key: 15}) // ⚔️ Delete crucial data and test.
+
+		// 🩻 Check Test Results.
+
+		// Check the index node of the first level after deleting data.
+		require.Equal(t, []int64{7}, basicDeletionBpTree.root.Index)
+
+		// Check the index node of the second level after deleting data.
+		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes))
+		require.Equal(t, []int64{3, 5}, basicDeletionBpTree.root.IndexNodes[0].Index)
+		require.Equal(t, []int64{9, 13}, basicDeletionBpTree.root.IndexNodes[1].Index)
+
+		// Check the contents of the data in the 2nd index node.
+		require.Equal(t, 3, len(basicDeletionBpTree.root.IndexNodes[1].DataNodes))
+		require.Equal(t, int64(7), basicDeletionBpTree.root.IndexNodes[1].DataNodes[0].Items[0].Key)
+		require.Equal(t, int64(9), basicDeletionBpTree.root.IndexNodes[1].DataNodes[1].Items[0].Key)
+		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[1].DataNodes[2].Items[0].Key)
 	})
 }

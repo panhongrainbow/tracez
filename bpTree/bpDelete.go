@@ -722,7 +722,7 @@ func (inode *BpIndex) borrowFromBottomIndexNode(ix int) (borrowed bool, newIx in
 
 					// If the neighbor node does not have sufficient data and does not have sufficient neighbors, borrowing data will result in being merged. (被合拼)
 				} else if len(inode.IndexNodes[ix-1].DataNodes[numDataNodeInNeighbor-1].Items) == 1 && len(inode.IndexNodes[ix-1].DataNodes) == 2 && numDataNodeInNeighbor > 0 { // 邻点太小，将会被合拼，进入 [状况1-3]
-					// The node at position ix is going to be erased, and before erasing, its connections will be reconstructed. (被抹 ix 索引，重建)
+					// The node at position ix is going to be erased, and before erasing, its connections will be reconstructed. (被抹 ix 索引，重建连结)
 					previousData := inode.IndexNodes[ix].DataNodes[0].Previous
 					nextData := inode.IndexNodes[ix].DataNodes[0].Next
 
