@@ -24,30 +24,6 @@ func (data *BpData) _print() {
 	}
 }
 
-func (inode *BpIndex) BpDataHead() (head *BpData) {
-	current := inode
-	for {
-		if len(current.DataNodes) == 0 {
-			current = current.IndexNodes[0]
-		} else {
-			return current.DataNodes[0]
-		}
-	}
-}
-
-func (inode *BpIndex) BpDataTail() (head *BpData) {
-	current := inode
-	for {
-		if len(current.DataNodes) == 0 {
-			length := len(current.IndexNodes)
-			current = current.IndexNodes[length-1]
-		} else {
-			length := len(current.DataNodes)
-			return current.DataNodes[length-1]
-		}
-	}
-}
-
 func (data *BpData) PrintAscent() {
 	current := data
 	nodeNumber := 0

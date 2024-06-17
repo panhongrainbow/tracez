@@ -303,6 +303,9 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 
 		require.Equal(t, 1, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items))
 		require.Equal(t, int64(14), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
+
+		// 🩻 Test if the underlying data is continuous.
+		require.True(t, CheckBpNodeAndNextContinuity(basicDeletionBpTree.root))
 	})
 	// 🧪  This test is mainly used to test the scenario in Chapter 2.3.3.
 	t.Run("Scenario in Chapter 2.3.3", func(t *testing.T) {
@@ -373,6 +376,9 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items))
 		require.Equal(t, int64(15), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
 		require.Equal(t, int64(16), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[1].Key)
+
+		// 🩻 Test if the underlying data is continuous.
+		require.True(t, CheckBpNodeAndNextContinuity(basicDeletionBpTree.root))
 	})
 	// 🧪 This test is mainly used to test the scenario in Chapter 2.3.4.
 	t.Run("Scenario in Chapter 2.3.4", func(t *testing.T) {
@@ -484,6 +490,9 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[1].DataNodes[1].Items[0].Key)
 		require.Equal(t, int64(15), basicDeletionBpTree.root.IndexNodes[1].DataNodes[2].Items[0].Key)
 		require.Equal(t, int64(16), basicDeletionBpTree.root.IndexNodes[1].DataNodes[2].Items[1].Key)
+
+		// 🩻 Test if the underlying data is continuous.
+		require.True(t, CheckBpNodeAndNextContinuity(basicDeletionBpTree.root))
 	})
 	// 🧪 This test is mainly used to test the scenario in Chapter 2.3.5.
 	t.Run("Scenario in Chapter 2.3.5", func(t *testing.T) {
@@ -564,6 +573,9 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
 		require.Equal(t, int64(12), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
 		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items[0].Key)
+
+		// 🩻 Test if the underlying data is continuous.
+		require.True(t, CheckBpNodeAndNextContinuity(basicDeletionBpTree.root))
 	})
 	// 🧪 This test is mainly used to test the scenario in Chapter 2.3.6.
 	t.Run("Scenario in Chapter 2.3.6", func(t *testing.T) {
@@ -661,6 +673,9 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, 2, len(basicDeletionBpTree.root.IndexNodes[2].DataNodes))
 		require.Equal(t, int64(11), basicDeletionBpTree.root.IndexNodes[2].DataNodes[0].Items[0].Key)
 		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[2].DataNodes[1].Items[0].Key)
+
+		// 🩻 Test if the underlying data is continuous.
+		require.True(t, CheckBpNodeAndNextContinuity(basicDeletionBpTree.root))
 	})
 	t.Run("Scenario in Chapter 2.3.7", func(t *testing.T) {
 		// Load a simple B Plus Tree where max degree is 4.
@@ -756,5 +771,8 @@ func Test_Check_borrowFromBottomIndexNode_Function(t *testing.T) {
 		require.Equal(t, int64(7), basicDeletionBpTree.root.IndexNodes[1].DataNodes[0].Items[0].Key)
 		require.Equal(t, int64(9), basicDeletionBpTree.root.IndexNodes[1].DataNodes[1].Items[0].Key)
 		require.Equal(t, int64(13), basicDeletionBpTree.root.IndexNodes[1].DataNodes[2].Items[0].Key)
+
+		// 🩻 Test if the underlying data is continuous.
+		require.True(t, CheckBpNodeAndNextContinuity(basicDeletionBpTree.root))
 	})
 }
